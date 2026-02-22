@@ -766,6 +766,11 @@ function saveDelFinal(){
   const d=getDelData();
   if(!d.doc){toast('⚠️ הזן מספר תעודה');return}
   if(!rows.length){toast('⚠️ הוסף לפחות פריט אחד');return}
+  const dup=dels.find(x=>x.doc===d.doc&&x.sup===d.sup);
+  if(dup){
+    if(!confirm(`⚠️ תעודה מספר ${d.doc} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
+    dels=dels.filter(x=>x!==dup);
+  }
   dels.push({id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()});
   save(K.D,dels);
   toast(`✅ תעודה ${d.doc} נשמרה — ${rows.length} פריטים`);
@@ -777,6 +782,11 @@ function saveDelContinue(){
   const d=getDelData();
   if(!d.doc){toast('⚠️ הזן מספר תעודה');return}
   if(!rows.length){toast('⚠️ הוסף לפחות פריט אחד');return}
+  const dup=dels.find(x=>x.doc===d.doc&&x.sup===d.sup);
+  if(dup){
+    if(!confirm(`⚠️ תעודה מספר ${d.doc} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
+    dels=dels.filter(x=>x!==dup);
+  }
   dels.push({id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()});
   save(K.D,dels);
   toast(`✅ תעודה ${d.doc} נשמרה. מלא מספר תעודה חדש:`);
@@ -855,6 +865,15 @@ function calcInvTotal(){
   document.getElementById('inv-docs-total').textContent='₪'+total.toFixed(2);
 }
 
+function clearInvoice(){
+  document.getElementById('inv-num').value='';
+  document.getElementById('inv-date').value=today;
+  document.getElementById('inv-total-val').value='';
+  const card=document.getElementById('inv-docs-card');
+  if(card)card.style.display='none';
+  document.getElementById('inv-docs-total').textContent='₪0.00';
+}
+
 function saveInvoice(){
   const num=document.getElementById('inv-num').value.trim();
   const date=document.getElementById('inv-date').value;
@@ -863,6 +882,13 @@ function saveInvoice(){
   const month=+document.getElementById('inv-month').value;
   const year=+document.getElementById('inv-year').value;
   if(!num){toast('⚠️ הזן מספר חשבונית');return}
+  const dup=invs.find(x=>x.num===num&&x.sup===sup);
+  if(dup){
+    if(!confirm(`⚠️ חשבונית מספר ${num} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
+    // נקה invNum מהתעודות הישנות
+    dup.docIds?.forEach(id=>{const d=dels.find(x=>x.id==id);if(d&&d.invNum===num)d.invNum='';});
+    invs=invs.filter(x=>x!==dup);
+  }
   const checked=[...document.querySelectorAll('[id^="cb-"]:checked')].map(cb=>cb.value);
   checked.forEach(id=>{const d=dels.find(x=>x.id==id);if(d)d.invNum=num});
   save(K.D,dels);
@@ -870,6 +896,7 @@ function saveInvoice(){
   save(K.I,invs);
   renderInvList();
   toast(`✅ חשבונית ${num} נשמרה`);
+  clearInvoice();
 }
 
 function renderInvList(){
