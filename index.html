@@ -2280,28 +2280,58 @@ function removeSprayMat(id){
   renderSprayMats();
 }
 
+function parsePackageSize(productName){
+  if(!productName) return {size:1,unit:''};
+  // match patterns like "5 ליטר", "25 קג", "1 ליטר", "10 ק"ג" etc.
+  const m=productName.match(/(\d+(?:\.\d+)?)\s*(ליטר|ק(?:")?ג|קג|kg|l)/i);
+  if(m){
+    const size=parseFloat(m[1]);
+    const rawUnit=m[2].replace(/"/g,'').toLowerCase();
+    const unit=(rawUnit==='ליטר'||rawUnit==='l')?'ליטר':'קג';
+    return {size:size||1, unit};
+  }
+  return {size:1, unit:''};
+}
+
 function getLastPrice(matName){
-  if(!matName) return 0;
+  if(!matName) return {price:0,pricePerUnit:0,unit:'',packageSize:1,productName:''};
   const q=matName.trim().toLowerCase();
-  let best={price:0,date:''};
+  let best={price:0,date:'',productName:''};
   HIST.forEach(d=>{
     (d.items||[]).forEach(it=>{
       if(!it.product||!it.price||it.price<=0) return;
-      if(it.product.trim().toLowerCase()===q){
-        if(!best.date||d.date>=best.date){best={price:it.price,date:d.date};}
+      const pName=it.product.trim();
+      // exact match or contains match
+      if(pName.toLowerCase()===q||pName.toLowerCase().includes(q)||q.includes(pName.toLowerCase().replace(/\s*\d+\s*(ליטר|קג|ק"ג).*/i,'').trim())){
+        if(!best.date||d.date>=best.date){best={price:it.price,date:d.date,productName:pName};}
       }
     });
   });
-  return best.price;
+  const pkg=parsePackageSize(best.productName||matName);
+  const pricePerUnit=best.price>0?best.price/pkg.size:0;
+  return {price:best.price, pricePerUnit, unit:pkg.unit, packageSize:pkg.size, productName:best.productName};
 }
 
 function renderSprayMats(){
   document.getElementById('spr-mats').innerHTML=sprayMats.map((m,i)=>{
-    const autoPrice = m.price!==undefined ? m.price : getLastPrice(m.mat);
-    const priceColor = autoPrice>0 ? 'color:var(--gm)' : 'color:#aaa';
+    const info = m.priceInfo || getLastPrice(m.mat);
+    const pricePerUnit = m.pricePerUnit !== undefined ? m.pricePerUnit : info.pricePerUnit;
+    const unit = info.unit || 'יח׳';
     const numTanks = parseFloat(document.getElementById('spr-num-tanks')?.value||0);
-    const costPerUnit = autoPrice * (m.qty||0);
-    const totalCost = numTanks>0 ? costPerUnit * numTanks : costPerUnit;
+    const qty = m.qty||0;
+    const costPerApp = pricePerUnit * qty;
+    const totalCost = numTanks>0 ? costPerApp * numTanks : costPerApp;
+    const priceColor = pricePerUnit>0 ? 'color:var(--gm)' : 'color:#aaa';
+    
+    let costHtml = '';
+    if(pricePerUnit>0 && qty>0){
+      costHtml = `<div style="font-size:12px;color:var(--gm);margin-top:4px;padding:4px 8px;background:#f0faf0;border-radius:6px">
+        💰 ${qty} ${unit} × ₪${pricePerUnit.toFixed(2)}/${unit} = <strong>₪${Math.round(costPerApp).toLocaleString()}</strong>
+        ${numTanks>1?` × ${numTanks} מיכלים = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}
+        ${info.productName&&info.productName!==m.mat?`<span style="color:#999;font-size:11px"> (מחיר מ: ${info.productName})</span>`:''}
+      </div>`;
+    }
+    
     return `
     <div class="spray-item-row">
       ${sprayMats.length>1?`<button class="spr-del" onclick="removeSprayMat(${m.id})">✕</button>`:''}
@@ -2314,16 +2344,16 @@ function renderSprayMats(){
           <div class="aclist" id="sm-ac-${m.id}"></div>
         </div>
         <div class="fg">
-          <label class="flabel">כמות יחידות</label>
-          <input type="number" class="finput" id="sm-qty-${m.id}" value="${m.qty||''}"
-            min="0" step="0.5" placeholder="0" oninput="smUpdate(${m.id})">
+          <label class="flabel">כמות (${unit||'יח׳'})</label>
+          <input type="number" class="finput" id="sm-qty-${m.id}" value="${qty||''}"
+            min="0" step="0.1" placeholder="0" oninput="smUpdate(${m.id})">
         </div>
       </div>
       <div class="fr fr2">
         <div class="fg">
-          <label class="flabel">מחיר ליחידה (₪) <span style="font-size:10px;color:#999">אוטומטי מרכישות</span></label>
-          <input type="number" class="finput" id="sm-price-${m.id}" value="${autoPrice||''}"
-            min="0" step="0.01" placeholder="0.00" oninput="smUpdate(${m.id})"
+          <label class="flabel">מחיר ל${unit||'יח׳'} (₪) <span style="font-size:10px;color:#999">אוטומטי</span></label>
+          <input type="number" class="finput" id="sm-price-${m.id}" value="${pricePerUnit>0?pricePerUnit.toFixed(2):''}"
+            min="0" step="0.01" placeholder="₪ ל${unit||'יח׳'}" oninput="smUpdate(${m.id})"
             style="${priceColor}">
         </div>
         <div class="fg">
@@ -2332,7 +2362,8 @@ function renderSprayMats(){
             placeholder="ישום פיטם אם יש" oninput="smUpdate(${m.id})">
         </div>
       </div>
-      ${autoPrice>0&&m.qty>0?`<div style="font-size:12px;color:var(--gm);margin-top:4px">💰 עלות: ${costPerUnit.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}₪${numTanks>1?' × '+numTanks+' מיכלים = '+totalCost.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})+'₪':''}${autoPrice?` (₪${autoPrice}/יח׳)`:''}</div>`:''}`
+      ${costHtml}
+    </div>`;
   }).join('');
 }
 
@@ -2341,14 +2372,17 @@ function smAC(inp,mid){
   const m=sprayMats.find(x=>x.id===mid);
   if(m){
     m.mat=val;
-    // try exact match for price
-    const p=getLastPrice(val);
-    if(p>0&&m.price===undefined) m.price=p;
+    m.priceInfo=getLastPrice(val);
+    m.pricePerUnit=m.priceInfo.pricePerUnit;
   }
   const list=document.getElementById('sm-ac-'+mid);
   if(!val){list.classList.remove('open');return}
-  const ms=PRODUCTS.filter(p=>p.includes(val)).slice(0,10);
-  list.innerHTML=ms.map(p=>`<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')">${p}</div>`).join('');
+  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(val.toLowerCase())).slice(0,10);
+  list.innerHTML=ms.map(p=>{
+    const info=getLastPrice(p);
+    const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm);float:left">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
+    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
+  }).join('');
   list.classList.toggle('open',ms.length>0);
 }
 
@@ -2356,9 +2390,8 @@ function selSM(mid,prod){
   const m=sprayMats.find(x=>x.id===mid);
   if(m){
     m.mat=prod;
-    // auto-fill price from history
-    const p=getLastPrice(prod);
-    m.price=p;
+    m.priceInfo=getLastPrice(prod);
+    m.pricePerUnit=m.priceInfo.pricePerUnit;
   }
   document.getElementById('sm-mat-'+mid).value=prod;
   document.getElementById('sm-ac-'+mid).classList.remove('open');
@@ -2371,7 +2404,8 @@ function smUpdate(mid){
   if(!m)return;
   m.mat=document.getElementById('sm-mat-'+mid)?.value||'';
   m.qty=parseFloat(document.getElementById('sm-qty-'+mid)?.value||0);
-  m.price=parseFloat(document.getElementById('sm-price-'+mid)?.value||0);
+  m.pricePerUnit=parseFloat(document.getElementById('sm-price-'+mid)?.value||0);
+  if(!m.priceInfo) m.priceInfo=getLastPrice(m.mat);
   m.phytem=document.getElementById('sm-phy-'+mid)?.value||'';
   renderSprayMats();
 }
@@ -2405,14 +2439,16 @@ function saveSpray(){
   const appId=Date.now();
   validMats.forEach(m=>{
     const totalQty=numTanks>0&&m.qty>0?m.qty*numTanks:m.qty;
-    const unitPrice=m.price||getLastPrice(m.mat)||0;
-    const costPerTank=unitPrice*m.qty;
-    const totalCost=numTanks>0?costPerTank*numTanks:unitPrice*m.qty;
-    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,qty:m.qty,totalQty,unitPrice,totalCost,phytem:m.phytem||'',notes});
+    const info=m.priceInfo||getLastPrice(m.mat);
+    const unitPrice=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
+    const unit=info.unit||'יח׳';
+    const totalCost=unitPrice*(totalQty||m.qty);
+    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',notes});
   });
   save(K.S,sprs);
   const totalSprayCost=validMats.reduce((s,m)=>{
-    const u=m.price||getLastPrice(m.mat)||0;
+    const info=m.priceInfo||getLastPrice(m.mat);
+    const u=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
     const tq=numTanks>0&&m.qty>0?m.qty*numTanks:m.qty;
     return s+u*tq;
   },0);
@@ -2445,7 +2481,7 @@ function renderSprays(){
       <td>${s.totalLiters?s.totalLiters.toLocaleString()+'L':'—'}</td>
       <td>${s.area||'—'}</td>
       <td>${s.qty||'—'}${s.totalQty&&s.totalQty!==s.qty?` (${s.totalQty})`:''}</td>
-      <td>${s.unitPrice?'₪'+s.unitPrice:'—'}</td>
+      <td>${s.unitPrice?`₪${s.unitPrice.toFixed?s.unitPrice.toFixed(2):s.unitPrice}/${s.unit||'יח׳'}`:'—'}</td>
       <td>${s.totalCost?'<strong>₪'+Math.round(s.totalCost).toLocaleString()+'</strong>':'—'}</td>
       <td>${s.speed?s.speed+' קמ"ש':'—'}</td>
       <td>${s.phytem||'—'}</td>
