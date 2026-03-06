@@ -355,7 +355,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
   <div class="btnrow">
     <button class="btn btnP" onclick="saveDelFinal()">💾 שמור וסיים תעודה</button>
-    <button class="btn btnG" id="btn-save-continue" onclick="saveDelContinue()">➕ שמור + התחל תעודה חדשה</button>
+    <button class="btn btnG" onclick="saveDelContinue()">➕ שמור + התחל תעודה חדשה</button>
     <button class="btn btnS" onclick="clearEntry()">🗑 נקה</button>
   </div>
 
@@ -668,7 +668,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="fr fr3">
       <div class="fg"><label class="flabel">מספר מיכלים</label>
-        <input type="number" class="finput" id="spr-num-tanks" min="0" step="0.5" placeholder="0" oninput="calcSprayTotals()">
+        <input type="number" class="finput" id="spr-num-tanks" min="0" step="any" inputmode="decimal" placeholder="0" oninput="calcSprayTotals()">
       </div>
       <div class="fg"><label class="flabel">ליטרים במיכל האחרון (אם חלקי)</label>
         <input type="number" class="finput" id="spr-last-liters" min="0" step="50" placeholder="מלא = ריק" oninput="calcSprayTotals()">
@@ -705,7 +705,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="tblw">
       <table class="dtbl">
-        <thead><tr><th>תאריך</th><th>מרסס</th><th>חומרים (כמות · עלות)</th><th>מיכל</th><th>ליטר סה״כ</th><th>שטח</th><th>עלות כוללת</th><th>מהירות</th><th>הערות</th></tr></thead>
+        <thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>מיכל</th><th>ליטר סה״כ</th><th>שטח</th><th>כמות</th><th>מחיר/יח׳</th><th>עלות</th><th>מהירות</th><th>ישום פיטם</th></tr></thead>
         <tbody id="spr-results"></tbody>
       </table>
     </div>
@@ -730,7 +730,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
   </div>
   <div class="srow">
-    <input class="sinput" id="invent-search" placeholder="חפש חומר..." oninput="renderInventory()">
+    <input class="sinput" id="inv-search" placeholder="חפש חומר..." oninput="renderInventory()">
     <button class="btn btnP" onclick="openAddInv()">+ הוסף</button>
   </div>
   <div class="tblw">
@@ -986,7 +986,6 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const today=new Date().toISOString().split('T')[0];
 const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2'};
 const load = k => { try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]} };
 const save = (k,v) => localStorage.setItem(k,JSON.stringify(v));
@@ -1169,13 +1168,6 @@ function onInvSupChange() {
   } else {
     row.style.display = 'none';
   }
-  // Clear docs list to prevent cross-supplier linking
-  const card = document.getElementById('inv-docs-card');
-  if(card) card.style.display = 'none';
-  const list = document.getElementById('inv-docs-list');
-  if(list) list.innerHTML = '';
-  const tot = document.getElementById('inv-docs-total');
-  if(tot) tot.textContent = '₪0.00';
 }
 
 function addInvCustomSup() {
@@ -1412,8 +1404,6 @@ function editDel(id){
   document.getElementById('edit-mode-banner').innerHTML =
     `✏️ מצב עריכה — תעודה <strong>${d.doc}</strong> (${d.sup}) &nbsp;
      <button class="btn btnS" style="padding:2px 10px;font-size:12px" onclick="cancelEdit()">ביטול עריכה</button>`;
-  const cont = document.getElementById('btn-save-continue');
-  if(cont) cont.style.display = 'none';
   // גלול לראש הטופס
   document.getElementById('tab-entry').scrollIntoView({behavior:'smooth'});
   const entryBtn = document.querySelector('.navbtn[onclick*="entry"]');
@@ -1424,8 +1414,6 @@ function editDel(id){
 function cancelEdit(){
   editingDelId = null;
   document.getElementById('edit-mode-banner').style.display = 'none';
-  const cont = document.getElementById('btn-save-continue');
-  if(cont) cont.style.display = '';
   clearEntry();
 }
 
@@ -1444,8 +1432,6 @@ function saveDelFinal(){
     toast(`✅ תעודה ${d.doc} עודכנה`);
     editingDelId = null;
     document.getElementById('edit-mode-banner').style.display = 'none';
-    const cont = document.getElementById('btn-save-continue');
-    if(cont) cont.style.display = '';
     clearEntry();
     renderDelList();
     return;
@@ -1464,7 +1450,6 @@ function saveDelFinal(){
 }
 
 function saveDelContinue(){
-  if(editingDelId){toast('⚠️ במצב עריכה — לחץ "שמור וסיים תעודה"');return}
   const d=getDelData();
   if(!d.doc){toast('⚠️ הזן מספר תעודה');return}
   if(!rows.length){toast('⚠️ הוסף לפחות פריט אחד');return}
@@ -1596,8 +1581,7 @@ function saveInvoice(){
     invs=invs.filter(x=>x!==dup);
   }
   const checked=[...document.querySelectorAll('[id^="cb-"]:checked')].map(cb=>cb.value);
-  // Bug fix: only link deliveries that belong to the same supplier
-  checked.forEach(id=>{const d=dels.find(x=>x.id==id&&x.sup===sup);if(d)d.invNum=num});
+  checked.forEach(id=>{const d=dels.find(x=>x.id==id);if(d)d.invNum=num});
   save(K.D,dels);
   invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:checked});
   save(K.I,invs);
@@ -2362,14 +2346,14 @@ function renderSprayMats(){
         <div class="fg">
           <label class="flabel">כמות (${unit||'יח׳'})</label>
           <input type="number" class="finput" id="sm-qty-${m.id}" value="${qty||''}"
-            min="0" step="0.01" placeholder="0" oninput="smUpdate(${m.id})">
+            min="0" step="any" inputmode="decimal" placeholder="0" oninput="smUpdate(${m.id})">
         </div>
       </div>
       <div class="fr fr2">
         <div class="fg">
           <label class="flabel">מחיר ל${unit||'יח׳'} (₪) <span style="font-size:10px;color:#999">אוטומטי</span></label>
           <input type="number" class="finput" id="sm-price-${m.id}" value="${pricePerUnit>0?pricePerUnit.toFixed(2):''}"
-            min="0" step="0.01" placeholder="₪ ל${unit||'יח׳'}" oninput="smUpdate(${m.id})"
+            min="0" step="any" inputmode="decimal" placeholder="₪ ל${unit||'יח׳'}" oninput="smUpdate(${m.id})"
             style="${priceColor}">
         </div>
         <div class="fg">
@@ -2483,67 +2467,25 @@ function saveSpray(){
 
 function renderSprays(){
   const q=(document.getElementById('spr-search')?.value||'').toLowerCase();
-
-  // Group by appId — one application = one row
-  const appMap = {};
-  sprs.forEach(s=>{
-    const key = s.appId || s.id;
-    if(!appMap[key]){
-      appMap[key]={
-        date:s.date, op:s.op, tank:s.tank, numTanks:s.numTanks,
-        totalLiters:s.totalLiters, area:s.area, speed:s.speed,
-        notes:s.notes, mats:[], totalCost:0, _key:key
-      };
-    }
-    appMap[key].mats.push({
-      mat:s.mat, qty:s.qty, totalQty:s.totalQty,
-      unitPrice:s.unitPrice, unit:s.unit,
-      totalCost:s.totalCost||0, phytem:s.phytem
-    });
-    appMap[key].totalCost += (s.totalCost||0);
-  });
-
-  let apps = Object.values(appMap).filter(a=>{
-    if(!q) return true;
-    return a.mats.some(m=>m.mat?.toLowerCase().includes(q)) ||
-           (a.area||'').toLowerCase().includes(q) ||
-           (a.op||'').toLowerCase().includes(q) ||
-           (a.date||'').includes(q);
-  });
-  apps = apps.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,80);
-
+  const res=sprs.filter(s=>!q||s.mat.toLowerCase().includes(q)||s.area?.toLowerCase().includes(q)||s.op?.toLowerCase().includes(q));
   const badge=document.getElementById('spr-last-badge');
-  if(q&&apps.length){
-    const last=apps[apps.length-1];
+  if(q&&res.length){
+    const last=res[res.length-1];
     badge.style.display='block';
-    badge.textContent=`ריסוס אחרון: ${last.date||'—'} — ${last.area||'—'} — ${last.mats.map(m=>m.mat).join(', ')}`;
+    badge.textContent=`ריסוס אחרון: ${last.date||'—'} — ${last.area||'—'} — ${last.qty||0} יח'`;
   } else badge.style.display='none';
-
-  document.getElementById('spr-results').innerHTML=apps.map(a=>{
-    const matsHtml = a.mats.map((m,i)=>{
-      const qtyStr = m.totalQty&&m.totalQty!==m.qty ? `${m.qty} (${m.totalQty} סה״כ)` : (m.qty||'—');
-      const costStr = m.totalCost ? `<span style="color:var(--gm);font-weight:600"> = ₪${Math.round(m.totalCost).toLocaleString()}</span>` : '';
-      const border = i<a.mats.length-1 ? 'border-bottom:1px dashed #ddd;margin-bottom:3px;padding-bottom:3px' : '';
-      return `<div style="${border}">
-        <strong>${m.mat}</strong>
-        <span style="color:#777;font-size:11px"> · ${qtyStr}${m.unit?' '+m.unit:''}</span>
-        ${m.unitPrice?`<span style="color:#aaa;font-size:10px"> · ₪${(m.unitPrice.toFixed?m.unitPrice.toFixed(2):m.unitPrice)}/${m.unit||'יח׳'}</span>`:''}${costStr}
-        ${m.phytem?`<span style="color:#888;font-size:10px"> | פיטם: ${m.phytem}</span>`:''}
-      </div>`;
-    }).join('');
-
-    return `<tr>
-      <td>${a.date||'—'}</td>
-      <td>${a.op||'—'}</td>
-      <td style="min-width:150px">${matsHtml}</td>
-      <td>${a.tank||''}L${a.numTanks?` × ${a.numTanks}`:''}</td>
-      <td>${a.totalLiters?a.totalLiters.toLocaleString()+'L':'—'}</td>
-      <td>${a.area||'—'}</td>
-      <td>${a.totalCost?`<strong style="color:var(--gm)">₪${Math.round(a.totalCost).toLocaleString()}</strong>`:'—'}</td>
-      <td>${a.speed?a.speed+' קמ"ש':'—'}</td>
-      <td>${a.notes||'—'}</td>
-    </tr>`;
-  }).join('')||'<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--grayM)">אין ריסוסים</td></tr>';
+  document.getElementById('spr-results').innerHTML=res.slice().reverse().slice(0,80).map(s=>`
+    <tr>
+      <td>${s.date||'—'}</td><td>${s.op||'—'}</td><td><strong>${s.mat}</strong></td>
+      <td>${s.tank}L${s.numTanks?` × ${s.numTanks}`:''}</td>
+      <td>${s.totalLiters?s.totalLiters.toLocaleString()+'L':'—'}</td>
+      <td>${s.area||'—'}</td>
+      <td>${s.qty||'—'}${s.totalQty&&s.totalQty!==s.qty?` (${s.totalQty})`:''}</td>
+      <td>${s.unitPrice?`₪${s.unitPrice.toFixed?s.unitPrice.toFixed(2):s.unitPrice}/${s.unit||'יח׳'}`:'—'}</td>
+      <td>${s.totalCost?'<strong>₪'+Math.round(s.totalCost).toLocaleString()+'</strong>':'—'}</td>
+      <td>${s.speed?s.speed+' קמ"ש':'—'}</td>
+      <td>${s.phytem||'—'}</td>
+    </tr>`).join('')||'<tr><td colspan="11" style="text-align:center;padding:16px;color:var(--grayM)">אין ריסוסים</td></tr>';
 }
 
 function renderSpraySummary(){
@@ -2563,7 +2505,7 @@ function renderSpraySummary(){
 
 // ═══ INVENTORY ═══
 function renderInventory(){
-  const q=(document.getElementById('invent-search')?.value||'').toLowerCase();
+  const q=(document.getElementById('inv-search')?.value||'').toLowerCase();
   document.getElementById('inv-body').innerHTML=invent.filter(i=>!q||i.name.toLowerCase().includes(q)).map(item=>{
     const bought=(item.purchased||0)+dels.reduce((s,d)=>s+d.items.filter(i=>i.product===item.name).reduce((ss,i)=>ss+(i.qty||0),0),0);
     const used=sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
@@ -3966,6 +3908,7 @@ document.addEventListener('click',e=>{
     document.querySelectorAll('.aclist').forEach(l=>l.classList.remove('open'));
 });
 
+const today=new Date().toISOString().split('T')[0];
 document.getElementById('e-date').value=today;
 document.getElementById('spr-date').value=today;
 document.getElementById('inv-date').value=today;
