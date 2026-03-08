@@ -1507,6 +1507,15 @@ function saveDelFinal(){
     document.getElementById('edit-mode-banner').style.display = 'none';
     clearEntry();
     renderDelList();
+    // אם הגענו מבדיקת נתונים — חזור ורענן
+    if (window._returnToQuality) {
+      window._returnToQuality = false;
+      setTimeout(() => {
+        const qBtn = document.querySelector('.navbtn[onclick*="quality"]');
+        if (qBtn) showTab(qBtn, 'quality');
+        runQualityChecks();
+      }, 200);
+    }
     return;
   }
 
@@ -4112,6 +4121,7 @@ function runQualityChecks() {
           qualityIssues.push({
             sev: 'error', type: 'dup',
             sup: d.sup, date: d.date, doc: d.doc,
+            delId: d.id,
             label: 'תעודה כפולה',
             detail: `תעודה ${d.doc} מופיעה ${group.length} פעמים אצל ${d.sup}`,
             action: 'בדוק ומחק כפל'
@@ -4129,7 +4139,7 @@ function runQualityChecks() {
         if (!it.product || !it.price || isNaN(it.price) || it.price <= 0) return;
         const key = `${d.sup}||${it.product}`;
         if (!priceMap[key]) priceMap[key] = [];
-        priceMap[key].push({ price: it.price, date: d.date, doc: d.doc, sup: d.sup });
+        priceMap[key].push({ price: it.price, date: d.date, doc: d.doc, sup: d.sup, delId: d.id });
       });
     });
     Object.entries(priceMap).forEach(([key, entries]) => {
@@ -4145,6 +4155,7 @@ function runQualityChecks() {
           qualityIssues.push({
             sev: 'warn', type: 'price',
             sup, date: e.date, doc: e.doc,
+            delId: e.delId,
             label: 'מחיר חריג',
             detail: `${prod}: ₪${e.price.toFixed(2)} (ממוצע ₪${mean.toFixed(2)}, σ=${std.toFixed(2)}, z=${z.toFixed(1)})`,
             action: 'בדוק מחיר ידנית'
@@ -4203,6 +4214,7 @@ function runQualityChecks() {
           qualityIssues.push({
             sev: 'warn', type: 'noinv',
             sup: d.sup, date: d.date, doc: d.doc,
+            delId: d.id,
             label: 'ללא חשבונית',
             detail: `תעודה ${d.doc} (₪${tot.toFixed(0)}) לא משויכת לחשבונית`,
             action: 'שייך לחשבונית'
@@ -4222,6 +4234,7 @@ function runQualityChecks() {
           qualityIssues.push({
             sev: 'error', type: 'nan',
             sup: d.sup, date: d.date, doc: d.doc,
+            delId: d.id,
             label: 'ערך NaN',
             detail: `${it.product}: מחיר=${it.price}, כמות=${it.qty}, סה"כ=${it.total}`,
             action: 'הזן ערך חסר'
@@ -4230,6 +4243,7 @@ function runQualityChecks() {
           qualityIssues.push({
             sev: 'warn', type: 'zero',
             sup: d.sup, date: d.date, doc: d.doc,
+            delId: d.id,
             label: 'מחיר אפס',
             detail: `${it.product}: כמות ${it.qty}, מחיר ₪0`,
             action: 'בדוק מחיר'
@@ -4250,6 +4264,7 @@ function runQualityChecks() {
         qualityIssues.push({
           sev: 'warn', type: 'invmatch',
           sup: inv.sup, date: inv.date||'', doc: `חשבונית ${inv.num}`,
+          invId: inv.id,
           label: 'פער חשבונית',
           detail: `חשבונית ${inv.num}: ₪${inv.total.toFixed(0)} אך תעודות מקושרות: ₪${sumDels.toFixed(0)} (פער ₪${diff.toFixed(0)})`,
           action: 'בדוק שיוך תעודות'
@@ -4267,6 +4282,7 @@ function runQualityChecks() {
         qualityIssues.push({
           sev: 'info', type: 'dup',
           sup: d.sup, date: d.date, doc: d.doc,
+          delId: d.id,
           label: 'כפול עם היסטוריה',
           detail: `תעודה ${d.doc} קיימת גם בנתוני הבסיס וגם כהזנה חדשה`,
           action: 'אחד או מחק'
@@ -4330,18 +4346,73 @@ function renderQuality() {
   const sevIcon = {error:'🔴', warn:'🟡', info:'🔵'};
   const sevBg = {error:'#fff5f5', warn:'#fffde7', info:'#f0f7ff'};
 
-  document.getElementById('q-tbody').innerHTML = filtered.map(x => `
-    <tr style="background:${sevBg[x.sev]||'#fff'}">
+  document.getElementById('q-tbody').innerHTML = filtered.map((x, i) => {
+    // כפתורי פעולה לפי סוג
+    let actionBtns = '';
+    if (x.delId) {
+      actionBtns += `<button class="btn btnS" style="padding:3px 8px;font-size:11px;margin-bottom:3px;width:100%"
+        onclick="fixFromQuality('edit-del', ${x.delId})">✏️ ערוך תעודה</button>`;
+      if (x.type === 'dup') {
+        actionBtns += `<button class="btn" style="padding:3px 8px;font-size:11px;background:#c62828;color:#fff;border:none;border-radius:5px;cursor:pointer;width:100%"
+          onclick="fixFromQuality('delete-del', ${x.delId})">🗑 מחק תעודה</button>`;
+      }
+    }
+    if (x.invId) {
+      actionBtns += `<button class="btn btnS" style="padding:3px 8px;font-size:11px;width:100%"
+        onclick="fixFromQuality('edit-inv', ${x.invId})">✏️ ערוך חשבונית</button>`;
+    }
+    if (!actionBtns) {
+      actionBtns = `<span style="font-size:11px;color:#aaa">${x.action}</span>`;
+    }
+
+    return `<tr style="background:${sevBg[x.sev]||'#fff'}">
       <td style="text-align:center;font-size:16px">${sevIcon[x.sev]||'⚪'}</td>
       <td><span class="bdg" style="background:#546e7a;color:#fff;font-size:11px">${x.label}</span></td>
       <td><span class="bdg ${x.sup==='עמיר'?'bdg-b':x.sup==='דשנים ICL'?'bdg-o':'bdg-r'}">${x.sup}</span></td>
       <td style="font-size:12px">${x.date||'—'}</td>
       <td style="font-size:12px;font-weight:600">${x.doc||'—'}</td>
       <td style="font-size:12px">${x.detail}</td>
-      <td style="font-size:11px;color:#546e7a">${x.action}</td>
-    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;padding:30px;color:#aaa">אין ממצאים לסינון זה ✅</td></tr>';
+      <td style="font-size:11px">${actionBtns}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:30px;color:#aaa">אין ממצאים לסינון זה ✅</td></tr>';
 
   document.getElementById('q-results').style.display = '';
+}
+
+function fixFromQuality(action, id) {
+  if (action === 'edit-del') {
+    const d = dels.find(x => x.id === id);
+    if (!d) { toast('⚠️ תעודה לא נמצאה'); return; }
+    window._returnToQuality = true; // flag — אחרי שמירה חזור לבדיקה
+    const entryBtn = document.querySelector('.navbtn[onclick*="entry"]');
+    if (entryBtn) showTab(entryBtn, 'entry');
+    editDel(id);
+    toast(`✏️ עורך תעודה ${d.doc} — אחרי שמירה תחזור לבדיקת נתונים`);
+  } else if (action === 'delete-del') {
+    const d = dels.find(x => x.id === id);
+    if (!d) { toast('⚠️ תעודה לא נמצאה'); return; }
+    if (!confirm(`למחוק תעודה ${d.doc} (${d.sup}, ${d.date})?\n\nפעולה זו אינה הפיכה.`)) return;
+    if (d.invNum) {
+      const inv = invs.find(x => x.num === d.invNum && x.sup === d.sup);
+      if (inv) inv.docIds = (inv.docIds||[]).filter(x => x !== id);
+      save(K.I, invs);
+    }
+    dels = dels.filter(x => x.id !== id);
+    save(K.D, dels);
+    renderDelList();
+    toast(`🗑 תעודה ${d.doc} נמחקה`);
+    // הרץ בדיקה מחדש
+    setTimeout(() => runQualityChecks(), 200);
+  } else if (action === 'edit-inv') {
+    const inv = invs.find(x => x.id === id);
+    if (!inv) { toast('⚠️ חשבונית לא נמצאה'); return; }
+    const invBtn = document.querySelector('.navbtn[onclick*="invoice"]');
+    if (invBtn) showTab(invBtn, 'invoice');
+    toast(`✏️ עבר לטאב חשבוניות — חפש חשבונית ${inv.num}`);
+    // סנן לפי מספר החשבונית
+    const searchEl = document.getElementById('inv-search');
+    if (searchEl) { searchEl.value = inv.num; renderInvList(); }
+  }
 }
 
 function exportQualityExcel() {
