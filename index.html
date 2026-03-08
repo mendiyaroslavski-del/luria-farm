@@ -2582,22 +2582,25 @@ function renderSprays(){
   } else badge.style.display='none';
   document.getElementById('spr-results').innerHTML=groupList.map(g=>{
     const totalCost=g.mats.reduce((s,m)=>s+(m.totalCost||0),0);
+    const missingPrice=g.mats.some(m=>!m.unitPrice||!m.totalCost);
     const matsHtml=g.mats.map(m=>{
       const qtyStr=m.qty?(m.totalQty&&m.totalQty!==m.qty?`${m.qty} (${m.totalQty})`:`${m.qty}`):'';
       const priceStr=m.unitPrice?` — ₪${m.unitPrice.toFixed?m.unitPrice.toFixed(2):m.unitPrice}/${m.unit||'יח׳'}`:'';
       const costStr=m.totalCost?` = <span style="color:#388e3c;font-weight:600">₪${Math.round(m.totalCost).toLocaleString()}</span>`:'';
       const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}]</span>`:'';
-      return `<div style="padding:1px 0"><strong>${m.mat}</strong>${qtyStr?' — '+qtyStr:''}${priceStr}${costStr}${phyStr}</div>`;
+      const noPriceTag=(!m.unitPrice&&m.mat)?`<span style="color:#e65100;font-size:11px"> ⚠️ חסר מחיר</span>`:'';
+      return `<div style="padding:1px 0"><strong>${m.mat}</strong>${qtyStr?' — '+qtyStr:''}${priceStr}${costStr}${phyStr}${noPriceTag}</div>`;
     }).join('');
     const phytems=[...new Set(g.mats.map(m=>m.phytem).filter(Boolean))].join(', ');
+    const updateBtn=missingPrice?`<button onclick="updateSprayPrices(${g.appId})" style="background:#e65100;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;padding:3px 7px;margin-top:3px;display:block" title="מלא מחירים לפי הרכישה האחרונה">💰 עדכן מחיר</button>`:'';
     return `<tr>
       <td>${g.date||'—'}</td>
       <td>${g.op||'—'}</td>
-      <td style="min-width:220px;font-size:13px">${matsHtml}</td>
+      <td style="min-width:220px;font-size:13px">${matsHtml}${updateBtn}</td>
       <td>${g.tank?g.tank+'L':'—'}${g.numTanks?` × ${g.numTanks}`:''}</td>
       <td>${g.totalLiters?g.totalLiters.toLocaleString()+'L':'—'}</td>
       <td>${g.area||'—'}</td>
-      <td>${totalCost?'<strong style="color:#2e7d32">₪'+Math.round(totalCost).toLocaleString()+'</strong>':'—'}</td>
+      <td>${totalCost?'<strong style="color:#2e7d32">₪'+Math.round(totalCost).toLocaleString()+'</strong>':'<span style="color:#aaa">—</span>'}</td>
       <td>${g.speed?g.speed+' קמ"ש':'—'}</td>
       <td>${phytems||'—'}</td>
       <td><button onclick="deleteApp(${g.appId})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 6px" title="מחק ישום">🗑</button></td>
@@ -2611,6 +2614,31 @@ function deleteApp(appId){
   save(K.S,sprs);
   renderSprays();renderSpraySummary();
   toast('🗑 ישום נמחק');
+}
+
+function updateSprayPrices(appId){
+  const group=sprs.filter(s=>(s.appId||s.id)===appId);
+  if(!group.length){toast('⚠️ ישום לא נמצא');return;}
+  let updated=0, missing=[];
+  group.forEach(s=>{
+    if(s.unitPrice&&s.totalCost) return; // כבר יש מחיר — לא נדרס
+    const info=getLastPrice(s.mat);
+    if(info.pricePerUnit>0){
+      s.unitPrice=info.pricePerUnit;
+      s.unit=info.unit||s.unit||'יח׳';
+      const numTanks=s.numTanks||1;
+      const costPerApp=info.pricePerUnit*(s.qty||0);
+      s.totalCost=numTanks>1?costPerApp*numTanks:costPerApp;
+      updated++;
+    } else {
+      missing.push(s.mat);
+    }
+  });
+  save(K.S,sprs);
+  renderSprays();
+  renderSpraySummary();
+  if(updated>0) toast(`✅ עודכנו ${updated} חומרים לפי מחיר אחרון`);
+  if(missing.length) toast(`⚠️ לא נמצא מחיר עבור: ${missing.join(', ')}`);
 }
 
 function renderSpraySummary(){
