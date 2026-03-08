@@ -2620,15 +2620,22 @@ function updateSprayPrices(appId){
   const group=sprs.filter(s=>(s.appId||s.id)===appId);
   if(!group.length){toast('⚠️ ישום לא נמצא');return;}
   let updated=0, missing=[];
+  const numTanks=group[0]?.numTanks||1;
   group.forEach(s=>{
     if(s.unitPrice&&s.totalCost) return; // כבר יש מחיר — לא נדרס
     const info=getLastPrice(s.mat);
     if(info.pricePerUnit>0){
       s.unitPrice=info.pricePerUnit;
       s.unit=info.unit||s.unit||'יח׳';
-      const numTanks=s.numTanks||1;
-      const costPerApp=info.pricePerUnit*(s.qty||0);
-      s.totalCost=numTanks>1?costPerApp*numTanks:costPerApp;
+      // אם הכמות חסרה — שאל את המשתמש
+      let qty=s.totalQty||s.qty||0;
+      if(!qty){
+        const input=prompt(`כמות ${s.mat} בישום זה (${info.unit||'יח׳'})?`,'');
+        qty=parseFloat(input)||0;
+        if(qty>0){s.qty=qty;s.totalQty=numTanks>1?qty*numTanks:qty;}
+      }
+      const totalQty=numTanks>1?(s.totalQty||qty*numTanks):qty;
+      s.totalCost=info.pricePerUnit*totalQty;
       updated++;
     } else {
       missing.push(s.mat);
