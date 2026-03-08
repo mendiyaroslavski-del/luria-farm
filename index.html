@@ -481,6 +481,39 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </div>
     </div>
     <button class="btn btnS" style="width:100%;margin-bottom:6px" onclick="loadDocsForInvoice()">📋 טען תעודות לחודש זה</button>
+
+    <!-- טוגל: חשבונית ישירה -->
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button id="itype-normal" onclick="setInvType('normal')"
+        style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:2px solid #2e7d32;background:#e8f5e9;color:#1b5e20;font-weight:700;transition:all .2s">
+        📋 חשבונית עם תעודות
+      </button>
+      <button id="itype-direct" onclick="setInvType('direct')"
+        style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:2px solid #ccc;background:#fafafa;color:#999;font-weight:500;transition:all .2s">
+        ⚡ חשבונית ישירה
+      </button>
+    </div>
+  </div>
+
+  <!-- פריטים לחשבונית ישירה -->
+  <div class="card" id="inv-direct-card" style="display:none">
+    <div class="ctitle">📝 פריטים ישירים</div>
+    <p style="font-size:12px;color:var(--grayM);margin-bottom:9px">הזן פריטים ישירות על החשבונית (ללא תעודות משלוח):</p>
+    <div class="tblw">
+      <table class="itbl">
+        <thead><tr>
+          <th>תיאור</th>
+          <th style="min-width:90px">סכום כולל מע"מ</th>
+          <th style="width:32px"></th>
+        </tr></thead>
+        <tbody id="inv-direct-items"></tbody>
+      </table>
+    </div>
+    <button class="btnadd" onclick="addDirectItem()">➕ הוסף פריט</button>
+    <div class="totalrow">
+      <span>סה"כ:</span>
+      <span class="totalamt" id="inv-direct-total">₪0.00</span>
+    </div>
   </div>
 
   <div class="card" id="inv-docs-card" style="display:none">
@@ -1651,6 +1684,77 @@ function clearInvoice(){
   const card=document.getElementById('inv-docs-card');
   if(card)card.style.display='none';
   document.getElementById('inv-docs-total').textContent='₪0.00';
+  setInvType('normal');
+  directItems=[];
+  renderDirectItems();
+}
+
+// ── חשבונית ישירה ──────────────────────────────────────
+let currentInvType = 'normal';
+let directItems = [];
+
+function setInvType(type) {
+  currentInvType = type;
+  const btnN = document.getElementById('itype-normal');
+  const btnD = document.getElementById('itype-direct');
+  const docsCard = document.getElementById('inv-docs-card');
+  const directCard = document.getElementById('inv-direct-card');
+  const loadBtn = document.querySelector('[onclick="loadDocsForInvoice()"]');
+  if (type === 'direct') {
+    btnN.style.cssText = 'flex:1;padding:8px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:2px solid #ccc;background:#fafafa;color:#999;font-weight:500;transition:all .2s';
+    btnD.style.cssText = 'flex:1;padding:8px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:2px solid #1565c0;background:#e3f2fd;color:#1565c0;font-weight:700;transition:all .2s';
+    if(docsCard) docsCard.style.display='none';
+    if(directCard) directCard.style.display='';
+    if(loadBtn) loadBtn.style.display='none';
+  } else {
+    btnN.style.cssText = 'flex:1;padding:8px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:2px solid #2e7d32;background:#e8f5e9;color:#1b5e20;font-weight:700;transition:all .2s';
+    btnD.style.cssText = 'flex:1;padding:8px;border-radius:8px;font-size:13px;font-family:inherit;cursor:pointer;border:2px solid #ccc;background:#fafafa;color:#999;font-weight:500;transition:all .2s';
+    if(directCard) directCard.style.display='none';
+    if(loadBtn) loadBtn.style.display='';
+  }
+}
+
+function addDirectItem() {
+  directItems.push({id: Date.now()+Math.random(), desc:'', amount:0});
+  renderDirectItems();
+  // focus on new row
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('[id^="di-desc-"]');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  },50);
+}
+
+function removeDirectItem(id) {
+  directItems = directItems.filter(x=>x.id!==id);
+  renderDirectItems();
+}
+
+function diUpdate(id) {
+  const desc = document.getElementById('di-desc-'+id)?.value||'';
+  const amount = parseFloat(document.getElementById('di-amt-'+id)?.value||0);
+  const item = directItems.find(x=>x.id===id);
+  if(item){item.desc=desc;item.amount=amount;}
+  calcDirectTotal();
+}
+
+function calcDirectTotal() {
+  const total = directItems.reduce((s,x)=>s+(x.amount||0),0);
+  document.getElementById('inv-direct-total').textContent = '₪'+total.toFixed(2);
+  // מלא גם שדה סה"כ חשבונית אוטומטית
+  const totalField = document.getElementById('inv-total-val');
+  if(totalField && !totalField.dataset.manual) totalField.value = total.toFixed(2);
+}
+
+function renderDirectItems() {
+  document.getElementById('inv-direct-items').innerHTML = directItems.map(item => `
+    <tr>
+      <td><input type="text" class="finput" id="di-desc-${item.id}" value="${item.desc}"
+        placeholder="תיאור הפריט (שירות, הובלה...)" oninput="diUpdate(${item.id})" style="width:100%"></td>
+      <td><input type="number" class="finput" id="di-amt-${item.id}" value="${item.amount||''}"
+        placeholder="0.00" min="0" step="0.01" oninput="diUpdate(${item.id})" style="width:100%"></td>
+      <td><button onclick="removeDirectItem(${item.id})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px">✕</button></td>
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:#aaa;padding:12px;font-size:13px">לחץ "הוסף פריט" להתחיל</td></tr>';
+  calcDirectTotal();
 }
 
 function saveInvoice(){
@@ -1665,10 +1769,22 @@ function saveInvoice(){
   const dup=invs.find(x=>x.num===num&&x.sup===sup);
   if(dup){
     if(!confirm(`⚠️ חשבונית מספר ${num} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
-    // נקה invNum מהתעודות הישנות
     dup.docIds?.forEach(id=>{const d=dels.find(x=>x.id==id);if(d&&d.invNum===num)d.invNum='';});
     invs=invs.filter(x=>x!==dup);
   }
+
+  if(currentInvType === 'direct') {
+    // חשבונית ישירה — ללא תעודות
+    const items = directItems.filter(x=>x.desc||x.amount>0);
+    if(!items.length){toast('⚠️ הוסף לפחות פריט אחד');return}
+    invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:[],directItems:items,direct:true});
+    save(K.I,invs);
+    renderInvList();
+    toast(`✅ חשבונית ישירה ${num} נשמרה`);
+    clearInvoice();
+    return;
+  }
+
   const checked=[...document.querySelectorAll('[id^="cb-"]:checked')].map(cb=>cb.value);
   checked.forEach(id=>{const d=dels.find(x=>x.id==id);if(d)d.invNum=num});
   save(K.D,dels);
@@ -1757,7 +1873,10 @@ function renderInvListWith(list){
     return `<tr style="${i.paid?'opacity:0.7':''}">
       <td>${i.date||'—'}</td><td><strong>${i.num}</strong></td><td>${i.sup}</td>
       <td>${HM[i.month]} ${i.year}</td><td>₪${i.total?.toFixed(2)||'—'}</td>
-      <td><span class="bdg bdg-g">${i.docIds?.length||0} תעודות</span></td>
+      <td>${i.direct
+        ? `<span class="bdg" style="background:#1565c0;color:#fff">⚡ ישירה${i.directItems?.length?' — '+i.directItems.length+' פריטים':''}</span>`
+        : `<span class="bdg bdg-g">${i.docIds?.length||0} תעודות</span>`
+      }</td>
       <td>${statusBadge}</td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
         <button onclick="openLinkDocs(${i.id})" style="background:#1565c0;color:#fff;border:none;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit">🔗 שייך</button>
@@ -3009,19 +3128,20 @@ function buildWorkbook() {
   if(invs.length){
     const HMlbl = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
     const aoa = [
-      ['📄  ניהול חשבוניות — אתרוגי לוריא',null,null,null,null,null,null,null],
-      ['תאריך','מספר חשבונית','ספק','חודש','שנה','סה"כ כולל מע"מ','תעודות משלוח משויכות','תאריך פירעון (שוטף+90)']
+      ['📄  ניהול חשבוניות — אתרוגי לוריא',null,null,null,null,null,null,null,null,null],
+      ['תאריך','מספר חשבונית','ספק','חודש','שנה','סה"כ כולל מע"מ','תעודות משלוח משויכות','תאריך פירעון (שוטף+90)','שולם (כן/לא)','תאריך תשלום']
     ];
     invs.forEach(i => {
       const payDate = i.date ? (() => {
         try { const d = new Date(i.date); d.setDate(d.getDate()+90); return d.toISOString().split('T')[0]; } catch { return ''; }
       })() : '';
       aoa.push([i.date||'', i.num||'', i.sup||'', HMlbl[i.month]||'', i.year||'',
-        i.total ? +i.total.toFixed(2) : 0, (i.docIds||[]).length, payDate]);
+        i.total ? +i.total.toFixed(2) : 0, (i.docIds||[]).length, payDate,
+        i.paid ? 'כן' : 'לא', i.paidDate||'']);
     });
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [12,14,12,10,8,14,22,18].map(w=>({wch:w}));
-    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
+    ws['!cols'] = [12,14,12,10,8,14,22,18,12,14].map(w=>({wch:w}));
+    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:9}}];
     XLSX.utils.book_append_sheet(wb, ws, '📄 חשבוניות');
   }
 
@@ -3271,18 +3391,37 @@ function importAll(input){
           if(data.length < 3) return;
           const hdr = data[1].map(h=>String(h||'').trim());
           const HMrev = {'ינואר':1,'פברואר':2,'מרץ':3,'אפריל':4,'מאי':5,'יוני':6,'יולי':7,'אוגוסט':8,'ספטמבר':9,'אוקטובר':10,'נובמבר':11,'דצמבר':12};
+          const iPaid = hdr.findIndex(h=>h.includes('שולם'));
+          const iPaidDate = hdr.findIndex(h=>h.includes('תאריך תשלום'));
+          const iSup = hdr.findIndex(h=>h.includes('ספק'));
+          const iNum = hdr.findIndex(h=>h.includes('מספר'));
+          const iDate = hdr.findIndex(h=>h.includes('תאריך') && !h.includes('תשלום') && !h.includes('פירעון'));
+          const iMonth = hdr.findIndex(h=>h.includes('חודש'));
+          const iYear = hdr.findIndex(h=>h==='שנה');
+          const iTotal = hdr.findIndex(h=>h.includes('סה'));
           for(let i=2; i<data.length; i++){
             const row=data[i]; if(!row||row.every(c=>!c)) continue;
-            const num = String(row[hdr.findIndex(h=>h.includes('מספר'))]||'').trim();
-            if(!num||invs.find(x=>x.num===num)) continue;
-            const monthRaw = row[hdr.findIndex(h=>h.includes('חודש'))];
+            const num = String(row[iNum>=0?iNum:hdr.findIndex(h=>h.includes('מספר'))]||'').trim();
+            if(!num) continue;
+            const sup = String(row[iSup>=0?iSup:1]||'').trim();
+            const paidVal = iPaid>=0 ? String(row[iPaid]||'') : '';
+            const paid = paidVal === 'כן' || paidVal === 'true' || paidVal === '1';
+            const paidDate = iPaidDate>=0 ? String(row[iPaidDate]||'') : '';
+            const existing = invs.find(x=>x.num===num&&x.sup===sup);
+            if(existing){
+              // עדכן רק שדות שיכולים להשתנות — שמור docIds ו-paid
+              if(paid && !existing.paid){ existing.paid=paid; existing.paidDate=paidDate; }
+              continue;
+            }
+            const monthRaw = row[iMonth>=0?iMonth:3];
             const month = HMrev[String(monthRaw||'')] || parseInt(monthRaw)||1;
             invs.push({id:Date.now()+i,num,
-              date:String(row[hdr.findIndex(h=>h.includes('תאריך'))]||''),
-              sup:String(row[hdr.findIndex(h=>h.includes('ספק'))]||''),
-              month, year:+row[hdr.findIndex(h=>h==='שנה')]||2025,
-              total:parseFloat(row[hdr.findIndex(h=>h.includes('סה'))]||0),
-              docIds:[]
+              date:String(row[iDate>=0?iDate:0]||''),
+              sup,
+              month, year:+row[iYear>=0?iYear:4]||2025,
+              total:parseFloat(row[iTotal>=0?iTotal:5]||0),
+              docIds:[],
+              paid, paidDate
             });
             addedInvs++;
           }
@@ -3330,13 +3469,13 @@ function importAll(input){
       });
 
       // ── שחזור קישורים בין חשבוניות לתעודות (docIds) ──
-      // בייצוא, כל תעודה שמורה עם invNum — כאן מחזירים את הקישור לחשבונית
       invs.forEach(inv => {
-        const linked = dels.filter(d => d.invNum && d.invNum === inv.num);
+        // מחפש תעודות לפי invNum ואותו ספק
+        const linked = dels.filter(d => d.invNum && d.invNum === inv.num &&
+          (d.sup === inv.sup || !inv.sup));
         if(linked.length > 0){
-          // מיזוג: לא לאבד docIds שכבר קיימים
-          const existingIds = new Set(inv.docIds||[]);
-          linked.forEach(d => existingIds.add(d.id));
+          const existingIds = new Set((inv.docIds||[]).map(String));
+          linked.forEach(d => existingIds.add(String(d.id)));
           inv.docIds = [...existingIds];
         }
       });
