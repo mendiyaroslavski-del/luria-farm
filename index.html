@@ -1056,7 +1056,7 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2'};
 const load = k => { try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]} };
 const save = (k,v) => localStorage.setItem(k,JSON.stringify(v));
 
@@ -1448,9 +1448,9 @@ function getDelData(){
 let editingDelId = null; // null = מצב הזנה חדשה, id = מצב עריכה
 
 function editDel(id){
-  const d = dels.find(x=>x.id===id);
+  const d = dels.find(x=>String(x.id)===String(id));
   if(!d) return;
-  editingDelId = id;
+  editingDelId = d.id; // שמור את ה-ID המקורי
   // מלא פרטי תעודה
   document.getElementById('e-sup').value = d.sup;
   document.getElementById('e-date').value = d.date||'';
@@ -1596,7 +1596,7 @@ function renderDelList(){
       <td>${d.items.length}</td>
       <td style="${isReturn?'color:#c62828;font-weight:700':''}">₪${total.toFixed(0)}</td>
       <td>${d.invNum?`<span class="bdg bdg-g">${d.invNum}</span>`:'—'}</td>
-      <td><button class="del-btn" onclick="deleteDel(${d.id})" title="מחק תעודה">🗑</button><button class="del-btn" onclick="editDel(${d.id})" title="ערוך תעודה" style="opacity:0.4">✏️</button></td>
+      <td><button class="del-btn" onclick="deleteDel('${d.id}')" title="מחק תעודה">🗑</button><button class="del-btn" onclick="editDel('${d.id}')" title="ערוך תעודה" style="opacity:0.4">✏️</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--grayM)">אין תעודות</td></tr>';
 
@@ -1953,18 +1953,16 @@ function saveLinkDocs(invId){
 }
 
 function deleteDel(id){
-  const d=dels.find(x=>x.id===id);
+  const d=dels.find(x=>String(x.id)===String(id));
   if(!d)return;
-  // אם משויך לחשבונית — אזהרה
   const warn=d.invNum?`\n⚠️ תעודה זו משויכת לחשבונית ${d.invNum}.`:'';
   if(!confirm(`למחוק תעודה ${d.doc} (${d.sup}, ${d.date})?${warn}\n\nפעולה זו אינה הפיכה.`))return;
-  // נקה שיוך בחשבונית
   if(d.invNum){
     const inv=invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
-    if(inv)inv.docIds=(inv.docIds||[]).filter(x=>x!=id);
+    if(inv)inv.docIds=(inv.docIds||[]).filter(x=>String(x)!==String(d.id));
     save(K.I,invs);
   }
-  dels=dels.filter(x=>x.id!==id);
+  dels=dels.filter(x=>String(x.id)!==String(d.id));
   save(K.D,dels);
   renderDelList();
   toast(`🗑 תעודה ${d.doc} נמחקה`);
@@ -3551,11 +3549,12 @@ function generatePDFFiltered(type) {
     const appGroups = {};
     filtered.forEach(s => {
       const key = s.appId || s.id;
-      if (!appGroups[key]) appGroups[key] = {date:s.date,op:s.op,tank:s.tank,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qty:s.qty,phytem:s.phytem||''});
+      if (!appGroups[key]) appGroups[key] = {date:s.date,op:s.op,tank:s.tank,numTanks:s.numTanks,area:s.area,notes:s.notes,mats:[]};
+      appGroups[key].mats.push({mat:s.mat,qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||''});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const totalArea = apps.reduce((s,a)=>s+(parseFloat(a.area)||0),0);
+    const totalCostAll = apps.reduce((s,a)=>s+a.mats.reduce((ss,m)=>ss+(m.totalCost||0),0),0);
 
     // period label
     const periodLabels = {all:'כל הנתונים',weekly:'שבועי',monthly:'חודשי',annual:'שנתי'};
@@ -3574,10 +3573,24 @@ function generatePDFFiltered(type) {
       <div class="sbox"><div class="sbox-num">${apps.length}</div><div class="sbox-lbl">יישומים</div></div>
       <div class="sbox"><div class="sbox-num">${totalArea.toLocaleString()}</div><div class="sbox-lbl">שטח כולל</div></div>
       <div class="sbox"><div class="sbox-num">${filtered.length}</div><div class="sbox-lbl">שורות חומרים</div></div>
+      ${totalCostAll>0?`<div class="sbox"><div class="sbox-num" style="color:#2e7d32">₪${Math.round(totalCostAll).toLocaleString()}</div><div class="sbox-lbl">עלות כוללת</div></div>`:''}
     </div>`;
 
     if (apps.length === 0) { body += '<div style="text-align:center;padding:40px;color:#999">לא נמצאו ריסוסים לפי הסינון</div>'; }
     else {
+      const sprHdr = `<tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>כמות</th><th>מחיר יח'</th><th>עלות</th><th>מיכל</th><th>שטח</th><th>ישום פיטם</th><th>הערות</th></tr>`;
+      const sprRow = (app, m, i) => `<tr>
+        <td>${i===0?(app.date||''):''}</td>
+        <td>${i===0?(app.op||''):''}</td>
+        <td>${m.mat||''}</td>
+        <td class="amnt">${m.qty||''} ${m.unit||''}</td>
+        <td class="amnt">${m.unitPrice?'₪'+m.unitPrice.toFixed(2):''}</td>
+        <td class="amnt" style="font-weight:600;color:#2e7d32">${m.totalCost?'₪'+Math.round(m.totalCost).toLocaleString():''}</td>
+        <td class="amnt">${i===0?(app.tank?app.tank+'L'+(app.numTanks>1?' × '+app.numTanks:''):''):''}</td>
+        <td class="amnt">${i===0?(app.area||''):''}</td>
+        <td>${m.phytem||''}</td>
+        <td>${i===0?(app.notes||''):''}</td></tr>`;
+
       // Group by month for monthly/annual reports
       if (period === 'monthly' || period === 'annual') {
         const byMonth = {};
@@ -3590,29 +3603,18 @@ function generatePDFFiltered(type) {
           const [yr,mo] = monthKey.split('-');
           const moLabel = HMlbl[parseInt(mo)] || monthKey;
           const monthArea = monthApps.reduce((s,a)=>s+(parseFloat(a.area)||0),0);
-          body += `<div class="section-title">${moLabel} ${yr||''} — ${monthApps.length} יישומים | שטח: ${monthArea}</div>
-          <table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>כמות</th><th>מיכל</th><th>שטח</th><th>מהירות</th><th>הערות</th></tr></thead><tbody>`;
+          const monthCost = monthApps.reduce((s,a)=>s+a.mats.reduce((ss,m)=>ss+(m.totalCost||0),0),0);
+          body += `<div class="section-title">${moLabel} ${yr||''} — ${monthApps.length} יישומים | שטח: ${monthArea}${monthCost>0?' | עלות: ₪'+Math.round(monthCost).toLocaleString():''}</div>
+          <table><thead>${sprHdr}</thead><tbody>`;
           monthApps.forEach(app => {
-            app.mats.forEach((m,i) => {
-              body += `<tr>
-                <td>${i===0?(app.date||''):''}</td><td>${i===0?(app.op||''):''}</td>
-                <td>${m.mat||''}</td><td class="amnt">${m.qty||''}</td>
-                <td class="amnt">${i===0?(app.tank||''):''}</td><td class="amnt">${i===0?(app.area||''):''}</td>
-                <td>${m.phytem||''}</td><td>${i===0?(app.notes||''):''}</td></tr>`;
-            });
+            app.mats.forEach((m,i) => { body += sprRow(app,m,i); });
           });
           body += '</tbody></table>';
         });
       } else {
-        body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>כמות</th><th>מיכל</th><th>שטח</th><th>מהירות</th><th>הערות</th></tr></thead><tbody>`;
+        body += `<table><thead>${sprHdr}</thead><tbody>`;
         apps.forEach(app => {
-          app.mats.forEach((m,i) => {
-            body += `<tr>
-              <td>${i===0?(app.date||''):''}</td><td>${i===0?(app.op||''):''}</td>
-              <td>${m.mat||''}</td><td class="amnt">${m.qty||''}</td>
-              <td class="amnt">${i===0?(app.tank||''):''}</td><td class="amnt">${i===0?(app.area||''):''}</td>
-              <td>${m.phytem||''}</td><td>${i===0?(app.notes||''):''}</td></tr>`;
-          });
+          app.mats.forEach((m,i) => { body += sprRow(app,m,i); });
         });
         body += '</tbody></table>';
       }
@@ -4128,6 +4130,7 @@ function setDocType(type) {
 // בדיקת איכות נתונים
 // ══════════════════════════════════════════════════
 let qualityIssues = [];
+let dismissedIssues = load(K.QA); // { key: note } — חריגות מאושרות
 
 function runQualityChecks() {
   document.getElementById('q-status').textContent = '⏳ בודק נתונים...';
@@ -4333,10 +4336,17 @@ function runQualityChecks() {
       return (order[a.sev]||2) - (order[b.sev]||2);
     });
 
+    // הוסף key ייחודי לכל ממצא
+    qualityIssues.forEach(x => {
+      x.key = `${x.type}||${x.sup}||${x.doc}||${x.detail.substring(0,40)}`;
+      x.dismissed = !!dismissedIssues[x.key];
+    });
+
     // הצג סיכום
-    const errors = qualityIssues.filter(x=>x.sev==='error').length;
-    const warns = qualityIssues.filter(x=>x.sev==='warn').length;
-    const infos = qualityIssues.filter(x=>x.sev==='info').length;
+    const errors = qualityIssues.filter(x=>x.sev==='error'&&!x.dismissed).length;
+    const warns = qualityIssues.filter(x=>x.sev==='warn'&&!x.dismissed).length;
+    const infos = qualityIssues.filter(x=>x.sev==='info'&&!x.dismissed).length;
+    const dismissedCount = qualityIssues.filter(x=>x.dismissed).length;
 
     document.getElementById('q-summary').style.display = '';
     document.getElementById('q-summary').innerHTML = `
@@ -4353,9 +4363,9 @@ function runQualityChecks() {
           <div style="font-size:24px;font-weight:700;color:#1565c0">${infos}</div>
           <div style="font-size:12px;color:#1565c0">🔵 מידע</div>
         </div>
-        <div style="flex:1;min-width:100px;background:#f1f8e9;border:1px solid #aed581;border-radius:8px;padding:12px;text-align:center">
-          <div style="font-size:24px;font-weight:700;color:#2e7d32">${qualityIssues.length}</div>
-          <div style="font-size:12px;color:#2e7d32">סה"כ ממצאים</div>
+        <div style="flex:1;min-width:100px;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:12px;text-align:center;cursor:pointer" onclick="toggleDismissed()">
+          <div style="font-size:24px;font-weight:700;color:#888">${dismissedCount}</div>
+          <div style="font-size:12px;color:#888">✅ מאושרות</div>
         </div>
       </div>`;
 
@@ -4370,8 +4380,11 @@ function renderQuality() {
   const sevF = document.getElementById('q-sev-filter')?.value||'';
   const typeF = document.getElementById('q-type-filter')?.value||'';
   const supF = document.getElementById('q-sup-filter')?.value||'';
+  const showDismissed = window._showDismissed || false;
 
   const filtered = qualityIssues.filter(x => {
+    if (!showDismissed && x.dismissed) return false;
+    if (showDismissed && !x.dismissed) return false;
     if (sevF && x.sev !== sevF) return false;
     if (typeF && x.type !== typeF) return false;
     if (supF && x.sup !== supF) return false;
@@ -4382,26 +4395,34 @@ function renderQuality() {
   const sevBg = {error:'#fff5f5', warn:'#fffde7', info:'#f0f7ff'};
 
   document.getElementById('q-tbody').innerHTML = filtered.map((x, i) => {
-    // כפתורי פעולה לפי סוג
     let actionBtns = '';
-    if (x.delId) {
-      actionBtns += `<button class="btn btnS" style="padding:3px 8px;font-size:11px;margin-bottom:3px;width:100%"
-        onclick="fixFromQuality('edit-del', ${x.delId})">✏️ ערוך תעודה</button>`;
-      if (x.type === 'dup') {
-        actionBtns += `<button class="btn" style="padding:3px 8px;font-size:11px;background:#c62828;color:#fff;border:none;border-radius:5px;cursor:pointer;width:100%"
-          onclick="fixFromQuality('delete-del', ${x.delId})">🗑 מחק תעודה</button>`;
+    if (!x.dismissed) {
+      if (x.delId) {
+        actionBtns += `<button class="btn btnS" style="padding:3px 8px;font-size:11px;margin-bottom:3px;width:100%"
+          onclick="fixFromQuality('edit-del','${x.delId}')">✏️ ערוך תעודה</button>`;
+        if (x.type === 'dup') {
+          actionBtns += `<button class="btn" style="padding:3px 8px;font-size:11px;background:#c62828;color:#fff;border:none;border-radius:5px;cursor:pointer;width:100%;margin-bottom:3px"
+            onclick="fixFromQuality('delete-del','${x.delId}')">🗑 מחק תעודה</button>`;
+        }
       }
-    }
-    if (x.invId) {
-      actionBtns += `<button class="btn btnS" style="padding:3px 8px;font-size:11px;width:100%"
-        onclick="fixFromQuality('edit-inv', ${x.invId})">✏️ ערוך חשבונית</button>`;
-    }
-    if (!actionBtns) {
-      actionBtns = `<span style="font-size:11px;color:#aaa">${x.action}</span>`;
+      if (x.invId) {
+        actionBtns += `<button class="btn btnS" style="padding:3px 8px;font-size:11px;width:100%;margin-bottom:3px"
+          onclick="fixFromQuality('edit-inv','${x.invId}')">✏️ ערוך חשבונית</button>`;
+      }
+      // כפתור אישור חריגה — תמיד מוצג
+      actionBtns += `<button class="btn" style="padding:3px 8px;font-size:11px;background:#388e3c;color:#fff;border:none;border-radius:5px;cursor:pointer;width:100%"
+        onclick="dismissIssue('${x.key.replace(/'/g,"\\'")}')">✅ אשר חריגה</button>`;
+    } else {
+      const note = dismissedIssues[x.key]?.note || '';
+      actionBtns = `<div style="font-size:11px;color:#388e3c">✅ מאושר</div>
+        ${note?`<div style="font-size:10px;color:#888">${note}</div>`:''}
+        <button class="btn btnS" style="padding:2px 6px;font-size:10px;margin-top:3px"
+          onclick="undismissIssue('${x.key.replace(/'/g,"\\'")}')">↩ בטל אישור</button>`;
     }
 
-    return `<tr style="background:${sevBg[x.sev]||'#fff'}">
-      <td style="text-align:center;font-size:16px">${sevIcon[x.sev]||'⚪'}</td>
+    const rowStyle = x.dismissed ? 'background:#f9f9f9;opacity:0.7' : (sevBg[x.sev]||'#fff');
+    return `<tr style="background:${rowStyle}">
+      <td style="text-align:center;font-size:16px">${x.dismissed?'✅':sevIcon[x.sev]||'⚪'}</td>
       <td><span class="bdg" style="background:#546e7a;color:#fff;font-size:11px">${x.label}</span></td>
       <td><span class="bdg ${x.sup==='עמיר'?'bdg-b':x.sup==='דשנים ICL'?'bdg-o':'bdg-r'}">${x.sup}</span></td>
       <td style="font-size:12px">${x.date||'—'}</td>
@@ -4409,37 +4430,65 @@ function renderQuality() {
       <td style="font-size:12px">${x.detail}</td>
       <td style="font-size:11px">${actionBtns}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:30px;color:#aaa">אין ממצאים לסינון זה ✅</td></tr>';
+  }).join('') || `<tr><td colspan="7" style="text-align:center;padding:30px;color:#aaa">${showDismissed?'אין חריגות מאושרות':'אין ממצאים לסינון זה ✅'}</td></tr>`;
 
   document.getElementById('q-results').style.display = '';
 }
 
+function toggleDismissed() {
+  window._showDismissed = !window._showDismissed;
+  renderQuality();
+}
+
+function dismissIssue(key) {
+  const note = prompt('הערה לאישור החריגה (אופציונלי):', '') ;
+  if (note === null) return; // ביטול
+  dismissedIssues[key] = { note, date: new Date().toLocaleDateString('he-IL') };
+  save(K.QA, dismissedIssues);
+  const issue = qualityIssues.find(x => x.key === key);
+  if (issue) issue.dismissed = true;
+  // עדכן סיכום
+  const dismissedCount = qualityIssues.filter(x=>x.dismissed).length;
+  const el = document.querySelector('#q-summary [onclick="toggleDismissed()"] div:first-child');
+  if (el) el.textContent = dismissedCount;
+  renderQuality();
+  toast('✅ החריגה אושרה ונשמרה');
+}
+
+function undismissIssue(key) {
+  delete dismissedIssues[key];
+  save(K.QA, dismissedIssues);
+  const issue = qualityIssues.find(x => x.key === key);
+  if (issue) issue.dismissed = false;
+  renderQuality();
+  toast('↩ אישור החריגה בוטל');
+}
+
 function fixFromQuality(action, id) {
   if (action === 'edit-del') {
-    const d = dels.find(x => x.id === id);
+    const d = dels.find(x => String(x.id)===String(id));
     if (!d) { toast('⚠️ תעודה לא נמצאה'); return; }
-    window._returnToQuality = true; // flag — אחרי שמירה חזור לבדיקה
+    window._returnToQuality = true;
     const entryBtn = document.querySelector('.navbtn[onclick*="entry"]');
     if (entryBtn) showTab(entryBtn, 'entry');
-    editDel(id);
+    editDel(d.id);
     toast(`✏️ עורך תעודה ${d.doc} — אחרי שמירה תחזור לבדיקת נתונים`);
   } else if (action === 'delete-del') {
-    const d = dels.find(x => x.id === id);
+    const d = dels.find(x => String(x.id)===String(id));
     if (!d) { toast('⚠️ תעודה לא נמצאה'); return; }
     if (!confirm(`למחוק תעודה ${d.doc} (${d.sup}, ${d.date})?\n\nפעולה זו אינה הפיכה.`)) return;
     if (d.invNum) {
       const inv = invs.find(x => x.num === d.invNum && x.sup === d.sup);
-      if (inv) inv.docIds = (inv.docIds||[]).filter(x => x !== id);
+      if (inv) inv.docIds = (inv.docIds||[]).filter(x => String(x)!==String(d.id));
       save(K.I, invs);
     }
-    dels = dels.filter(x => x.id !== id);
+    dels = dels.filter(x => String(x.id)!==String(d.id));
     save(K.D, dels);
     renderDelList();
     toast(`🗑 תעודה ${d.doc} נמחקה`);
-    // הרץ בדיקה מחדש
     setTimeout(() => runQualityChecks(), 200);
   } else if (action === 'edit-inv') {
-    const inv = invs.find(x => x.id === id);
+    const inv = invs.find(x => String(x.id)===String(id));
     if (!inv) { toast('⚠️ חשבונית לא נמצאה'); return; }
     const invBtn = document.querySelector('.navbtn[onclick*="invoice"]');
     if (invBtn) showTab(invBtn, 'invoice');
