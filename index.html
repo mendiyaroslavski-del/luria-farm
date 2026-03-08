@@ -338,6 +338,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         🔄 החזרה / זיכוי
       </button>
     </div>
+  </div><!-- /card פרטי התעודה -->
 
   <!-- פריטים - מוסיפים באופן שוטף -->
   <div class="card">
@@ -1074,7 +1075,8 @@ let invs = load(K.I);
 let sprs = load(K.S);
 let invent = load(K.IV);
 let customSups = load(K.C); // ספקים מזדמנים
-let fileHandle = null; // שמירה לאותו קובץ
+let fileHandle = null; // שמירה
+let currentDocType = 'delivery'; // סוג תעודה לאותו קובץ
 
 // ═══ IndexedDB — שמירת fileHandle בין רענונים ═══
 const IDB_NAME = 'luria_fh', IDB_STORE = 'handles', IDB_KEY = 'main';
@@ -4060,7 +4062,6 @@ searchPrices();
 // ══════════════════════════════════════════════════
 // תעודת החזרה/זיכוי
 // ══════════════════════════════════════════════════
-let currentDocType = 'delivery';
 
 function setDocType(type) {
   currentDocType = type;
