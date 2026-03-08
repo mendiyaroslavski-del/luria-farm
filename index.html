@@ -1497,7 +1497,7 @@ function saveDelFinal(){
 
   if(editingDelId){
     // מצב עריכה — עדכן תעודה קיימת
-    const idx = dels.findIndex(x=>x.id===editingDelId);
+    const idx = dels.findIndex(x=>String(x.id)===String(editingDelId));
     if(idx===-1){toast('⚠️ תעודה לא נמצאה');return}
     const orig = dels[idx];
     dels[idx] = {...orig, ...d, items:JSON.parse(JSON.stringify(rows)), ts:Date.now()};
