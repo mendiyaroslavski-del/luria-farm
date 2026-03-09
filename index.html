@@ -2686,14 +2686,9 @@ function renderSprayMats(){
     const totalCost = numTanks>0 ? costPerApp * numTanks : costPerApp;
     const priceColor = pricePerUnit>0 ? 'color:var(--gm)' : 'color:#aaa';
     
-    let costHtml = '';
-    if(pricePerUnit>0 && qty>0){
-      costHtml = `<div style="font-size:12px;color:var(--gm);margin-top:4px;padding:4px 8px;background:#f0faf0;border-radius:6px">
-        💰 ${qty} ${unit} × ₪${pricePerUnit.toFixed(2)}/${unit} = <strong>₪${Math.round(costPerApp).toLocaleString()}</strong>
-        ${numTanks>1?` × ${numTanks} מיכלים = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}
-        ${info.productName&&info.productName!==m.mat?`<span style="color:#999;font-size:11px"> (מחיר מ: ${info.productName})</span>`:''}
-      </div>`;
-    }
+    const costHtml2 = (pricePerUnit>0 && qty>0)
+      ? `💰 ${qty} ${unit} × ₪${pricePerUnit.toFixed(2)}/${unit} = <strong>₪${Math.round(costPerApp).toLocaleString()}</strong>${numTanks>1?` × ${numTanks} מיכלים = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}`
+      : '';
     
     return `
     <div class="spray-item-row">
@@ -2715,7 +2710,7 @@ function renderSprayMats(){
       <div class="fr fr2">
         <div class="fg">
           <label class="flabel">מחיר ל${unit||'יח׳'} (₪) <span style="font-size:10px;color:#999">אוטומטי</span></label>
-          <input type="number" class="finput" id="sm-price-${m.id}" value="${pricePerUnit>0?pricePerUnit.toFixed(2):''}"
+          <input type="text" class="finput" id="sm-price-${m.id}" value="${pricePerUnit>0?pricePerUnit.toFixed(2):''}"
             inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="₪ ל${unit||'יח׳'}" oninput="smUpdate(${m.id})"
             style="${priceColor}">
         </div>
@@ -2725,7 +2720,7 @@ function renderSprayMats(){
             placeholder="ישום פיטם אם יש" oninput="smUpdate(${m.id})">
         </div>
       </div>
-      ${costHtml}
+      <div id="sm-cost-${m.id}" style="font-size:12px;color:var(--gm);margin-top:4px;padding:4px 8px;background:#f0faf0;border-radius:6px;display:${pricePerUnit>0&&qty>0?'block':'none'}">${costHtml2}</div>
     </div>`;
   }).join('');
 }
@@ -2766,11 +2761,32 @@ function smUpdate(mid){
   const m=sprayMats.find(x=>x.id===mid);
   if(!m)return;
   m.mat=document.getElementById('sm-mat-'+mid)?.value||'';
-  m.qty=parseFloat((document.getElementById('sm-qty-'+mid)?.value||'0').replace(',','.')) || 0;
-  m.pricePerUnit=parseFloat(document.getElementById('sm-price-'+mid)?.value||0);
-  if(!m.priceInfo) m.priceInfo=getLastPrice(m.mat);
+  const rawQty=(document.getElementById('sm-qty-'+mid)?.value||'').replace(',','.');
+  m.qty=parseFloat(rawQty)||0;
+  m.pricePerUnit=parseFloat((document.getElementById('sm-price-'+mid)?.value||'').replace(',','.'))||0;
+  if(!m.priceInfo||!m.priceInfo.pricePerUnit) m.priceInfo=getLastPrice(m.mat);
   m.phytem=document.getElementById('sm-phy-'+mid)?.value||'';
-  renderSprayMats();
+  // Update cost display only — do NOT re-render inputs (breaks decimal typing)
+  smUpdateCostDisplay(mid, m);
+}
+
+function smUpdateCostDisplay(mid, m){
+  const info = m.priceInfo || getLastPrice(m.mat);
+  const pricePerUnit = m.pricePerUnit || info.pricePerUnit || 0;
+  const unit = info.unit || 'יח׳';
+  const numTanks = parseFloat((document.getElementById('spr-num-tanks')?.value||'0').replace(',','.'))||0;
+  const qty = m.qty||0;
+  const costPerApp = pricePerUnit * qty;
+  const totalCost = numTanks>1 ? costPerApp * numTanks : costPerApp;
+  const costEl = document.getElementById('sm-cost-'+mid);
+  if(!costEl) return;
+  if(pricePerUnit>0 && qty>0){
+    costEl.innerHTML = `💰 ${qty} ${unit} × ₪${pricePerUnit.toFixed(2)}/${unit} = <strong>₪${Math.round(costPerApp).toLocaleString()}</strong>`
+      + (numTanks>1?` × ${numTanks} מיכלים = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:'');
+    costEl.style.display='block';
+  } else {
+    costEl.style.display='none';
+  }
 }
 
 function saveSpray(){
