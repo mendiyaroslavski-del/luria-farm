@@ -444,8 +444,12 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
           <option value="__new_inv__">➕ ספק חדש...</option>
         </select>
         <div id="inv-new-sup-row" style="display:none;margin-top:6px">
-          <input type="text" id="inv-new-sup-input" class="finput" placeholder="שם הספק..." style="width:calc(100% - 70px);display:inline-block">
-          <button class="btn" style="background:#388e3c;color:#fff;width:60px;margin-right:6px" onclick="addInvCustomSup()">שמור</button>
+          <input type="text" id="inv-new-sup-input" class="finput" placeholder="שם ספק/חנות...">
+          <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;color:#888;cursor:pointer">
+            <input type="checkbox" id="inv-new-sup-save" style="cursor:pointer">
+            שמור ספק זה ברשימה לשימוש עתידי
+          </label>
+          <div style="font-size:11px;color:#aaa;margin-top:3px">ללא סימון — השם ישמש לחשבונית זו בלבד</div>
         </div>
       </div>
       <div class="fg">
@@ -779,11 +783,18 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="btn btnS" onclick="importWithHandle()">📥 ייבא מקובץ אחד</button>
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
   </div>
-  <div class="srow">
-    <input class="sinput" id="inv-search" placeholder="חפש חומר..." oninput="renderInventory()">
+  <div class="srow" style="flex-wrap:wrap;gap:6px">
+    <input class="sinput" id="inv-search" placeholder="חפש חומר..." oninput="renderInventory()" style="flex:1;min-width:120px">
     <button class="btn btnP" onclick="openAddInv()">+ הוסף</button>
     <button class="btn btnS" id="inv-edit-all-btn" onclick="toggleInvEditAll()">✏️ ערוך הכל</button>
     <button class="btn" style="background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="syncInventoryFromPurchases()">🔄 סנכרן מרכישות</button>
+  </div>
+  <!-- Category filter tabs -->
+  <div style="display:flex;gap:6px;margin:6px 0;flex-wrap:wrap">
+    <button id="inv-cat-all"     class="btn" style="padding:5px 14px;font-size:13px;background:var(--gm);color:#fff;border:none;border-radius:20px" onclick="setInvCat('')">הכל</button>
+    <button id="inv-cat-spray"   class="btn" style="padding:5px 14px;font-size:13px;background:#555;color:#fff;border:none;border-radius:20px" onclick="setInvCat('spray')">🌿 ריסוס</button>
+    <button id="inv-cat-general" class="btn" style="padding:5px 14px;font-size:13px;background:#555;color:#fff;border:none;border-radius:20px" onclick="setInvCat('general')">📦 כללי</button>
+    <button id="inv-cat-none"    class="btn" style="padding:5px 14px;font-size:13px;background:#555;color:#fff;border:none;border-radius:20px" onclick="setInvCat('none')">❓ לא מסווג</button>
   </div>
   <div id="inv-auto-notice" style="display:none;background:rgba(46,125,50,0.15);border:1px solid rgba(46,125,50,0.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:var(--gm)"></div>
   <div id="inv-edit-all-actions" style="display:none;gap:8px;margin-bottom:8px;padding:0 4px">
@@ -793,7 +804,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   </div>
   <div class="tblw">
     <table class="dtbl">
-      <thead><tr><th id="inv-th-check" style="display:none;width:30px"></th><th>חומר</th><th>יחידה</th><th>נרכש</th><th>נוצל</th><th>מלאי</th></tr></thead>
+      <thead><tr><th id="inv-th-check" style="display:none;width:30px"></th><th>חומר</th><th>סוג</th><th>יחידה</th><th>נרכש</th><th>נוצל</th><th>מלאי</th></tr></thead>
       <tbody id="inv-body"></tbody>
     </table>
   </div>
@@ -1276,13 +1287,33 @@ function onInvSupChange() {
   const row = document.getElementById('inv-new-sup-row');
   if(val === '__new_inv__') {
     row.style.display = 'block';
+    document.getElementById('inv-new-sup-input').value = '';
+    document.getElementById('inv-new-sup-save').checked = false;
     document.getElementById('inv-new-sup-input').focus();
   } else {
     row.style.display = 'none';
   }
 }
 
+// Returns the effective supplier name from the invoice supplier field
+// If "new supplier" was typed, saves to list only if checkbox is checked
+function resolveInvSup() {
+  const val = document.getElementById('inv-sup').value;
+  if(val !== '__new_inv__') return val;
+  const name = document.getElementById('inv-new-sup-input').value.trim();
+  if(!name) return null;
+  const shouldSave = document.getElementById('inv-new-sup-save').checked;
+  if(shouldSave && !customSups.includes(name)) {
+    customSups.push(name);
+    save(K.C, customSups);
+    refreshCustomSupDropdowns();
+    toast('✅ ספק "'+name+'" נשמר ברשימה');
+  }
+  return name;
+}
+
 function addInvCustomSup() {
+  // Legacy: called from old button — now unused but kept for safety
   const name = document.getElementById('inv-new-sup-input').value.trim();
   if(!name) { toast('⚠️ הכנס שם ספק'); return; }
   if(!customSups.includes(name)) {
@@ -1651,7 +1682,9 @@ function renderDelList(){
 
 // ═══ INVOICE ═══
 function loadDocsForInvoice(){
-  const sup=document.getElementById('inv-sup').value;
+  const sup = resolveInvSup();
+  if(!sup){ toast('⚠️ הכנס שם ספק'); return; }
+  const _dummy=sup; // already resolved
   if(!sup || sup === '__new_inv__'){toast('⚠️ בחר ספק תחילה');return}
   const month=+document.getElementById('inv-month').value;
   const year=+document.getElementById('inv-year').value;
@@ -1769,11 +1802,11 @@ function saveInvoice(){
   const num=document.getElementById('inv-num').value.trim();
   const date=document.getElementById('inv-date').value;
   const total=parseFloat(document.getElementById('inv-total-val').value||0);
-  const sup=document.getElementById('inv-sup').value;
+  const sup = resolveInvSup();
+  if(!sup){ toast('⚠️ הכנס שם ספק'); return; }
   const month=+document.getElementById("inv-month").value;
   const year=+document.getElementById("inv-year").value;
   if(!num){toast('⚠️ הזן מספר חשבונית');return}
-  if(!sup || sup === '__new_inv__'){toast('⚠️ בחר ספק תחילה');return}
   const dup=invs.find(x=>x.num===num&&x.sup===sup);
   if(dup){
     if(!confirm(`⚠️ חשבונית מספר ${num} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
@@ -2850,11 +2883,13 @@ function saveAllInvEdits() {
     const nameEl = row.querySelector('.inv-edit-name');
     const unitEl = row.querySelector('.inv-edit-unit');
     const purchEl = row.querySelector('.inv-edit-purch');
-    const upsEl = row.querySelector('.inv-edit-ups');
+    const upsEl  = row.querySelector('.inv-edit-ups');
+    const catEl  = row.querySelector('.inv-edit-cat');
     if (nameEl) item.name = nameEl.value.trim() || item.name;
     if (unitEl) item.unit = unitEl.value.trim();
     if (purchEl) item.purchased = parseFloat(purchEl.value) || 0;
-    if (upsEl) item.ups = parseFloat(upsEl.value) || 1;
+    if (upsEl)  item.ups = parseFloat(upsEl.value) || 1;
+    if (catEl)  item.category = catEl.value;
   });
   save(K.IV, invent);
   cancelInvEditAll();
@@ -2882,31 +2917,105 @@ function calcBought(name){
   );
 }
 
+let _invCatFilter = ''; // '' | 'spray' | 'general' | 'none'
+
+// Set of product names that appear in spray records (auto-detected)
+function getSprayProductNames(){
+  return new Set(sprs.map(s=>s.mat).filter(Boolean));
+}
+
+// Effective category: manual override wins, else auto-detect from spray records
+function getEffectiveCat(item){
+  if(item.category==='spray'||item.category==='general') return item.category;
+  const sprayNames = getSprayProductNames();
+  return sprayNames.has(item.name) ? 'spray' : 'none';
+}
+
+function getCatLabel(cat, clickIdx){
+  if(cat==='spray')   return `<button onclick="toggleItemCat(${clickIdx})" title="לחץ לשינוי" style="background:rgba(46,125,50,0.2);color:var(--gm);border:1px solid var(--gm);border-radius:12px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit">🌿 ריסוס</button>`;
+  if(cat==='general') return `<button onclick="toggleItemCat(${clickIdx})" title="לחץ לשינוי" style="background:rgba(21,101,192,0.15);color:#90caf9;border:1px solid #90caf9;border-radius:12px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit">📦 כללי</button>`;
+  return `<button onclick="toggleItemCat(${clickIdx})" title="לחץ לסיווג" style="background:rgba(255,255,255,0.05);color:#888;border:1px solid #555;border-radius:12px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit">❓ סווג</button>`;
+}
+
+function getCatEditSelect(idx, currentCat){
+  const opts = [['','אוטו'],['spray','🌿 ריסוס'],['general','📦 כללי']];
+  return `<select class="inv-edit-cat fsel" data-inv-idx="${idx}" style="font-size:12px;padding:3px;min-width:80px" onchange="applyInvCatChange(this)">
+    ${opts.map(([v,l])=>`<option value="${v}" ${currentCat===v?'selected':''}>${l}</option>`).join('')}
+  </select>`;
+}
+
+function applyInvCatChange(sel){
+  const idx = +sel.dataset.invIdx;
+  invent[idx].category = sel.value;
+  save(K.IV, invent);
+}
+
+function toggleItemCat(idx){
+  const item = invent[idx];
+  const cur = item.category||'auto';
+  // cycle: auto→spray→general→auto
+  if(!item.category || item.category==='auto')    item.category='spray';
+  else if(item.category==='spray')                item.category='general';
+  else                                              item.category='';
+  save(K.IV, invent);
+  renderInventory();
+}
+
+function setInvCat(cat){
+  _invCatFilter = cat;
+  // Update tab button styles
+  ['all','spray','general','none'].forEach(c=>{
+    const id = 'inv-cat-'+(c===''?'all':c);
+    const el = document.getElementById(id==='inv-cat-'?'inv-cat-all':id);
+    if(el) el.style.background = (cat===c||(cat===''&&c==='all'))?'var(--gm)':'#555';
+  });
+  renderInventory();
+}
+
 function renderInventory(){
   const q=(document.getElementById('inv-search')?.value||'').toLowerCase();
   const existingNames=new Set(invent.map(i=>i.name));
+  const sprayNames=getSprayProductNames();
+
+  // Determine effective category filter
+  const catF = _invCatFilter; // ''|'spray'|'general'|'none'
 
   // Managed inventory rows
-  const filtered = invent.map((item, idx) => ({item, idx})).filter(({item}) => !q || item.name.toLowerCase().includes(q));
+  const filtered = invent.map((item, idx) => ({item, idx})).filter(({item}) => {
+    if(q && !item.name.toLowerCase().includes(q)) return false;
+    if(catF){
+      const eff=getEffectiveCat(item);
+      if(catF!==eff) return false;
+    }
+    return true;
+  });
 
-  // Auto rows: products from purchases not yet in invent
+  // Auto rows from purchases not yet in invent
   const purchMap = getAllPurchaseProducts ? getAllPurchaseProducts() : {};
-  const autoRows = Object.keys(purchMap)
-    .filter(name => !existingNames.has(name) && (!q || name.toLowerCase().includes(q)))
-    .sort((a,b)=>a.localeCompare(b,'he'));
+  const autoRows = Object.keys(purchMap).filter(name => {
+    if(existingNames.has(name)) return false;
+    if(q && !name.toLowerCase().includes(q)) return false;
+    if(catF){
+      const eff = sprayNames.has(name) ? 'spray' : 'none';
+      if(catF!==eff) return false;
+    }
+    return true;
+  }).sort((a,b)=>a.localeCompare(b,'he'));
 
   const managedHTML = filtered.map(({item, idx}) => {
     const bought=calcBought(item.name);
     const used=sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
     const stock=bought-used;
     const col=stock>5?'var(--gm)':stock>0?'#f57c00':'var(--red)';
+    const effCat=getEffectiveCat(item);
 
     if (_invEditMode) {
       return `<tr data-inv-idx="${idx}" style="background:#fffde7">
         <td style="text-align:center"><input type="checkbox" class="inv-row-check" value="${idx}"></td>
         <td><input type="text" class="inv-edit-name finput" value="${item.name}" style="width:100%;min-width:100px;font-size:13px;padding:4px 6px"></td>
+        <td>${getCatEditSelect(idx, item.category||'')} </td>
         <td><input type="text" class="inv-edit-unit finput" value="${item.unit||''}" placeholder="יח׳" style="width:60px;font-size:13px;padding:4px 6px"></td>
-        <td><input type="number" class="inv-edit-purch finput" value="${item.purchased||0}" min="0" step="0.1" style="width:70px;font-size:13px;padding:4px 6px" title="כמות שהוזנה ידנית (לא כולל קניות מתעודות)"></td>
+        <td><input type="number" class="inv-edit-purch finput" value="${item.purchased||0}" min="0" step="0.1" style="width:70px;font-size:13px;padding:4px 6px"></td>
         <td style="font-size:12px;color:#888">${used.toFixed(1)}</td>
         <td style="font-weight:700;color:${col}">${stock.toFixed(1)}</td>
       </tr>`;
@@ -2915,6 +3024,7 @@ function renderInventory(){
     return `<tr>
       <td style="display:none"></td>
       <td><strong>${item.name}</strong></td>
+      <td>${getCatLabel(effCat, idx)}</td>
       <td>${item.unit||''}</td>
       <td>${bought.toFixed(1)}</td>
       <td>${used.toFixed(1)}</td>
@@ -2922,16 +3032,21 @@ function renderInventory(){
     </tr>`;
   }).join('');
 
-  // Auto rows from purchases (not managed)
+  // Auto rows (not managed)
   const autoHTML = _invEditMode ? '' : autoRows.map(name => {
     const info = purchMap[name];
     const bought = info.qty;
     const used = sprs.filter(s=>s.mat===name).reduce((s,x)=>s+(x.qty||0),0);
     const stock = bought - used;
     const col = stock>5?'var(--gm)':stock>0?'#f57c00':'var(--red)';
-    return `<tr style="opacity:0.7;font-style:italic">
+    const isSpray = sprayNames.has(name);
+    const catBadge = isSpray
+      ? '<span style="font-size:10px;background:rgba(46,125,50,0.2);color:var(--gm);border-radius:4px;padding:1px 5px">🌿 ריסוס</span>'
+      : '<span style="font-size:10px;background:rgba(100,100,100,0.2);color:#aaa;border-radius:4px;padding:1px 5px">📦 כללי</span>';
+    return `<tr style="opacity:0.65;font-style:italic">
       <td style="display:none"></td>
-      <td title="מוצר מרכישות - לחץ 🔄 לסנכרון" style="color:#aaa">${name} <span style="font-size:10px;background:rgba(100,100,100,0.2);border-radius:4px;padding:1px 4px">${info.sup}</span></td>
+      <td title="מוצר מרכישות - לחץ 🔄 לסנכרון" style="color:#aaa">${name} <span style="font-size:10px;background:rgba(100,100,100,0.15);border-radius:4px;padding:1px 4px">${info.sup}</span></td>
+      <td>${catBadge}</td>
       <td style="color:#aaa">—</td>
       <td style="color:#aaa">${bought.toFixed(1)}</td>
       <td style="color:#aaa">${used.toFixed(1)}</td>
@@ -2941,7 +3056,7 @@ function renderInventory(){
 
   const combined = managedHTML + autoHTML;
   document.getElementById('inv-body').innerHTML = combined ||
-    '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--grayM)">אין פריטים</td></tr>';
+    '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--grayM)">אין פריטים בקטגוריה זו</td></tr>';
 }
 function openAddInv(){openMod('modal-inv')}
 function saveInvItem(){
