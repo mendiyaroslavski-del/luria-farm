@@ -740,16 +740,16 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="fr fr3">
       <div class="fg"><label class="flabel">מספר מיכלים</label>
-        <input type="number" class="finput" id="spr-num-tanks" min="0" step="any" inputmode="decimal" placeholder="0" oninput="calcSprayTotals()">
+        <input type="text" class="finput" id="spr-num-tanks" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="0" oninput="calcSprayTotals()">
       </div>
       <div class="fg"><label class="flabel">ליטרים במיכל האחרון (אם חלקי)</label>
-        <input type="number" class="finput" id="spr-last-liters" min="0" step="50" placeholder="מלא = ריק" oninput="calcSprayTotals()">
+        <input type="text" class="finput" id="spr-last-liters" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="מלא = ריק" oninput="calcSprayTotals()">
       </div>
       <div class="fg"><label class="flabel">מהירות נסיעה (קמ"ש)</label>
         <input type="number" class="finput" id="spr-speed" min="0" step="0.5" placeholder="קמ&quot;ש">
       </div>
       <div class="fg"><label class="flabel">שטח מרוסס (דונם)</label>
-        <input type="number" class="finput" id="spr-dunam" min="0" step="0.1" placeholder="דונם" oninput="calcSprayTotals()">
+        <input type="text" class="finput" id="spr-dunam" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="דונם" oninput="calcSprayTotals()">
       </div>
     </div>
     <!-- תצוגת סיכום מיכלים -->
@@ -2605,8 +2605,9 @@ let sprayMats = []; // [{id, mat, qty, phytem}]
 
 function calcSprayTotals(){
   const tankVol = parseInt(document.getElementById('spr-tank')?.value||0);
-  const numTanks = parseFloat(document.getElementById('spr-num-tanks')?.value||0);
-  const lastLiters = parseFloat(document.getElementById('spr-last-liters')?.value||0);
+  const _pf2 = v => parseFloat((v||'').toString().replace(',','.')) || 0;
+  const numTanks = _pf2(document.getElementById('spr-num-tanks')?.value);
+  const lastLiters = _pf2(document.getElementById('spr-last-liters')?.value);
   const el = document.getElementById('spr-tanks-summary');
   if(!el) return;
   if(!numTanks){el.style.display='none';return;}
@@ -2707,15 +2708,15 @@ function renderSprayMats(){
         </div>
         <div class="fg">
           <label class="flabel">כמות (${unit||'יח׳'})</label>
-          <input type="number" class="finput" id="sm-qty-${m.id}" value="${qty||''}"
-            min="0" step="any" inputmode="decimal" placeholder="0" oninput="smUpdate(${m.id})">
+          <input type="text" class="finput" id="sm-qty-${m.id}" value="${qty||''}"
+            inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="0" oninput="smUpdate(${m.id})">
         </div>
       </div>
       <div class="fr fr2">
         <div class="fg">
           <label class="flabel">מחיר ל${unit||'יח׳'} (₪) <span style="font-size:10px;color:#999">אוטומטי</span></label>
           <input type="number" class="finput" id="sm-price-${m.id}" value="${pricePerUnit>0?pricePerUnit.toFixed(2):''}"
-            min="0" step="any" inputmode="decimal" placeholder="₪ ל${unit||'יח׳'}" oninput="smUpdate(${m.id})"
+            inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="₪ ל${unit||'יח׳'}" oninput="smUpdate(${m.id})"
             style="${priceColor}">
         </div>
         <div class="fg">
@@ -2765,7 +2766,7 @@ function smUpdate(mid){
   const m=sprayMats.find(x=>x.id===mid);
   if(!m)return;
   m.mat=document.getElementById('sm-mat-'+mid)?.value||'';
-  m.qty=parseFloat(document.getElementById('sm-qty-'+mid)?.value||0);
+  m.qty=parseFloat((document.getElementById('sm-qty-'+mid)?.value||'0').replace(',','.')) || 0;
   m.pricePerUnit=parseFloat(document.getElementById('sm-price-'+mid)?.value||0);
   if(!m.priceInfo) m.priceInfo=getLastPrice(m.mat);
   m.phytem=document.getElementById('sm-phy-'+mid)?.value||'';
@@ -2776,11 +2777,13 @@ function saveSpray(){
   const date=document.getElementById('spr-date').value;
   const op=document.getElementById('spr-op').value.trim();
   const area=document.getElementById('spr-area').value.trim();
+  // Helper: parse decimal from text field (support comma as separator)
+  const pf = v => parseFloat((v||'').toString().replace(',','.')) || 0;
   const tank=document.getElementById('spr-tank').value;
-  const numTanks=parseFloat(document.getElementById('spr-num-tanks')?.value||0);
-  const lastLiters=parseFloat(document.getElementById('spr-last-liters')?.value||0);
+  const numTanks=pf(document.getElementById('spr-num-tanks')?.value);
+  const lastLiters=pf(document.getElementById('spr-last-liters')?.value);
   const speed=document.getElementById('spr-speed')?.value.trim()||'';
-  const dunam=parseFloat(document.getElementById('spr-dunam')?.value||0)||0;
+  const dunam=pf(document.getElementById('spr-dunam')?.value);
   const notes=document.getElementById('spr-notes').value.trim();
   // calc total liters
   const tankVol=parseInt(tank);
