@@ -748,6 +748,23 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fg"><label class="flabel">מהירות נסיעה (קמ"ש)</label>
         <input type="number" class="finput" id="spr-speed" min="0" step="0.5" placeholder="קמ&quot;ש">
       </div>
+      <div class="fg"><label class="flabel">בחר חלקה (אופציונלי)</label>
+        <select class="finput" id="spr-field" onchange="applyFieldDunam()" style="font-family:inherit">
+          <option value="">— בחר חלקה —</option>
+          <optgroup label="משק לוריא">
+            <option value="16-17|15.44">16-17 (15.44 ד')</option>
+            <option value="5-6-7|20.81">5-6-7 (20.81 ד')</option>
+            <option value="3-4|20.66">3-4 (20.66 ד')</option>
+            <option value="8|6.70">8 (6.70 ד')</option>
+            <option value="14|4.69">14 (4.69 ד')</option>
+            <option value="15|2.89">15 (2.89 ד')</option>
+          </optgroup>
+          <optgroup label="בית דגן">
+            <option value="בית דגן 9-10-11-12-13-14|28.46">9-10-11-12-13-14 (28.46 ד')</option>
+            <option value="בית דגן 1-2-3|14.48">1-2-3 (14.48 ד')</option>
+          </optgroup>
+        </select>
+      </div>
       <div class="fg"><label class="flabel">שטח מרוסס (דונם)</label>
         <input type="text" class="finput" id="spr-dunam" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="דונם" oninput="calcSprayTotals()">
       </div>
@@ -2607,6 +2624,14 @@ function updateCmp(){
 // ═══ SPRAY: MULTI-CHEMICAL ═══
 let sprayMats = []; // [{id, mat, qty, phytem}]
 
+function applyFieldDunam(){
+  const sel = document.getElementById('spr-field');
+  if(!sel||!sel.value) return;
+  const dunam = sel.value.split('|')[1];
+  const inp = document.getElementById('spr-dunam');
+  if(inp){ inp.value = dunam; calcSprayTotals(); }
+}
+
 function calcSprayTotals(){
   const tankVol = parseInt(document.getElementById('spr-tank')?.value||0);
   const _pf2 = v => parseFloat((v||'').toString().replace(',','.')) || 0;
@@ -2841,6 +2866,7 @@ function saveSpray(){
   document.getElementById('spr-notes').value='';
   document.getElementById('spr-area').value='';
   if(document.getElementById('spr-dunam')) document.getElementById('spr-dunam').value='';
+  if(document.getElementById('spr-field')) document.getElementById('spr-field').value='';
   if(document.getElementById('spr-num-tanks')) document.getElementById('spr-num-tanks').value='';
   if(document.getElementById('spr-last-liters')) document.getElementById('spr-last-liters').value='';
   if(document.getElementById('spr-speed')) document.getElementById('spr-speed').value='';
