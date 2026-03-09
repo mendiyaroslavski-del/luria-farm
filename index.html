@@ -1803,7 +1803,8 @@ function loadDocsForInvoice(){
 
 function calcInvTotal(){
   let total=0;
-  document.querySelectorAll('[id^="cb-"]:checked').forEach(cb=>{
+  const docsContainer=document.getElementById('inv-docs-list');
+  if(docsContainer)docsContainer.querySelectorAll('[id^="cb-"]:checked').forEach(cb=>{
     const d=dels.find(x=>x.id==cb.value);
     if(d)total+=d.items.reduce((s,i)=>s+(i.totalV||0),0);
   });
@@ -1816,6 +1817,8 @@ function clearInvoice(){
   document.getElementById('inv-total-val').value='';
   const card=document.getElementById('inv-docs-card');
   if(card)card.style.display='none';
+  const docsList=document.getElementById('inv-docs-list');
+  if(docsList)docsList.innerHTML='';
   document.getElementById('inv-docs-total').textContent='₪0.00';
   setInvType('normal');
   directItems=[];
@@ -1918,7 +1921,8 @@ function saveInvoice(){
     return;
   }
 
-  const checked=[...document.querySelectorAll('[id^="cb-"]:checked')].map(cb=>cb.value);
+  const docsContainer=document.getElementById('inv-docs-list');
+  const checked=[...(docsContainer?docsContainer.querySelectorAll('[id^="cb-"]:checked'):[])].map(cb=>cb.value);
   checked.forEach(id=>{const d=dels.find(x=>x.id==id);if(d)d.invNum=num});
   save(K.D,dels);
   invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:checked});
@@ -5350,7 +5354,7 @@ function runQualityChecks() {
     // ─────────────────────────────────────────────
     invs.forEach(inv => {
       if (!inv.total || !inv.docIds || !inv.docIds.length) return;
-      const linkedDels = dels.filter(d => (inv.docIds||[]).includes(d.id));
+      const linkedDels = dels.filter(d => (inv.docIds||[]).some(x=>String(x)===String(d.id)));
       const sumDels = linkedDels.reduce((s, d) => s + (d.items||[]).reduce((ss,i)=>ss+(i.totalV||0),0), 0);
       const diff = Math.abs(inv.total - sumDels);
       if (diff > 50 && sumDels > 0) {
