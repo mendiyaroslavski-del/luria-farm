@@ -260,7 +260,14 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
   <!-- תעודות ללא חשבונית -->
   <div class="card">
-    <div class="ctitle">📋 תעודות ללא חשבונית</div>
+    <div class="ctitle" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>📋 תעודות ללא חשבונית</span>
+      <div id="db-unmatched-actions" style="display:none;gap:6px;flex-wrap:wrap">
+        <button class="btn" style="background:#c62828;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit" onclick="exportUnmatchedPdf()">📄 PDF מפורט</button>
+        <button class="btn" style="background:#1565c0;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit" onclick="exportUnmatchedExcel()">📊 Excel</button>
+        <button class="btn" style="background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit" onclick="toggleUnmatchedDetail()">🔍 <span id="db-unmatched-detail-lbl">פירוט מלא</span></button>
+      </div>
+    </div>
     <div id="db-unmatched-list"></div>
   </div>
 
@@ -2467,21 +2474,14 @@ function initDashboard(){
   }).join('') : '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--gm)">✅ אין פירעון קרוב</td></tr>';
 
   // תעודות ללא חשבונית — קיבוץ לפי ספק
+  const actionsEl = document.getElementById('db-unmatched-actions');
   if(!unmatched.length){
     document.getElementById('db-unmatched-list').innerHTML='<p style="color:var(--gm);padding:8px 0;font-size:13px">✅ כל התעודות משויכות לחשבונית</p>';
+    if(actionsEl) actionsEl.style.display='none';
   } else {
-    const bySup={};
-    unmatched.forEach(d=>{
-      if(!bySup[d.sup])bySup[d.sup]={count:0,total:0};
-      bySup[d.sup].count++;
-      bySup[d.sup].total+=d.items.reduce((s,i)=>s+(i.totalV||0),0);
-    });
-    document.getElementById('db-unmatched-list').innerHTML=`<div class="tblw"><table class="dtbl">
-      <thead><tr><th>ספק</th><th>תעודות</th><th>סה"כ לחיוב</th></tr></thead>
-      <tbody>${Object.entries(bySup).map(([sup,v])=>`
-        <tr><td>${sup}</td><td>${v.count}</td><td style="font-weight:700;color:var(--red)">₪${Math.round(v.total).toLocaleString()}</td></tr>
-      `).join('')}</tbody>
-    </table></div>`;
+    if(actionsEl) actionsEl.style.display='flex';
+    window._unmatchedDels = unmatched; // store for export
+    renderUnmatchedList(false); // default: summary view
   }
 
   // רכישות החודש לפי ספק
@@ -3470,6 +3470,229 @@ function buildRecentActivity(){
   });
 
   return events.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
+}
+
+
+// ══════════════════════════════════════════
+// ═══ תעודות ללא חשבונית — פירוט + ייצוא ═══
+// ══════════════════════════════════════════
+let _unmatchedDetailMode = false;
+
+function renderUnmatchedList(detail){
+  _unmatchedDetailMode = detail;
+  const lbl = document.getElementById('db-unmatched-detail-lbl');
+  if(lbl) lbl.textContent = detail ? 'סיכום' : 'פירוט מלא';
+
+  const unmatched = window._unmatchedDels || [];
+  const el = document.getElementById('db-unmatched-list');
+  if(!el) return;
+
+  if(!detail){
+    // Summary: by supplier
+    const bySup={};
+    unmatched.forEach(d=>{
+      if(!bySup[d.sup]) bySup[d.sup]={count:0,total:0,dels:[]};
+      bySup[d.sup].count++;
+      bySup[d.sup].total += d.items.reduce((s,i)=>s+(i.totalV||0),0);
+      bySup[d.sup].dels.push(d);
+    });
+    const grandTotal = unmatched.reduce((s,d)=>s+d.items.reduce((ss,i)=>ss+(i.totalV||0),0),0);
+    el.innerHTML = `<div class="tblw"><table class="dtbl">
+      <thead><tr><th>ספק</th><th>מס' תעודות</th><th>סה"כ ₪</th></tr></thead>
+      <tbody>
+        ${Object.entries(bySup).sort((a,b)=>b[1].total-a[1].total).map(([sup,v])=>`
+          <tr>
+            <td><strong>${sup}</strong></td>
+            <td><span class="bdg bdg-o">${v.count}</span></td>
+            <td style="font-weight:700;color:var(--red)">₪${Math.round(v.total).toLocaleString()}</td>
+          </tr>`).join('')}
+        <tr style="border-top:2px solid var(--gm)">
+          <td><strong>סה"כ</strong></td>
+          <td><strong>${unmatched.length}</strong></td>
+          <td style="font-weight:700;color:var(--red);font-size:15px">₪${Math.round(grandTotal).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table></div>`;
+  } else {
+    // Full detail: every delivery + its items
+    const sorted = [...unmatched].sort((a,b)=>(a.sup+a.date).localeCompare(b.sup+b.date));
+    el.innerHTML = sorted.map(d=>{
+      const total = d.items.reduce((s,i)=>s+(i.totalV||0),0);
+      const items = d.items.map(it=>`
+        <tr style="font-size:12px;background:rgba(0,0,0,0.02)">
+          <td style="padding-right:24px;color:#555">${it.product||'—'}</td>
+          <td>${it.qty||''}</td>
+          <td>${it.price?'₪'+it.price.toFixed(2):''}</td>
+          <td style="color:var(--red)">${it.totalV?'₪'+it.totalV.toFixed(2):''}</td>
+        </tr>`).join('');
+      return `<div style="margin-bottom:6px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden">
+        <div style="background:rgba(255,255,255,0.06);padding:7px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span><strong>${d.doc||'—'}</strong> — ${d.sup} — ${d.date||'—'}</span>
+          <span style="font-weight:700;color:var(--red)">₪${Math.round(total).toLocaleString()}</span>
+        </div>
+        <table class="dtbl" style="margin:0">
+          <tbody>${items}</tbody>
+        </table>
+      </div>`;
+    }).join('') || '<p style="color:var(--grayM)">אין</p>';
+  }
+}
+
+function toggleUnmatchedDetail(){
+  renderUnmatchedList(!_unmatchedDetailMode);
+}
+
+function exportUnmatchedPdf(){
+  const unmatched = window._unmatchedDels || [];
+  if(!unmatched.length){ toast('אין תעודות ללא חשבונית'); return; }
+  const today = new Date().toLocaleDateString('he-IL');
+  const sorted = [...unmatched].sort((a,b)=>(a.sup+a.date).localeCompare(b.sup+b.date));
+
+  // Group by supplier
+  const bySup={};
+  sorted.forEach(d=>{
+    if(!bySup[d.sup]) bySup[d.sup]=[];
+    bySup[d.sup].push(d);
+  });
+  const grandTotal = sorted.reduce((s,d)=>s+d.items.reduce((ss,i)=>ss+(i.totalV||0),0),0);
+
+  const supSections = Object.entries(bySup).map(([sup,docs])=>{
+    const supTotal = docs.reduce((s,d)=>s+d.items.reduce((ss,i)=>ss+(i.totalV||0),0),0);
+    const rows = docs.map(d=>{
+      const dTotal = d.items.reduce((s,i)=>s+(i.totalV||0),0);
+      const itemRows = d.items.map(it=>`
+        <tr>
+          <td style="padding-right:20px;color:#444;font-size:11px">${it.product||'—'}</td>
+          <td style="font-size:11px;text-align:center">${it.qty||'—'}</td>
+          <td style="font-size:11px;text-align:center">${it.price?'₪'+it.price.toFixed(2):'—'}</td>
+          <td style="font-size:11px;text-align:center">${it.discount?it.discount+'%':'—'}</td>
+          <td style="font-size:11px;text-align:left">₪${(it.totalV||0).toFixed(2)}</td>
+        </tr>`).join('');
+      return `
+        <tr style="background:#f0f7f0">
+          <td colspan="4" style="font-weight:700;padding:5px 8px;font-size:12px">
+            📦 תעודה ${d.doc||'—'} &nbsp;|&nbsp; ${d.date||'—'}
+            ${d.docType==='return'?'<span style="color:#c62828"> [זיכוי]</span>':''}
+          </td>
+          <td style="font-weight:700;text-align:left;padding:5px 8px;font-size:12px;color:#c62828">₪${Math.round(dTotal).toLocaleString()}</td>
+        </tr>
+        ${itemRows}`;
+    }).join('');
+    return `
+      <tr style="background:#2e7d32;color:#fff">
+        <td colspan="5" style="padding:8px 10px;font-size:14px;font-weight:700">🏢 ${sup}</td>
+      </tr>
+      ${rows}
+      <tr style="background:#e8f5e9;font-weight:700">
+        <td colspan="4" style="padding:5px 10px;text-align:right">סה"כ ${sup}:</td>
+        <td style="padding:5px 10px;text-align:left;color:#c62828">₪${Math.round(supTotal).toLocaleString()}</td>
+      </tr>
+      <tr><td colspan="5" style="padding:4px"></td></tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he"><head><meta charset="UTF-8">
+<title>תעודות ללא חשבונית — אתרוגי לוריא</title>
+<style>
+  body{font-family:Arial,sans-serif;direction:rtl;padding:20px;font-size:13px;color:#222}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2e7d32;padding-bottom:14px;margin-bottom:18px}
+  .company{font-size:22px;font-weight:700;color:#2e7d32}
+  .meta{font-size:12px;color:#555;text-align:left}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1b5e20;color:#fff;padding:7px 10px;font-size:12px;font-weight:700}
+  td{padding:4px 8px;border-bottom:1px solid #e0e0e0;vertical-align:top}
+  .summary-box{background:#fff3e0;border:2px solid #e65100;border-radius:8px;padding:14px 18px;margin-top:20px;text-align:center}
+  .summary-total{font-size:24px;font-weight:700;color:#c62828}
+  .footer{margin-top:24px;border-top:1px solid #ccc;padding-top:8px;font-size:10px;color:#aaa;display:flex;justify-content:space-between}
+  @media print{body{padding:10px}.no-print{display:none}}
+</style></head>
+<body>
+<div class="header">
+  <div>
+    <div class="company">אתרוגי לוריא</div>
+    <div style="font-size:13px;color:#666;margin-top:4px">דוח תעודות משלוח ללא חשבונית</div>
+  </div>
+  <div class="meta">
+    <div>תאריך הפקה: <strong>${today}</strong></div>
+    <div>מספר תעודות: <strong>${unmatched.length}</strong></div>
+    <div>ספקים: <strong>${Object.keys(bySup).length}</strong></div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>מוצר / תעודה</th>
+      <th style="width:60px;text-align:center">כמות</th>
+      <th style="width:80px;text-align:center">מחיר יח'</th>
+      <th style="width:60px;text-align:center">הנחה</th>
+      <th style="width:90px;text-align:left">סה"כ כולל מע"מ</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${supSections}
+  </tbody>
+</table>
+
+<div class="summary-box">
+  <div style="font-size:14px;color:#555;margin-bottom:6px">סה"כ לחיוב — כל הספקים</div>
+  <div class="summary-total">₪${Math.round(grandTotal).toLocaleString()}</div>
+  <div style="font-size:12px;color:#888;margin-top:4px">${unmatched.length} תעודות ב-${Object.keys(bySup).length} ספקים</div>
+</div>
+
+<div class="footer">
+  <span>הופק: ${today} | אתרוגי לוריא — מערכת ניהול משק</span>
+  <span>דוח זה כולל תעודות שטרם שויכו לחשבונית</span>
+</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+
+  const w = window.open('','_blank','width=900,height=700');
+  w.document.write(html);
+  w.document.close();
+}
+
+function exportUnmatchedExcel(){
+  const unmatched = window._unmatchedDels || [];
+  if(!unmatched.length){ toast('אין תעודות ללא חשבונית'); return; }
+  const sorted = [...unmatched].sort((a,b)=>(a.sup+a.date).localeCompare(b.sup+b.date));
+
+  const headers = ['ספק','תאריך','מספר תעודה','מוצר','כמות','מחיר יחידה','הנחה%','סה"כ נטו','מע"מ','סה"כ כולל מע"מ'];
+  const rows = [];
+  sorted.forEach(d=>{
+    d.items.forEach(it=>{
+      rows.push([
+        d.sup, d.date||'', d.doc||'',
+        it.product||'', it.qty||0, it.price||0, it.discount||0,
+        it.total||0, it.vat||0, it.totalV||0
+      ]);
+    });
+    // Empty separator row per delivery
+    rows.push(Array(10).fill(''));
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers,...rows]);
+  ws['!cols'] = [14,12,14,28,8,12,8,12,10,14].map(w=>({wch:w}));
+  ws['!views'] = [{rightToLeft:true}];
+  XLSX.utils.book_append_sheet(wb,ws,'תעודות ללא חשבונית');
+
+  // Summary sheet
+  const bySup={};
+  sorted.forEach(d=>{
+    if(!bySup[d.sup]){bySup[d.sup]={count:0,total:0};}
+    bySup[d.sup].count++;
+    bySup[d.sup].total+=d.items.reduce((s,i)=>s+(i.totalV||0),0);
+  });
+  const summaryRows=[['ספק','מספר תעודות','סה"כ ₪'],...Object.entries(bySup).map(([s,v])=>[s,v.count,+v.total.toFixed(2)])];
+  const wsSumm = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSumm['!cols']=[18,14,16].map(w=>({wch:w}));
+  wsSumm['!views']=[{rightToLeft:true}];
+  XLSX.utils.book_append_sheet(wb,wsSumm,'סיכום לפי ספק');
+
+  const fname = `תעודות_ללא_חשבונית_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb,fname);
+  toast('📊 קובץ Excel הורד: '+fname);
 }
 
 // ═══ EXPORT ═══
