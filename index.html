@@ -782,10 +782,18 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div class="srow">
     <input class="sinput" id="inv-search" placeholder="חפש חומר..." oninput="renderInventory()">
     <button class="btn btnP" onclick="openAddInv()">+ הוסף</button>
+    <button class="btn btnS" id="inv-edit-all-btn" onclick="toggleInvEditAll()">✏️ ערוך הכל</button>
+    <button class="btn" style="background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="syncInventoryFromPurchases()">🔄 סנכרן מרכישות</button>
+  </div>
+  <div id="inv-auto-notice" style="display:none;background:rgba(46,125,50,0.15);border:1px solid rgba(46,125,50,0.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:var(--gm)"></div>
+  <div id="inv-edit-all-actions" style="display:none;gap:8px;margin-bottom:8px;padding:0 4px">
+    <button class="btn btnP" onclick="saveAllInvEdits()">💾 שמור שינויים</button>
+    <button class="btn btnS" onclick="cancelInvEditAll()">✕ ביטול</button>
+    <button class="btn" style="background:#e53935;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="deleteCheckedInv()">🗑 מחק מסומנים</button>
   </div>
   <div class="tblw">
     <table class="dtbl">
-      <thead><tr><th>חומר</th><th>יחידה</th><th>נרכש</th><th>נוצל</th><th>מלאי</th></tr></thead>
+      <thead><tr><th id="inv-th-check" style="display:none;width:30px"></th><th>חומר</th><th>יחידה</th><th>נרכש</th><th>נוצל</th><th>מלאי</th></tr></thead>
       <tbody id="inv-body"></tbody>
     </table>
   </div>
@@ -2800,15 +2808,140 @@ function renderSpraySummary(){
 }
 
 // ═══ INVENTORY ═══
+let _invEditMode = false;
+
+function toggleInvEditAll() {
+  _invEditMode = !_invEditMode;
+  const btn = document.getElementById('inv-edit-all-btn');
+  const actions = document.getElementById('inv-edit-all-actions');
+  const thCheck = document.getElementById('inv-th-check');
+  if (_invEditMode) {
+    btn.textContent = '← חזור לתצוגה';
+    btn.style.background = '#888';
+    actions.style.display = 'flex';
+    thCheck.style.display = '';
+  } else {
+    btn.textContent = '✏️ ערוך הכל';
+    btn.style.background = '';
+    actions.style.display = 'none';
+    thCheck.style.display = 'none';
+  }
+  renderInventory();
+}
+
+function cancelInvEditAll() {
+  _invEditMode = false;
+  const btn = document.getElementById('inv-edit-all-btn');
+  const actions = document.getElementById('inv-edit-all-actions');
+  const thCheck = document.getElementById('inv-th-check');
+  btn.textContent = '✏️ ערוך הכל';
+  btn.style.background = '';
+  actions.style.display = 'none';
+  thCheck.style.display = 'none';
+  renderInventory();
+}
+
+function saveAllInvEdits() {
+  const rows = document.querySelectorAll('[data-inv-idx]');
+  rows.forEach(row => {
+    const idx = +row.dataset.invIdx;
+    const item = invent[idx];
+    if (!item) return;
+    const nameEl = row.querySelector('.inv-edit-name');
+    const unitEl = row.querySelector('.inv-edit-unit');
+    const purchEl = row.querySelector('.inv-edit-purch');
+    const upsEl = row.querySelector('.inv-edit-ups');
+    if (nameEl) item.name = nameEl.value.trim() || item.name;
+    if (unitEl) item.unit = unitEl.value.trim();
+    if (purchEl) item.purchased = parseFloat(purchEl.value) || 0;
+    if (upsEl) item.ups = parseFloat(upsEl.value) || 1;
+  });
+  save(K.IV, invent);
+  cancelInvEditAll();
+  toast('✅ כל שינויי המלאי נשמרו');
+}
+
+function deleteCheckedInv() {
+  const checked = [...document.querySelectorAll('.inv-row-check:checked')].map(cb => +cb.value);
+  if (!checked.length) { toast('⚠️ לא סומן אף פריט'); return; }
+  const names = checked.map(i => invent[i]?.name).filter(Boolean).join(', ');
+  if (!confirm(`למחוק ${checked.length} פריטים?\n${names}\n\nפעולה זו אינה הפיכה.`)) return;
+  invent = invent.filter((_, i) => !checked.includes(i));
+  save(K.IV, invent);
+  renderInventory();
+  toast(`🗑 נמחקו ${checked.length} פריטים`);
+}
+
+function calcBought(name){
+  return (
+    (invent.find(i=>i.name===name)?.purchased||0) +
+    [...HIST,...dels].reduce((s,d)=>{
+      if(!['עמיר','המשביר'].includes(d.sup)) return s;
+      return s+d.items.filter(i=>i.product===name).reduce((ss,i)=>ss+(i.qty>0?i.qty:0),0);
+    },0)
+  );
+}
+
 function renderInventory(){
   const q=(document.getElementById('inv-search')?.value||'').toLowerCase();
-  document.getElementById('inv-body').innerHTML=invent.filter(i=>!q||i.name.toLowerCase().includes(q)).map(item=>{
-    const bought=(item.purchased||0)+dels.reduce((s,d)=>s+d.items.filter(i=>i.product===item.name).reduce((ss,i)=>ss+(i.qty||0),0),0);
+  const existingNames=new Set(invent.map(i=>i.name));
+
+  // Managed inventory rows
+  const filtered = invent.map((item, idx) => ({item, idx})).filter(({item}) => !q || item.name.toLowerCase().includes(q));
+
+  // Auto rows: products from purchases not yet in invent
+  const purchMap = getAllPurchaseProducts ? getAllPurchaseProducts() : {};
+  const autoRows = Object.keys(purchMap)
+    .filter(name => !existingNames.has(name) && (!q || name.toLowerCase().includes(q)))
+    .sort((a,b)=>a.localeCompare(b,'he'));
+
+  const managedHTML = filtered.map(({item, idx}) => {
+    const bought=calcBought(item.name);
     const used=sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
     const stock=bought-used;
     const col=stock>5?'var(--gm)':stock>0?'#f57c00':'var(--red)';
-    return `<tr><td><strong>${item.name}</strong></td><td>${item.unit||''}</td><td>${bought.toFixed(1)}</td><td>${used.toFixed(1)}</td><td style="font-weight:700;color:${col}">${stock.toFixed(1)}</td></tr>`;
-  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--grayM)">אין פריטים</td></tr>';
+
+    if (_invEditMode) {
+      return `<tr data-inv-idx="${idx}" style="background:#fffde7">
+        <td style="text-align:center"><input type="checkbox" class="inv-row-check" value="${idx}"></td>
+        <td><input type="text" class="inv-edit-name finput" value="${item.name}" style="width:100%;min-width:100px;font-size:13px;padding:4px 6px"></td>
+        <td><input type="text" class="inv-edit-unit finput" value="${item.unit||''}" placeholder="יח׳" style="width:60px;font-size:13px;padding:4px 6px"></td>
+        <td><input type="number" class="inv-edit-purch finput" value="${item.purchased||0}" min="0" step="0.1" style="width:70px;font-size:13px;padding:4px 6px" title="כמות שהוזנה ידנית (לא כולל קניות מתעודות)"></td>
+        <td style="font-size:12px;color:#888">${used.toFixed(1)}</td>
+        <td style="font-weight:700;color:${col}">${stock.toFixed(1)}</td>
+      </tr>`;
+    }
+
+    return `<tr>
+      <td style="display:none"></td>
+      <td><strong>${item.name}</strong></td>
+      <td>${item.unit||''}</td>
+      <td>${bought.toFixed(1)}</td>
+      <td>${used.toFixed(1)}</td>
+      <td style="font-weight:700;color:${col}">${stock.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+
+  // Auto rows from purchases (not managed)
+  const autoHTML = _invEditMode ? '' : autoRows.map(name => {
+    const info = purchMap[name];
+    const bought = info.qty;
+    const used = sprs.filter(s=>s.mat===name).reduce((s,x)=>s+(x.qty||0),0);
+    const stock = bought - used;
+    const col = stock>5?'var(--gm)':stock>0?'#f57c00':'var(--red)';
+    return `<tr style="opacity:0.7;font-style:italic">
+      <td style="display:none"></td>
+      <td title="מוצר מרכישות - לחץ 🔄 לסנכרון" style="color:#aaa">${name} <span style="font-size:10px;background:rgba(100,100,100,0.2);border-radius:4px;padding:1px 4px">${info.sup}</span></td>
+      <td style="color:#aaa">—</td>
+      <td style="color:#aaa">${bought.toFixed(1)}</td>
+      <td style="color:#aaa">${used.toFixed(1)}</td>
+      <td style="font-weight:700;color:${col}">${stock.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+
+  const combined = managedHTML + autoHTML;
+  document.getElementById('inv-body').innerHTML = combined ||
+    '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--grayM)">אין פריטים</td></tr>';
 }
 function openAddInv(){openMod('modal-inv')}
 function saveInvItem(){
@@ -2821,6 +2954,59 @@ function saveInvItem(){
   if(ex){ex.unit=unit||ex.unit;ex.purchased=(ex.purchased||0)+qty;ex.ups=ups}
   else invent.push({name,unit,purchased:qty,ups});
   save(K.IV,invent);closeMod('modal-inv');renderInventory();toast('✅ נשמר: '+name);
+}
+
+
+// ═══ פונקציות סנכרון מלאי מרכישות ═══
+const INV_SERVICE_WORDS = ['שירות','הובלה','שרות','סה"כ','משטח','משטח עץ','פלט','הובלה למיכל'];
+function isServiceProduct(name){
+  if(!name||!name.trim()) return true;
+  const n=name.trim();
+  return INV_SERVICE_WORDS.some(w=>n.includes(w))||/^[0-9]/.test(n)||n.length<2;
+}
+
+function getAllPurchaseProducts(){
+  // Collect all unique products from HIST+dels where sup is עמיר or המשביר
+  const TARGET_SUPS=['עמיר','המשביר'];
+  const map={}; // name -> {qty, sup}
+  const allDels=[...HIST,...dels];
+  for(const d of allDels){
+    if(!TARGET_SUPS.includes(d.sup)) continue;
+    if(!d.items) continue;
+    for(const it of d.items){
+      const name=(it.product||'').trim();
+      if(!name||isServiceProduct(name)) continue;
+      if(it.qty<=0&&it.price===0) continue; // skip zero/empty
+      if(!map[name]) map[name]={qty:0,sup:d.sup};
+      map[name].qty+=(it.qty||0);
+    }
+  }
+  return map;
+}
+
+function syncInventoryFromPurchases(){
+  const map=getAllPurchaseProducts();
+  const existingNames=new Set(invent.map(i=>i.name));
+  const newItems=[];
+  for(const[name,info] of Object.entries(map)){
+    if(!existingNames.has(name)){
+      newItems.push({name,unit:'',purchased:0,ups:1});
+    }
+  }
+  if(!newItems.length){
+    toast('✅ כל המוצרים כבר במלאי');
+    return;
+  }
+  // Sort alphabetically
+  newItems.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+  invent.push(...newItems);
+  save(K.IV,invent);
+  renderInventory();
+  const notice=document.getElementById('inv-auto-notice');
+  notice.textContent='✅ נוספו '+newItems.length+' מוצרים חדשים מרכישות עמיר והמשביר';
+  notice.style.display='block';
+  setTimeout(()=>notice.style.display='none',5000);
+  toast('✅ סונכרנו '+newItems.length+' מוצרים חדשים');
 }
 
 // ═══ EXPORT ═══
