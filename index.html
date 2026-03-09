@@ -1222,6 +1222,19 @@ function initData() {
     dels = HIST.map(d=>({...d, _hist:true}));
     save(K.D, dels);
   }
+  // מיגרציה: תיקון ID כפולים שנוצרו בייבוא ישן
+  const seen = new Set();
+  let fixed = false;
+  dels.forEach(d => {
+    const key = String(d.id);
+    if(seen.has(key)) {
+      d.id = 'fix_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      fixed = true;
+    } else {
+      seen.add(key);
+    }
+  });
+  if(fixed) { save(K.D, dels); console.log('[migrate] תוקנו ID כפולים בתעודות'); }
   return dels;
 }
 
@@ -4261,12 +4274,12 @@ function importAll(input){
             const key = docNum + '|' + sup;
             let d = row[iDate];
             let ds = d instanceof Date ? d.toISOString().split('T')[0] : String(d||'');
-            if(!docMap[key]) docMap[key]={id:Date.now()+i,sup,date:ds,doc:docNum,year,items:[],invNum:String(row[iInv]||''),ts:Date.now()};
+            if(!docMap[key]) docMap[key]={id:'imp_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2),sup,date:ds,doc:docNum,year,items:[],invNum:String(row[iInv]||''),ts:Date.now()};
             const qty=parseFloat(row[iQty]||0), price=parseFloat(row[iPrice]||0);
             const net=parseFloat(row[iNet]||0)||qty*price;
             const vat=parseFloat(row[iVat]||0)||net*0.18;
             const totalV=parseFloat(row[iTotalV]||0)||net+vat;
-            docMap[key].items.push({id:Date.now()+i+Math.random(),product:String(row[iProd]||''),qty,price,total:net,vat,totalV});
+            docMap[key].items.push({id:'iti_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2),product:String(row[iProd]||''),qty,price,total:net,vat,totalV});
             // רשום ספק מזדמן אם חדש
             if(!customSups.includes(sup) && !['עמיר','המשביר','דשנים ICL'].includes(sup)) {
               customSups.push(sup);
@@ -4306,12 +4319,12 @@ function importAll(input){
             const key = docNum + '|' + sup;
             let d = row[iDate];
             let ds = d instanceof Date ? d.toISOString().split('T')[0] : String(d||'');
-            if(!docMap[key]) docMap[key]={id:Date.now()+i,sup,date:ds,doc:docNum,year,items:[],invNum:String(row[iInv]||''),ts:Date.now()};
+            if(!docMap[key]) docMap[key]={id:'imp_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2),sup,date:ds,doc:docNum,year,items:[],invNum:String(row[iInv]||''),ts:Date.now()};
             const qty=parseFloat(row[iQty]||0), price=parseFloat(row[iPrice]||0);
             const net=parseFloat(row[iNet]||0)||qty*price;
             const vat=parseFloat(row[iVat]||0)||net*0.18;
             const totalV=parseFloat(row[iTotalV]||0)||net+vat;
-            docMap[key].items.push({id:Date.now()+i+Math.random(),product:String(row[iProd]||''),qty,price,total:net,vat,totalV});
+            docMap[key].items.push({id:'iti_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2),product:String(row[iProd]||''),qty,price,total:net,vat,totalV});
           }
           Object.values(docMap).forEach(nd=>{
             if(!dels.find(d=>d.doc===nd.doc&&d.sup===nd.sup)){dels.push(nd);addedDels++;}else skippedDels++;
