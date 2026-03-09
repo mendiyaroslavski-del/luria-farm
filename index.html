@@ -212,6 +212,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn" onclick="showTab(this,'stats')">📊 סטטיסטיקה</button>
     <button class="navbtn" onclick="showTab(this,'spray')">🌿 ריסוסים</button>
     <button class="navbtn" onclick="showTab(this,'inventory')">📦 מלאי</button>
+    <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
     <button class="navbtn" id="navbtn-quality" onclick="showTab(this,'quality')">🔍 בדיקת נתונים</button>
   </nav>
   <div id="file-indicator" style="display:flex;align-items:center;gap:8px;padding:5px 18px;font-size:12px;border-top:1px solid rgba(255,255,255,.1);background:#fff3e0;flex-wrap:wrap;direction:rtl">
@@ -267,6 +268,16 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div class="card">
     <div class="ctitle">📅 רכישות <span id="db-month-label"></span> לפי ספק</div>
     <div id="db-month-by-sup"></div>
+  </div>
+  <!-- גיבוי -->
+  <div id="db-backup-reminder" style="display:none;background:#fff3e0;border:1px solid #ffb74d;border-radius:10px;padding:12px 14px;margin-top:4px;font-size:13px">
+    ⚠️ <strong>תזכורת גיבוי</strong> — עברו יותר מ-7 ימים מהגיבוי האחרון.
+    <button class="btn btnP" style="margin-right:10px;padding:5px 12px;font-size:12px" onclick="backupNow()">💾 גבה עכשיו</button>
+  </div>
+  <!-- פעילות אחרונה -->
+  <div class="card">
+    <div class="ctitle">🕓 פעילות אחרונה</div>
+    <div id="db-recent-activity" style="font-size:13px"></div>
   </div>
 </div>
 
@@ -730,6 +741,9 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fg"><label class="flabel">מהירות נסיעה (קמ"ש)</label>
         <input type="number" class="finput" id="spr-speed" min="0" step="0.5" placeholder="קמ&quot;ש">
       </div>
+      <div class="fg"><label class="flabel">שטח מרוסס (דונם)</label>
+        <input type="number" class="finput" id="spr-dunam" min="0" step="0.1" placeholder="דונם" oninput="calcSprayTotals()">
+      </div>
     </div>
     <!-- תצוגת סיכום מיכלים -->
     <div id="spr-tanks-summary" style="display:none;background:var(--gp);border:1px solid #c5e1c5;border-radius:var(--rs);padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--gm)"></div>
@@ -759,7 +773,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="tblw">
       <table class="dtbl">
-        <thead><tr><th>תאריך</th><th>מרסס</th><th>חומרים</th><th>מיכל</th><th>ליטר סה״כ</th><th>שטח</th><th>עלות כוללת</th><th>מהירות</th><th>ישום פיטם</th><th></th></tr></thead>
+        <thead><tr><th>תאריך</th><th>מרסס</th><th>חומרים</th><th>מיכל</th><th>ליטר סה״כ</th><th>שטח</th><th>דונם</th><th>עלות כוללת</th><th>₪/דונם</th><th>מהירות</th><th>ישום פיטם</th><th></th></tr></thead>
         <tbody id="spr-results"></tbody>
       </table>
     </div>
@@ -867,6 +881,71 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 <div class="toast" id="toast"></div>
 
+
+<!-- ═══════════════════════════════════ -->
+<!-- 8. הוצאות כלליות                    -->
+<!-- ═══════════════════════════════════ -->
+<div id="tab-expenses" class="sec">
+  <div class="shtitle">💰 הוצאות כלליות</div>
+  <div class="iobar">
+    <span>📁</span>
+    <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל</button>
+    <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
+  </div>
+  <div class="card">
+    <div class="ctitle">➕ הוצאה חדשה</div>
+    <div class="fr fr2">
+      <div class="fg"><label class="flabel">תאריך</label><input type="date" class="finput" id="exp-date"></div>
+      <div class="fg">
+        <label class="flabel">קטגוריה</label>
+        <select class="fsel" id="exp-cat">
+          <option value="fuel">⛽ דלק</option>
+          <option value="maint">🔧 תחזוקה / תיקון</option>
+          <option value="equip">🛠️ ציוד / כלים</option>
+          <option value="labor">👷 עבודה / שכר</option>
+          <option value="water">💧 מים / השקיה</option>
+          <option value="transport">🚛 הובלה / שינוע</option>
+          <option value="other">📌 אחר</option>
+        </select>
+      </div>
+    </div>
+    <div class="fr fr2">
+      <div class="fg"><label class="flabel">תיאור</label><input type="text" class="finput" id="exp-desc" placeholder="תיאור ההוצאה..."></div>
+      <div class="fg"><label class="flabel">ספק / חנות</label><input type="text" class="finput" id="exp-sup" placeholder="שם ספק (אופציונלי)"></div>
+    </div>
+    <div class="fr fr3">
+      <div class="fg"><label class="flabel">סכום (₪)</label><input type="number" class="finput" id="exp-amount" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="fg"><label class="flabel">כולל מע"מ?</label>
+        <select class="fsel" id="exp-vat">
+          <option value="yes">כן — כולל מע"מ</option>
+          <option value="no">לא — ללא מע"מ</option>
+        </select>
+      </div>
+      <div class="fg"><label class="flabel">הערות</label><input type="text" class="finput" id="exp-notes" placeholder="הערות..."></div>
+    </div>
+    <button class="btn btnP" style="width:100%;margin-top:6px" onclick="saveExpense()">💾 שמור הוצאה</button>
+  </div>
+  <div class="card">
+    <div class="ctitle">📊 סיכום <span id="exp-year-label"></span></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <select class="fsel" id="exp-filter-year" onchange="renderExpenses()" style="flex:1">
+        <option>2026</option><option>2025</option><option>2024</option>
+      </select>
+      <select class="fsel" id="exp-filter-cat" onchange="renderExpenses()" style="flex:1">
+        <option value="">כל הקטגוריות</option>
+        <option value="fuel">⛽ דלק</option>
+        <option value="maint">🔧 תחזוקה</option>
+        <option value="equip">🛠️ ציוד</option>
+        <option value="labor">👷 עבודה</option>
+        <option value="water">💧 מים</option>
+        <option value="transport">🚛 הובלה</option>
+        <option value="other">📌 אחר</option>
+      </select>
+    </div>
+    <div id="exp-summary-cards" class="sgrid" style="margin-bottom:12px"></div>
+    <div id="exp-list-area"></div>
+  </div>
+</div>
 
 <!-- MODAL: דוח PDF -->
 <div class="mbg" id="modal-pdf">
@@ -1108,7 +1187,7 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2'};
 const load = k => { try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]} };
 const save = (k,v) => localStorage.setItem(k,JSON.stringify(v));
 
@@ -1127,6 +1206,7 @@ let invs = load(K.I);
 let sprs = load(K.S);
 let invent = load(K.IV);
 let customSups = load(K.C); // ספקים מזדמנים
+let expenses  = load(K.EX); // הוצאות כלליות
 let fileHandle = null; // שמירה
 let currentDocType = 'delivery'; // סוג תעודה לאותו קובץ
 
@@ -1217,6 +1297,7 @@ function showTab(btn, name) {
   btn.classList.add('on');
   if(name==='stats') initStats();
   if(name==='dashboard') initDashboard();
+  if(name==='expenses'){ renderExpenses(); const ed=document.getElementById('exp-date'); if(ed&&!ed.value) ed.value=new Date().toISOString().split('T')[0]; }
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); }
   if(name==='inventory') renderInventory();
@@ -1667,8 +1748,12 @@ function renderDelList(){
       <td><strong>${d.doc||'—'}</strong></td>
       <td>${d.items.length}</td>
       <td style="${isReturn?'color:#c62828;font-weight:700':''}">₪${total.toFixed(0)}</td>
-      <td>${d.invNum?`<span class="bdg bdg-g">${d.invNum}</span>`:'—'}</td>
-      <td><button class="del-btn" onclick="deleteDel('${d.id}')" title="מחק תעודה">🗑</button><button class="del-btn" onclick="editDel('${d.id}')" title="ערוך תעודה" style="opacity:0.4">✏️</button></td>
+      <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span>`:'—'}</td>
+      <td style="white-space:nowrap">
+        <button class="del-btn" onclick="deleteDel('${d.id}')" title="מחק תעודה">🗑</button>
+        <button class="del-btn" onclick="editDel('${d.id}')" title="ערוך תעודה" style="opacity:0.4">✏️</button>
+        <button class="del-btn" onclick="printDeliveryPdf('${d.id}')" title="PDF לתעודה" style="opacity:0.6">📄</button>
+      </td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--grayM)">אין תעודות</td></tr>';
 
@@ -2231,7 +2316,7 @@ function globalSearch(){
         <td><strong>${d.doc||'—'}</strong></td>
         <td style="font-size:12px">${itemsLabel}</td>
         <td>₪${total.toFixed(0)}</td>
-        <td>${d.invNum?`<span class="bdg bdg-g">${d.invNum}</span>`:'—'}</td>
+        <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span>`:'—'}</td>
       </tr>`;
     }).join('');
   } else { delCard.style.display='none'; }
@@ -2412,6 +2497,27 @@ function initDashboard(){
       ${supEntries.map(([sup,t])=>`<tr><td>${sup}</td><td style="font-weight:700;color:var(--gm)">₪${Math.round(t).toLocaleString()}</td></tr>`).join('')}
     </tbody></table></div>` :
     '<p style="color:var(--grayM);font-size:13px;padding:8px 0">אין רכישות החודש</p>';
+
+  // גיבוי: הסתר אם גובה עכשיו
+  checkBackupReminder();
+
+  // פעילות אחרונה
+  const activity = buildRecentActivity();
+  const actEl = document.getElementById('db-recent-activity');
+  if(actEl){
+    if(!activity.length){
+      actEl.innerHTML='<p style="color:var(--grayM);font-size:13px;padding:8px 0">אין פעילות עדיין</p>';
+    } else {
+      actEl.innerHTML=activity.map(a=>`
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
+          <span style="font-size:16px;min-width:20px">${a.icon}</span>
+          <div>
+            <div style="font-size:13px">${a.text}</div>
+            <div style="font-size:11px;color:#aaa">${a.date||''}</div>
+          </div>
+        </div>`).join('');
+    }
+  }
 }
 
 // ═══ STATS ═══
@@ -2674,6 +2780,7 @@ function saveSpray(){
   const numTanks=parseFloat(document.getElementById('spr-num-tanks')?.value||0);
   const lastLiters=parseFloat(document.getElementById('spr-last-liters')?.value||0);
   const speed=document.getElementById('spr-speed')?.value.trim()||'';
+  const dunam=parseFloat(document.getElementById('spr-dunam')?.value||0)||0;
   const notes=document.getElementById('spr-notes').value.trim();
   // calc total liters
   const tankVol=parseInt(tank);
@@ -2699,7 +2806,7 @@ function saveSpray(){
     const unitPrice=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
     const unit=info.unit||'יח׳';
     const totalCost=unitPrice*(totalQty||m.qty);
-    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',notes});
+    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,dunam,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',notes});
   });
   save(K.S,sprs);
   const totalSprayCost=validMats.reduce((s,m)=>{
@@ -2710,6 +2817,7 @@ function saveSpray(){
   },0);
   document.getElementById('spr-notes').value='';
   document.getElementById('spr-area').value='';
+  if(document.getElementById('spr-dunam')) document.getElementById('spr-dunam').value='';
   if(document.getElementById('spr-num-tanks')) document.getElementById('spr-num-tanks').value='';
   if(document.getElementById('spr-last-liters')) document.getElementById('spr-last-liters').value='';
   if(document.getElementById('spr-speed')) document.getElementById('spr-speed').value='';
@@ -2758,7 +2866,9 @@ function renderSprays(){
       <td>${g.tank?g.tank+'L':'—'}${g.numTanks?` × ${g.numTanks}`:''}</td>
       <td>${g.totalLiters?g.totalLiters.toLocaleString()+'L':'—'}</td>
       <td>${g.area||'—'}</td>
+      <td>${g.dunam?g.dunam+' ד':'—'}</td>
       <td>${totalCost?'<strong style="color:#2e7d32">₪'+Math.round(totalCost).toLocaleString()+'</strong>':'<span style="color:#aaa">—</span>'}</td>
+      <td>${(totalCost&&g.dunam)?'<span style="color:#1565c0;font-weight:600">₪'+Math.round(totalCost/g.dunam).toLocaleString()+'/ד</span>':'<span style="color:#aaa">—</span>'}</td>
       <td>${g.speed?g.speed+' קמ"ש':'—'}</td>
       <td>${phytems||'—'}</td>
       <td><button onclick="deleteApp(${g.appId})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 6px" title="מחק ישום">🗑</button></td>
@@ -3124,9 +3234,250 @@ function syncInventoryFromPurchases(){
   toast('✅ סונכרנו '+newItems.length+' מוצרים חדשים');
 }
 
+
+// ══════════════════════════════════════════
+// ═══ EXPENSES — הוצאות כלליות ═══
+// ══════════════════════════════════════════
+const EXP_CATS = {
+  fuel:'⛽ דלק', maint:'🔧 תחזוקה', equip:'🛠️ ציוד',
+  labor:'👷 עבודה', water:'💧 מים', transport:'🚛 הובלה', other:'📌 אחר'
+};
+
+function saveExpense(){
+  const date  = document.getElementById('exp-date').value;
+  const cat   = document.getElementById('exp-cat').value;
+  const desc  = document.getElementById('exp-desc').value.trim();
+  const sup   = document.getElementById('exp-sup').value.trim();
+  const amount= parseFloat(document.getElementById('exp-amount').value||0);
+  const vat   = document.getElementById('exp-vat').value;
+  const notes = document.getElementById('exp-notes').value.trim();
+  if(!date){toast('⚠️ בחר תאריך');return;}
+  if(!amount||amount<=0){toast('⚠️ הזן סכום');return;}
+  if(!desc){toast('⚠️ הזן תיאור');return;}
+  const d=new Date(date);
+  expenses.push({id:Date.now(),date,month:d.getMonth()+1,year:d.getFullYear(),cat,desc,sup,amount,vat,notes});
+  save(K.EX,expenses);
+  renderExpenses();
+  // clear
+  document.getElementById('exp-amount').value='';
+  document.getElementById('exp-desc').value='';
+  document.getElementById('exp-sup').value='';
+  document.getElementById('exp-notes').value='';
+  toast('✅ הוצאה נשמרה: ₪'+amount.toLocaleString());
+}
+
+function deleteExpense(id){
+  if(!confirm('למחוק הוצאה זו?')) return;
+  expenses=expenses.filter(e=>e.id!==id);
+  save(K.EX,expenses);
+  renderExpenses();
+  toast('🗑 נמחק');
+}
+
+function renderExpenses(){
+  const yr  = +(document.getElementById('exp-filter-year')?.value||new Date().getFullYear());
+  const cat =  document.getElementById('exp-filter-cat')?.value||'';
+  const lbl = document.getElementById('exp-year-label');
+  if(lbl) lbl.textContent = yr;
+
+  const filtered = expenses.filter(e=>e.year===yr && (!cat||e.cat===cat))
+    .sort((a,b)=>b.date.localeCompare(a.date));
+
+  // Summary cards per category
+  const totByCat={};
+  filtered.forEach(e=>{
+    if(!totByCat[e.cat]) totByCat[e.cat]=0;
+    totByCat[e.cat]+=e.amount;
+  });
+  const grandTotal=filtered.reduce((s,e)=>s+e.amount,0);
+
+  const cards=document.getElementById('exp-summary-cards');
+  if(cards){
+    cards.innerHTML = `<div class="scard b"><div class="snum">₪${Math.round(grandTotal).toLocaleString()}</div><div class="slbl">סה"כ ${yr}</div></div>` +
+      Object.entries(totByCat).sort((a,b)=>b[1]-a[1]).map(([c,t])=>
+        `<div class="scard g"><div class="snum" style="font-size:16px">₪${Math.round(t).toLocaleString()}</div><div class="slbl">${EXP_CATS[c]||c}</div></div>`
+      ).join('');
+  }
+
+  const area = document.getElementById('exp-list-area');
+  if(!area) return;
+  if(!filtered.length){
+    area.innerHTML='<p style="color:var(--grayM);text-align:center;padding:20px">אין הוצאות בתקופה זו</p>';
+    return;
+  }
+  area.innerHTML=`<div class="tblw"><table class="dtbl">
+    <thead><tr><th>תאריך</th><th>קטגוריה</th><th>תיאור</th><th>ספק</th><th>סכום</th><th>מע"מ</th><th>הערות</th><th></th></tr></thead>
+    <tbody>${filtered.map(e=>`<tr>
+      <td>${e.date}</td>
+      <td>${EXP_CATS[e.cat]||e.cat}</td>
+      <td><strong>${e.desc}</strong></td>
+      <td>${e.sup||'—'}</td>
+      <td style="font-weight:700;color:var(--red)">₪${e.amount.toLocaleString()}</td>
+      <td><span style="font-size:11px;color:#aaa">${e.vat==='yes'?'כולל':'ללא'}</span></td>
+      <td style="font-size:12px;color:#888">${e.notes||'—'}</td>
+      <td><button onclick="deleteExpense(${e.id})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:14px">🗑</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ══════════════════════════════════════════
+// ═══ BIDIRECTIONAL LINK: delivery ↔ invoice ═══
+// ══════════════════════════════════════════
+function openInvFromDel(invNum, sup){
+  // Navigate to invoice tab and filter
+  const inv = invs.find(x=>x.num===invNum && x.sup===sup) || invs.find(x=>x.num===invNum);
+  if(!inv){ toast('⚠️ חשבונית לא נמצאה'); return; }
+  const btn = document.querySelector('.navbtn[onclick*="invoice"]');
+  if(btn) showTab(btn,'invoice');
+  // Highlight after short delay
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('#inv-list-body tr');
+    rows.forEach(r=>{
+      if(r.textContent.includes(invNum)){
+        r.style.background='rgba(46,125,50,0.25)';
+        r.scrollIntoView({behavior:'smooth',block:'center'});
+        setTimeout(()=>r.style.background='',2500);
+      }
+    });
+  },300);
+}
+
+// ══════════════════════════════════════════
+// ═══ DELIVERY PDF ═══
+// ══════════════════════════════════════════
+function printDeliveryPdf(id){
+  const d = dels.find(x=>String(x.id)===String(id));
+  if(!d){ toast('⚠️ תעודה לא נמצאה'); return; }
+  const inv = d.invNum ? invs.find(x=>x.num===d.invNum&&x.sup===d.sup) : null;
+  const total = d.items.reduce((s,i)=>s+(i.totalV||0),0);
+  const vatTotal = d.items.reduce((s,i)=>s+(i.vat||0),0);
+  const netTotal = total - vatTotal;
+
+  const rows = d.items.map(it=>`
+    <tr>
+      <td>${it.product||'—'}</td>
+      <td>${it.qty||'—'}</td>
+      <td>${it.price?'₪'+it.price.toFixed(2):'—'}</td>
+      <td>${it.discount?it.discount+'%':'—'}</td>
+      <td>${it.total?'₪'+it.total.toFixed(2):'—'}</td>
+      <td>${it.vat?'₪'+it.vat.toFixed(2):'—'}</td>
+      <td>${it.totalV?'₪'+it.totalV.toFixed(2):'—'}</td>
+    </tr>`).join('');
+
+  const html=`<!DOCTYPE html>
+<html dir="rtl" lang="he"><head><meta charset="UTF-8">
+<title>תעודת משלוח ${d.doc||''}</title>
+<style>
+  body{font-family:Arial,sans-serif;direction:rtl;padding:20px;font-size:13px;color:#222}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #2e7d32;padding-bottom:12px;margin-bottom:16px}
+  .company{font-size:20px;font-weight:700;color:#2e7d32}
+  .doc-info{text-align:left;font-size:12px;color:#555}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th{background:#2e7d32;color:#fff;padding:6px 8px;font-size:12px}
+  td{padding:5px 8px;border-bottom:1px solid #eee;font-size:12px}
+  .totals{margin-top:16px;text-align:left;font-size:13px}
+  .totals td{padding:4px 8px;border:none}
+  .grand{font-weight:700;font-size:15px;color:#2e7d32}
+  .inv-ref{margin-top:12px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:12px;color:#2e7d32}
+  @media print{body{padding:5px}}
+</style></head>
+<body>
+<div class="header">
+  <div>
+    <div class="company">אתרוגי לוריא</div>
+    <div style="font-size:12px;color:#888;margin-top:4px">ניהול משק — תעודת משלוח</div>
+  </div>
+  <div class="doc-info">
+    <div>תעודה: <strong>${d.doc||'—'}</strong></div>
+    <div>ספק: <strong>${d.sup||'—'}</strong></div>
+    <div>תאריך: <strong>${d.date||'—'}</strong></div>
+    <div>שנה: <strong>${d.year||'—'}</strong></div>
+    ${d.docType==='return'?'<div style="color:#c62828;font-weight:700">🔄 תעודת זיכוי/החזרה</div>':''}
+  </div>
+</div>
+
+<table>
+  <thead><tr><th>מוצר</th><th>כמות</th><th>מחיר יח׳</th><th>הנחה</th><th>סה"כ</th><th>מע"מ</th><th>סה"כ כולל מע"מ</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+
+<div class="totals">
+  <table style="width:auto;margin-right:auto">
+    <tr><td>נטו:</td><td><strong>₪${netTotal.toFixed(2)}</strong></td></tr>
+    <tr><td>מע"מ:</td><td>₪${vatTotal.toFixed(2)}</td></tr>
+    <tr class="grand"><td>סה"כ כולל מע"מ:</td><td>₪${total.toFixed(2)}</td></tr>
+  </table>
+</div>
+
+${inv?`<div class="inv-ref">📄 משויך לחשבונית: <strong>${inv.num}</strong> (${inv.date||''})</div>`:'<div style="margin-top:12px;font-size:11px;color:#aaa">תעודה לא משויכת לחשבונית</div>'}
+
+<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:10px;font-size:11px;color:#aaa;display:flex;justify-content:space-between">
+  <span>הופק: ${new Date().toLocaleDateString('he-IL')}</span>
+  <span>אתרוגי לוריא — מערכת ניהול משק</span>
+</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+
+  const w=window.open('','_blank','width=800,height=600');
+  w.document.write(html);
+  w.document.close();
+}
+
+// ══════════════════════════════════════════
+// ═══ AUTO-BACKUP REMINDER ═══
+// ══════════════════════════════════════════
+function checkBackupReminder(){
+  const last = localStorage.getItem('luria_last_backup');
+  if(!last) return; // first time — no reminder
+  const daysSince = (Date.now()-parseInt(last))/(1000*60*60*24);
+  if(daysSince > 7){
+    const el = document.getElementById('db-backup-reminder');
+    if(el) el.style.display='block';
+  }
+}
+
+// Call on startup
+setTimeout(checkBackupReminder, 1500);
+
+// Patch backupNow to record timestamp
+const _origBackupNow = typeof backupNow !== 'undefined' ? backupNow : null;
+
+// ══════════════════════════════════════════
+// ═══ ENHANCED initDashboard — recent activity ═══
+// ══════════════════════════════════════════
+function buildRecentActivity(){
+  const events=[];
+  // Last 5 deliveries
+  [...dels].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5).forEach(d=>{
+    const t=d.items.reduce((s,i)=>s+(i.totalV||0),0);
+    events.push({date:d.date,icon:'📦',text:`תעודה ${d.doc||'—'} — ${d.sup} — ₪${Math.round(t).toLocaleString()}`,type:'del'});
+  });
+  // Last 3 invoices
+  [...invs].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,3).forEach(i=>{
+    events.push({date:i.date,icon:'📄',text:`חשבונית ${i.num} — ${i.sup} — ₪${(i.total||0).toLocaleString()}`,type:'inv'});
+  });
+  // Last 3 sprays (by appId)
+  const appIds=[...new Set(sprs.map(s=>s.appId))];
+  appIds.slice(-3).forEach(aid=>{
+    const g=sprs.filter(s=>s.appId===aid);
+    if(!g.length) return;
+    const mats=g.map(s=>s.mat).join(', ');
+    events.push({date:g[0].date,icon:'🌿',text:`ריסוס — ${g[0].area||'—'} — ${mats}`,type:'spr'});
+  });
+  // Last 3 expenses
+  [...expenses].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).forEach(e=>{
+    events.push({date:e.date,icon:'💰',text:`${EXP_CATS[e.cat]||e.cat} — ${e.desc} — ₪${e.amount.toLocaleString()}`,type:'exp'});
+  });
+
+  return events.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,10);
+}
+
 // ═══ EXPORT ═══
 // ═══ UNIFIED EXPORT — קובץ אחד עם גליונות ═══
 async function backupNow(){
+  localStorage.setItem('luria_last_backup', Date.now());
+  const el = document.getElementById('db-backup-reminder');
+  if(el) el.style.display='none';
   const now = new Date();
   const d = now.toISOString().split('T')[0];
   const fname = `גיבוי_לוריא_${d}.xlsx`;
@@ -3505,6 +3856,16 @@ function buildWorkbook() {
     XLSX.utils.book_append_sheet(wb, ws, '📈 סיכום ספקים');
   }
 
+  // גליון הוצאות כלליות
+  if(expenses.length){
+    const expCols=['תאריך','קטגוריה','תיאור','ספק','סכום','כולל מע"מ','הערות'];
+    const expRows = expenses.sort((a,b)=>b.date.localeCompare(a.date))
+      .map(e=>[e.date, (EXP_CATS||{})[e.cat]||e.cat, e.desc, e.sup||'', e.amount, e.vat==='yes'?'כן':'לא', e.notes||'']);
+    const wsEx = XLSX.utils.aoa_to_sheet([expCols,...expRows]);
+    wsEx['!cols']=[12,16,24,18,12,10,20].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsEx, '💰 הוצאות');
+  }
+
   // RTL לכל הגליונות
   wb.SheetNames.forEach(sn => { wb.Sheets[sn]['!views'] = [{rightToLeft: true}]; });
 
@@ -3756,6 +4117,18 @@ function importAll(input){
         }
 
         // ── גליון מלאי ──
+        if(clean.includes('הוצאות')){
+          const expRows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:''});
+          expRows.forEach(r=>{
+            const amount=parseFloat(r['סכום'])||0; if(!amount) return;
+            const dt=new Date(r['תאריך']||Date.now());
+            expenses.push({id:Date.now()+Math.random(),
+              date:r['תאריך']||'',year:dt.getFullYear(),month:dt.getMonth()+1,
+              cat:Object.entries(typeof EXP_CATS!=='undefined'?EXP_CATS:{}).find(([k,v])=>v===(r['קטגוריה']||''))?.[0]||'other',
+              desc:r['תיאור']||'',sup:r['ספק']||'',amount,
+              vat:r['כולל מע"מ']==='כן'?'yes':'no',notes:r['הערות']||''});
+          });
+        }
         if(clean.includes('מלאי')){
           const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1});
           if(data.length < 3) return;
@@ -3781,9 +4154,9 @@ function importAll(input){
         }
       });
 
-      save(K.D,dels); save(K.I,invs); save(K.S,sprs); save(K.IV,invent); save(K.C,customSups);
+      save(K.D,dels); save(K.I,invs); save(K.S,sprs); save(K.IV,invent); save(K.C,customSups); save(K.EX,expenses);
       refreshCustomSupDropdowns();
-      renderDelList(); renderInvList(); renderSprays(); renderSpraySummary(); renderInventory();
+      renderDelList(); renderInvList(); renderSprays(); renderSpraySummary(); renderInventory(); if(document.getElementById('exp-list-area')) renderExpenses();
       toast(`📥 יובאו: ${addedDels} תעודות${skippedDels?' ('+skippedDels+' כפולות)':''}, ${addedInvs} חשבוניות, ${addedSprs} ריסוסים, מלאי: ${updInv} עדכונים + ${addInvItem} חדשים`);
     } catch(err){ toast('❌ שגיאה בייבוא: '+err.message); }
   };
