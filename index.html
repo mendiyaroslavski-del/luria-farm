@@ -5215,7 +5215,7 @@ function setDocType(type) {
 // בדיקת איכות נתונים
 // ══════════════════════════════════════════════════
 let qualityIssues = [];
-let dismissedIssues = load(K.QA); // { key: note } — חריגות מאושרות
+let dismissedIssues = (() => { try{ const v=JSON.parse(localStorage.getItem(K.QA)||'{}'); return (v && typeof v==='object' && !Array.isArray(v)) ? v : {}; }catch{return{}} })(); // { key: note } — חריגות מאושרות
 
 function runQualityChecks() {
   document.getElementById('q-status').textContent = '⏳ בודק נתונים...';
