@@ -502,6 +502,16 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <input type="number" class="finput" id="inv-total-val" placeholder="0.00">
       </div>
     </div>
+    <!-- שדה שולמה -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:10px;background:#f1f8e9;border-radius:8px;border:1px solid #c8e6c9">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:600;color:#2d5a27">
+        <input type="checkbox" id="inv-paid-cb" style="width:18px;height:18px;cursor:pointer" onchange="onInvPaidChange()">
+        ✅ חשבונית שולמה
+      </label>
+      <div id="inv-paid-date-row" style="display:none;flex:1">
+        <input type="date" class="finput" id="inv-paid-date" style="width:100%">
+      </div>
+    </div>
     <button class="btn btnS" style="width:100%;margin-bottom:6px" onclick="loadDocsForInvoice()">📋 טען תעודות לחודש זה</button>
 
     <!-- טוגל: חשבונית ישירה -->
@@ -1400,6 +1410,16 @@ function addCustomSup() {
   onSupChange();
 }
 
+function onInvPaidChange() {
+  const cb = document.getElementById('inv-paid-cb');
+  const dateRow = document.getElementById('inv-paid-date-row');
+  const dateInput = document.getElementById('inv-paid-date');
+  dateRow.style.display = cb.checked ? '' : 'none';
+  if(cb.checked && !dateInput.value) {
+    dateInput.value = new Date().toISOString().split('T')[0];
+  }
+}
+
 function onInvSupChange() {
   const val = document.getElementById('inv-sup').value;
   const row = document.getElementById('inv-new-sup-row');
@@ -1850,6 +1870,12 @@ function clearInvoice(){
   const docsList=document.getElementById('inv-docs-list');
   if(docsList)docsList.innerHTML='';
   document.getElementById('inv-docs-total').textContent='₪0.00';
+  const paidCb=document.getElementById('inv-paid-cb');
+  if(paidCb){paidCb.checked=false;}
+  const paidDateRow=document.getElementById('inv-paid-date-row');
+  if(paidDateRow){paidDateRow.style.display='none';}
+  const paidDate=document.getElementById('inv-paid-date');
+  if(paidDate){paidDate.value='';}
   setInvType('normal');
   directItems=[];
   renderDirectItems();
@@ -1943,7 +1969,10 @@ function saveInvoice(){
     // חשבונית ישירה — ללא תעודות
     const items = directItems.filter(x=>x.desc||x.amount>0);
     if(!items.length){toast('⚠️ הוסף לפחות פריט אחד');return}
-    invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:[],directItems:items,direct:true});
+    const paidCb = document.getElementById('inv-paid-cb');
+    const paidDate = document.getElementById('inv-paid-date').value;
+    const paid = paidCb ? paidCb.checked : false;
+    invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:[],directItems:items,direct:true,paid,paidDate:paid?paidDate:''});
     save(K.I,invs);
     renderInvList();
     toast(`✅ חשבונית ישירה ${num} נשמרה`);
@@ -1955,7 +1984,10 @@ function saveInvoice(){
   const checked=[...(docsContainer?docsContainer.querySelectorAll('[id^="cb-"]:checked'):[])].map(cb=>cb.value);
   checked.forEach(id=>{const d=dels.find(x=>x.id==id);if(d)d.invNum=num});
   save(K.D,dels);
-  invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:checked});
+  const paidCb2 = document.getElementById('inv-paid-cb');
+  const paidDate2 = document.getElementById('inv-paid-date').value;
+  const paid2 = paidCb2 ? paidCb2.checked : false;
+  invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:checked,paid:paid2,paidDate:paid2?paidDate2:''});
   save(K.I,invs);
   renderInvList();
   toast(`✅ חשבונית ${num} נשמרה`);
