@@ -531,6 +531,19 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div class="card" id="inv-direct-card" style="display:none">
     <div class="ctitle">📝 פריטים ישירים</div>
     <p style="font-size:12px;color:var(--grayM);margin-bottom:9px">הזן פריטים ישירות על החשבונית (ללא תעודות משלוח):</p>
+    <div class="fg" style="margin-bottom:10px">
+      <label class="flabel">📂 שיוך לקטגוריית הוצאה (אופציונלי)</label>
+      <select class="fsel" id="inv-direct-cat">
+        <option value="">— ללא שיוך —</option>
+        <option value="fuel">⛽ דלק</option>
+        <option value="maint">🔧 תחזוקה</option>
+        <option value="equip">🛠️ ציוד</option>
+        <option value="labor">👷 עבודה</option>
+        <option value="water">💧 מים</option>
+        <option value="transport">🚛 הובלה</option>
+        <option value="other">📌 אחר</option>
+      </select>
+    </div>
     <div class="tblw">
       <table class="itbl">
         <thead><tr>
@@ -1876,6 +1889,8 @@ function clearInvoice(){
   if(paidDateRow){paidDateRow.style.display='none';}
   const paidDate=document.getElementById('inv-paid-date');
   if(paidDate){paidDate.value='';}
+  const directCatSel=document.getElementById('inv-direct-cat');
+  if(directCatSel){directCatSel.value='';}
   setInvType('normal');
   directItems=[];
   renderDirectItems();
@@ -1972,7 +1987,8 @@ function saveInvoice(){
     const paidCb = document.getElementById('inv-paid-cb');
     const paidDate = document.getElementById('inv-paid-date').value;
     const paid = paidCb ? paidCb.checked : false;
-    invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:[],directItems:items,direct:true,paid,paidDate:paid?paidDate:''});
+    const directCat = document.getElementById('inv-direct-cat')?.value || '';
+    invs.push({id:Date.now(),num,date,sup,month,year,total,docIds:[],directItems:items,direct:true,paid,paidDate:paid?paidDate:'',expCat:directCat});
     save(K.I,invs);
     renderInvList();
     toast(`✅ חשבונית ישירה ${num} נשמרה`);
@@ -2073,7 +2089,7 @@ function renderInvListWith(list){
       <td>${i.date||'—'}</td><td><strong>${i.num}</strong></td><td>${i.sup}</td>
       <td>${HM[i.month]} ${i.year}</td><td>₪${i.total?.toFixed(2)||'—'}</td>
       <td>${i.direct
-        ? `<span class="bdg" style="background:#1565c0;color:#fff">⚡ ישירה${i.directItems?.length?' — '+i.directItems.length+' פריטים':''}</span>`
+        ? `<span class="bdg" style="background:#1565c0;color:#fff">⚡ ישירה${i.directItems?.length?' — '+i.directItems.length+' פריטים':''}</span>${i.expCat?` <span class="bdg" style="background:#f3e5f5;color:#6a1b9a">${EXP_CATS[i.expCat]||i.expCat}</span>`:''}`
         : `<span class="bdg bdg-g">${i.docIds?.length||0} תעודות</span>`
       }</td>
       <td>${statusBadge}</td>
