@@ -2121,7 +2121,7 @@ function renderInvListWith(list){
       <td>${HM[i.month]} ${i.year}</td><td>₪${i.total?.toFixed(2)||'—'}</td>
       <td>${i.direct
         ? `<span class="bdg" style="background:#1565c0;color:#fff">⚡ ישירה${i.directItems?.length?' — '+i.directItems.length+' פריטים':''}</span>${i.expCat?` <span class="bdg" style="background:#f3e5f5;color:#6a1b9a">${EXP_CATS[i.expCat]||i.expCat}</span>`:''}`
-        : `<span class="bdg bdg-g">${i.docIds?.length||0} תעודות</span>`
+        : `<span class="bdg bdg-g">${i.docIds?.length||0} תעודות</span>${i.creditIds?.length?` <span class="bdg" style="background:#c62828;color:#fff">🔄 ${i.creditIds.length} זיכוי</span>`:''}`
       }</td>
       <td>${statusBadge}</td>
       <td style="white-space:nowrap;display:flex;gap:4px;align-items:center;flex-wrap:wrap">
@@ -2164,6 +2164,9 @@ function openLinkDocs(invId){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
 
   const linkedSet = new Set((inv.docIds||[]).map(String));
+  const creditSet = new Set((inv.creditIds||[]).map(String));
+  // תעודות זיכוי/החזרה של אותו ספק
+  const supReturns = dels.filter(d => d.sup === inv.sup && d.docType === 'return').sort((a,b)=>b.date.localeCompare(a.date));
 
   modal.innerHTML = `
     <div style="background:#fff;border-radius:12px;width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.3)">
@@ -2185,6 +2188,13 @@ function openLinkDocs(invId){
 
       <div id="lm-list" style="overflow-y:auto;flex:1;padding:8px 0"></div>
 
+      <!-- תעודות זיכוי -->
+      <div id="lm-credits-section" style="border-top:2px dashed #ffcdd2;padding:8px 0;background:#fff8f8">
+        <div style="padding:6px 20px 4px;font-size:12px;font-weight:700;color:#c62828">🔄 תעודות זיכוי / החזרה — לשיוך לחשבונית זו</div>
+        <div id="lm-credits-list"></div>
+        <div id="lm-credits-empty" style="display:none;padding:8px 20px;font-size:12px;color:#aaa">אין תעודות זיכוי לספק זה</div>
+      </div>
+
       <div style="padding:14px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;background:#f9f9f9;border-radius:0 0 12px 12px">
         <div id="lm-summary" style="font-size:13px;color:#555"></div>
         <div style="display:flex;gap:8px">
@@ -2199,7 +2209,10 @@ function openLinkDocs(invId){
   // שמור נתוני תעודות על המודאל לצורך פילטור
   modal._allDels = supDels;
   modal._linkedSet = linkedSet;
+  modal._supReturns = supReturns;
+  modal._creditSet = creditSet;
   renderLinkModalList(supDels, linkedSet);
+  renderCreditModalList(supReturns, creditSet);
 }
 
 function renderLinkModalList(supDels, linkedSet){
@@ -2248,6 +2261,63 @@ function renderLinkModalList(supDels, linkedSet){
       </div>
     </label>`;
   }).join('');
+}
+
+function renderCreditModalList(supReturns, creditSet){
+  const list = document.getElementById('lm-credits-list');
+  const empty = document.getElementById('lm-credits-empty');
+  if(!list) return;
+  if(!supReturns.length){
+    list.innerHTML='';
+    if(empty) empty.style.display='';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  list.innerHTML = supReturns.map(d=>{
+    const isLinked = creditSet.has(String(d.id));
+    const total = (d.items||[]).reduce((s,it)=>s+(it.totalV||it.total||0),0);
+    const prods = (d.items||[]).map(it=>it.product).filter(Boolean).slice(0,2).join(', ');
+    return `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 20px;cursor:pointer;border-bottom:1px solid #fff0f0;${isLinked?'background:#fce4ec':''}">
+      <input type="checkbox" data-cid="${d.id}" ${isLinked?'checked':''} onchange="toggleCreditDoc(this)"
+        style="margin-top:3px;width:16px;height:16px;cursor:pointer">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span style="font-weight:600;font-size:13px;color:#c62828">🔄 ${d.doc||'—'}</span>
+          <span style="font-size:13px;color:#c62828;font-weight:600">-₪${Math.abs(total).toFixed(2)}</span>
+        </div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${d.date||''} · ${prods||'—'}</div>
+        ${isLinked?'<div style="font-size:11px;color:#c62828;margin-top:1px">✅ תעודת זיכוי זו משויכת לחשבונית</div>':''}
+      </div>
+    </label>`;
+  }).join('');
+  updateLmSummaryWithCredits();
+}
+
+function toggleCreditDoc(cb){
+  const modal = document.getElementById('link-modal');
+  if(!modal) return;
+  const cid = String(cb.dataset.cid);
+  if(cb.checked) modal._creditSet.add(cid);
+  else modal._creditSet.delete(cid);
+  const row = cb.closest('label');
+  if(row) row.style.background = cb.checked ? '#fce4ec' : '';
+  const inner = cb.closest('label')?.querySelector('[style*="c62828"][style*="11px"]');
+  updateLmSummaryWithCredits();
+}
+
+function updateLmSummaryWithCredits(){
+  const modal = document.getElementById('link-modal');
+  if(!modal) return;
+  const supDels = modal._allDels;
+  const linkedSet = modal._linkedSet;
+  const supReturns = modal._supReturns||[];
+  const creditSet = modal._creditSet||new Set();
+  const linkedCount = supDels.filter(d=>linkedSet.has(String(d.id))).length;
+  const linkedTotal = supDels.filter(d=>linkedSet.has(String(d.id))).reduce((s,d)=>s+(d.items||[]).reduce((ss,it)=>ss+(it.totalV||0),0),0);
+  const creditTotal = supReturns.filter(d=>creditSet.has(String(d.id))).reduce((s,d)=>s+(d.items||[]).reduce((ss,it)=>ss+(it.totalV||it.total||0),0),0);
+  const net = linkedTotal - Math.abs(creditTotal);
+  const el = document.getElementById('lm-summary');
+  if(el) el.innerHTML = `<span style="color:#2d5a27;font-weight:600">${linkedCount} תעודות</span> · סה"כ ₪${linkedTotal.toFixed(2)}${creditSet.size?` <span style="color:#c62828">− ₪${Math.abs(creditTotal).toFixed(2)} זיכוי</span> · <strong>נטו ₪${net.toFixed(2)}</strong>`:''}`;
 }
 
 function filterLinkModal(){
@@ -2309,12 +2379,16 @@ function saveLinkDocs(invId){
   });
 
   inv.docIds = [...newLinked];
+  // שמור גם תעודות זיכוי
+  const newCredits = modal._creditSet || new Set();
+  inv.creditIds = [...newCredits];
   save(K.D, dels);
   save(K.I, invs);
   modal.remove();
   renderInvList();
   renderDelList();
-  toast(`✅ שיוך חשבונית ${inv.num} עודכן — ${newLinked.size} תעודות`);
+  const creditMsg = newCredits.size ? ` + ${newCredits.size} זיכויים` : '';
+  toast(`✅ שיוך חשבונית ${inv.num} עודכן — ${newLinked.size} תעודות${creditMsg}`);
 }
 
 function deleteDel(id){
@@ -3331,18 +3405,23 @@ function isServiceProduct(name){
   return INV_SERVICE_WORDS.some(w=>n.includes(w))||/^[0-9]/.test(n)||n.length<2;
 }
 
-function getAllPurchaseProducts(){
-  // Collect all unique products from HIST+dels where sup is עמיר or המשביר
+// תאריך סף לסנכרון מלאי — ספטמבר 2025
+const INV_SYNC_FROM = '2025-09-01';
+
+function getAllPurchaseProducts(fromDate){
+  // Collect unique products from HIST+dels where sup is עמיר or המשביר
+  // fromDate (optional) — מסנן רק רכישות מתאריך זה ואילך
   const TARGET_SUPS=['עמיר','המשביר'];
   const map={}; // name -> {qty, sup}
   const allDels=[...HIST,...dels];
   for(const d of allDels){
     if(!TARGET_SUPS.includes(d.sup)) continue;
     if(!d.items) continue;
+    if(fromDate && d.date && d.date < fromDate) continue;
     for(const it of d.items){
       const name=(it.product||'').trim();
       if(!name||isServiceProduct(name)) continue;
-      if(it.qty<=0&&it.price===0) continue; // skip zero/empty
+      if(it.qty<=0&&it.price===0) continue;
       if(!map[name]) map[name]={qty:0,sup:d.sup};
       map[name].qty+=(it.qty||0);
     }
@@ -3351,28 +3430,55 @@ function getAllPurchaseProducts(){
 }
 
 function syncInventoryFromPurchases(){
-  const map=getAllPurchaseProducts();
-  const existingNames=new Set(invent.map(i=>i.name));
-  const newItems=[];
-  for(const[name,info] of Object.entries(map)){
-    if(!existingNames.has(name)){
-      newItems.push({name,unit:'',purchased:0,ups:1});
+  // שאל האם לאפס
+  const doReset = confirm('🔄 סנכרון מלאי מרכישות\n\nלחץ אישור — לאפס את המלאי ולסנכרן מחדש מרכישות ספטמבר 2025 ואילך.\nלחץ ביטול — להוסיף רק מוצרים חדשים שטרם קיימים.');
+  
+  const map = getAllPurchaseProducts(INV_SYNC_FROM);
+
+  if(doReset){
+    // איפוס: מחק פריטים שנוצרו אוטומטית — שמור רק כאלה שנוספו ידנית (purchased > 0 ואין בו רכישה)
+    invent = invent.filter(i => {
+      // שמור אם יש כמות ידנית ואין לו רכישה (הוזן ידנית)
+      return !map[i.name] && i.purchased > 0;
+    });
+    // הוסף מחדש את כולם מהרכישות
+    const existingNames = new Set(invent.map(i=>i.name));
+    for(const [name, info] of Object.entries(map)){
+      if(!existingNames.has(name)){
+        invent.push({name, unit:'', purchased:0, ups:1});
+      }
     }
+    invent.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+    save(K.IV, invent);
+    renderInventory();
+    const notice=document.getElementById('inv-auto-notice');
+    notice.textContent='✅ המלאי אופס וסונכרן מחדש — '+Object.keys(map).length+' מוצרים מרכישות ספטמבר 2025 ואילך';
+    notice.style.display='block';
+    setTimeout(()=>notice.style.display='none',6000);
+    toast('✅ איפוס וסנכרון — '+Object.keys(map).length+' מוצרים');
+  } else {
+    // רק הוסף חדשים
+    const existingNames=new Set(invent.map(i=>i.name));
+    const newItems=[];
+    for(const[name,info] of Object.entries(map)){
+      if(!existingNames.has(name)){
+        newItems.push({name,unit:'',purchased:0,ups:1});
+      }
+    }
+    if(!newItems.length){
+      toast('✅ כל המוצרים כבר במלאי');
+      return;
+    }
+    newItems.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+    invent.push(...newItems);
+    save(K.IV,invent);
+    renderInventory();
+    const notice=document.getElementById('inv-auto-notice');
+    notice.textContent='✅ נוספו '+newItems.length+' מוצרים חדשים מרכישות ספטמבר 2025 ואילך';
+    notice.style.display='block';
+    setTimeout(()=>notice.style.display='none',5000);
+    toast('✅ סונכרנו '+newItems.length+' מוצרים חדשים');
   }
-  if(!newItems.length){
-    toast('✅ כל המוצרים כבר במלאי');
-    return;
-  }
-  // Sort alphabetically
-  newItems.sort((a,b)=>a.name.localeCompare(b.name,'he'));
-  invent.push(...newItems);
-  save(K.IV,invent);
-  renderInventory();
-  const notice=document.getElementById('inv-auto-notice');
-  notice.textContent='✅ נוספו '+newItems.length+' מוצרים חדשים מרכישות עמיר והמשביר';
-  notice.style.display='block';
-  setTimeout(()=>notice.style.display='none',5000);
-  toast('✅ סונכרנו '+newItems.length+' מוצרים חדשים');
 }
 
 
