@@ -1818,7 +1818,7 @@ function renderDelList(){
       <td><strong>${d.doc||'—'}</strong></td>
       <td>${d.items.length}</td>
       <td style="${isReturn?'color:#c62828;font-weight:700':''}">₪${total.toFixed(0)}</td>
-      <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span>`:'—'}</td>
+      <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span><button onclick="unlinkDel('${d.id}')" title="בטל שיוך לחשבונית" style="margin-right:4px;background:#ffebee;border:1px solid #ef9a9a;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#c62828">✕ בטל</button>`:d.crossInv?`<span class="bdg" style="background:#e0f7fa;color:#0277bd;cursor:default">🔀 עמיר ${d.crossInv}</span><button onclick="unlinkCross('${d.id}')" title="בטל שיוך מוצלב" style="margin-right:4px;background:#e0f7fa;border:1px solid #81d4fa;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#0277bd">✕ בטל</button>`:'—'}</td>
       <td style="white-space:nowrap">
         <button class="del-btn" onclick="deleteDel('${d.id}')" title="מחק תעודה">🗑</button>
         <button class="del-btn" onclick="editDel('${d.id}')" title="ערוך תעודה" style="opacity:0.4">✏️</button>
@@ -2195,6 +2195,13 @@ function openLinkDocs(invId){
         <div id="lm-credits-empty" style="display:none;padding:8px 20px;font-size:12px;color:#aaa">אין תעודות זיכוי לספק זה</div>
       </div>
 
+      <!-- תעודות ספקים אחרים (חיוב מוצלב) -->
+      ${inv.sup === 'עמיר' ? `<div id="lm-cross-section" style="border-top:2px dashed #b3e5fc;padding:8px 0;background:#f0f9ff">
+        <div style="padding:6px 20px 4px;font-size:12px;font-weight:700;color:#0277bd">🔀 תעודות דשנים ICL — חיוב דרך עמיר</div>
+        <div id="lm-cross-list"></div>
+        <div id="lm-cross-empty" style="display:none;padding:8px 20px;font-size:12px;color:#aaa">אין תעודות דשנים ICL לשיוך</div>
+      </div>` : ''}
+
       <div style="padding:14px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;background:#f9f9f9;border-radius:0 0 12px 12px">
         <div id="lm-summary" style="font-size:13px;color:#555"></div>
         <div style="display:flex;gap:8px">
@@ -2211,6 +2218,16 @@ function openLinkDocs(invId){
   modal._linkedSet = linkedSet;
   modal._supReturns = supReturns;
   modal._creditSet = creditSet;
+
+  // תעודות ICL לחיוב מוצלב (רק כשהחשבונית של עמיר)
+  if(inv.sup === 'עמיר'){
+    const crossSet = new Set((inv.crossIds||[]).map(String));
+    const iclDels = dels.filter(d => d.sup === 'דשנים ICL').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    modal._iclDels = iclDels;
+    modal._crossSet = crossSet;
+    renderCrossModalList(iclDels, crossSet);
+  }
+
   renderLinkModalList(supDels, linkedSet);
   renderCreditModalList(supReturns, creditSet);
 }
@@ -2261,6 +2278,45 @@ function renderLinkModalList(supDels, linkedSet){
       </div>
     </label>`;
   }).join('');
+}
+
+function renderCrossModalList(iclDels, crossSet){
+  const list = document.getElementById('lm-cross-list');
+  const empty = document.getElementById('lm-cross-empty');
+  if(!list) return;
+  if(!iclDels.length){
+    list.innerHTML='';
+    if(empty) empty.style.display='';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  list.innerHTML = iclDels.map(d=>{
+    const isLinked = crossSet.has(String(d.id));
+    const total = (d.items||[]).reduce((s,it)=>s+(it.totalV||it.total||0),0);
+    const prods = (d.items||[]).map(it=>it.product).filter(Boolean).slice(0,2).join(', ');
+    return `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 20px;cursor:pointer;border-bottom:1px solid #e1f5fe;${isLinked?'background:#e0f7fa':''}">
+      <input type="checkbox" data-xid="${d.id}" ${isLinked?'checked':''} onchange="toggleCrossDoc(this)"
+        style="margin-top:3px;width:16px;height:16px;cursor:pointer">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span style="font-weight:600;font-size:13px;color:#0277bd">🔀 ${d.doc||'—'}</span>
+          <span style="font-size:13px;color:#0277bd;font-weight:600">₪${total.toFixed(2)}</span>
+        </div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${d.date||''} · ${prods||'—'}</div>
+        ${d.crossInv?`<div style="font-size:11px;color:#0277bd;margin-top:1px">✅ משויך לחשבונית עמיר: ${d.crossInv}</div>`:''}
+      </div>
+    </label>`;
+  }).join('');
+}
+
+function toggleCrossDoc(cb){
+  const modal = document.getElementById('link-modal');
+  if(!modal) return;
+  const xid = String(cb.dataset.xid);
+  if(cb.checked) modal._crossSet.add(xid);
+  else modal._crossSet.delete(xid);
+  const row = cb.closest('label');
+  if(row) row.style.background = cb.checked ? '#e0f7fa' : '';
 }
 
 function renderCreditModalList(supReturns, creditSet){
@@ -2382,6 +2438,35 @@ function saveLinkDocs(invId){
   // שמור גם תעודות זיכוי
   const newCredits = modal._creditSet || new Set();
   inv.creditIds = [...newCredits];
+
+  // שמור שיוך מוצלב (ICL → עמיר)
+  if(modal._crossSet !== undefined){
+    const newCross = modal._crossSet;
+    const oldCross = new Set((inv.crossIds||[]).map(String));
+    // הסר שיוך ישן מתעודות שבוטלו
+    oldCross.forEach(xid=>{
+      if(!newCross.has(xid)){
+        const d = dels.find(x=>String(x.id)===xid);
+        if(d && d.crossInv === inv.num) d.crossInv = '';
+      }
+    });
+    // הוסף שיוך חדש
+    newCross.forEach(xid=>{
+      const d = dels.find(x=>String(x.id)===xid);
+      if(d) d.crossInv = inv.num;
+    });
+    inv.crossIds = [...newCross];
+    const crossMsg = newCross.size ? ` + ${newCross.size} ICL מוצלב` : '';
+    save(K.D, dels);
+    save(K.I, invs);
+    modal.remove();
+    renderInvList();
+    renderDelList();
+    const creditMsg = newCredits.size ? ` + ${newCredits.size} זיכויים` : '';
+    toast(`✅ שיוך חשבונית ${inv.num} עודכן — ${newLinked.size} תעודות${creditMsg}${crossMsg}`);
+    return;
+  }
+
   save(K.D, dels);
   save(K.I, invs);
   modal.remove();
@@ -2389,6 +2474,66 @@ function saveLinkDocs(invId){
   renderDelList();
   const creditMsg = newCredits.size ? ` + ${newCredits.size} זיכויים` : '';
   toast(`✅ שיוך חשבונית ${inv.num} עודכן — ${newLinked.size} תעודות${creditMsg}`);
+}
+
+// מחזיר את הסכום של תעודת ICL ע"פ תעודת עמיר התואמת (לפי מספר תעודת ICL בשם המוצר)
+function getIclCrossAmount(iclDel) {
+  if(!iclDel || !iclDel.crossInv) return 0;
+  const doc = String(iclDel.doc || "");
+  if(!doc) return 0;
+  const allDelsAll = [...HIST, ...dels];
+  for(const d of allDelsAll){
+    if(d.sup !== "עמיר") continue;
+    for(const it of (d.items||[])){
+      if((it.product||"").includes(doc)) return it.totalV || 0;
+    }
+  }
+  return 0;
+}
+
+function buildCrossAttributions() {
+  const allDelsAll = [...HIST, ...dels];
+  const attrs = [];
+  allDelsAll.forEach(d => {
+    if(d.sup !== "דשנים ICL" || !d.crossInv) return;
+    const amount = getIclCrossAmount(d);
+    if(!amount) return;
+    const dt = d.date ? new Date(d.date) : null;
+    attrs.push({ iclDel: d, amount,
+      year: dt ? String(dt.getFullYear()) : (d.year||""),
+      month: dt ? dt.getMonth()+1 : 0 });
+  });
+  return attrs;
+}
+
+function unlinkCross(id){
+  const d=dels.find(x=>String(x.id)===String(id));
+  if(!d||!d.crossInv)return;
+  if(!confirm(`לבטל שיוך מוצלב של תעודה ${d.doc} מחשבונית עמיר ${d.crossInv}?`))return;
+  const inv=invs.find(x=>x.num===d.crossInv&&x.sup==='עמיר');
+  if(inv){
+    inv.crossIds=(inv.crossIds||[]).filter(x=>String(x)!==String(d.id));
+    save(K.I,invs);
+  }
+  d.crossInv='';
+  save(K.D,dels);
+  renderDelList();
+  toast(`✅ שיוך מוצלב תעודה ${d.doc} בוטל`);
+}
+
+function unlinkDel(id){
+  const d=dels.find(x=>String(x.id)===String(id));
+  if(!d||!d.invNum)return;
+  if(!confirm(`לבטל שיוך תעודה ${d.doc} מחשבונית ${d.invNum}?`))return;
+  const inv=invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
+  if(inv){
+    inv.docIds=(inv.docIds||[]).filter(x=>String(x)!==String(d.id));
+    save(K.I,invs);
+  }
+  d.invNum='';
+  save(K.D,dels);
+  renderDelList();
+  toast(`✅ שיוך תעודה ${d.doc} בוטל`);
 }
 
 function deleteDel(id){
@@ -2520,7 +2665,8 @@ function globalSearch(){
     i.num?.toLowerCase().includes(q) ||
     i.sup?.toLowerCase().includes(q) ||
     i.date?.includes(q) ||
-    String(i.year).includes(q)
+    String(i.year).includes(q) ||
+    (i.directItems||[]).some(item=>item.product?.toLowerCase().includes(q))
   ).slice().reverse().slice(0,30);
 
   const invCard = document.getElementById('glob-invs-card');
@@ -2671,17 +2817,28 @@ function initDashboard(){
     renderUnmatchedList(false); // default: summary view
   }
 
-  // רכישות החודש לפי ספק
+  // רכישות החודש לפי ספק (עם תיקון שיוך מוצלב ICL)
   const bySup={};
   monthDels.forEach(d=>{
     const t=d.items.reduce((s,i)=>s+(i.totalV||0),0);
     if(!bySup[d.sup])bySup[d.sup]=0;
     bySup[d.sup]+=t;
   });
-  const supEntries=Object.entries(bySup).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('db-month-by-sup').innerHTML = supEntries.length ?
+  // תיקון: העבר סכומי ICL מוצלב מעמיר לדשנים ICL
+  const crossAttrs = buildCrossAttributions();
+  crossAttrs.forEach(a=>{
+    const dt = a.iclDel.date ? new Date(a.iclDel.date) : null;
+    if(!dt) return;
+    const am=dt.getMonth()+1, ay=dt.getFullYear();
+    if(am===curM && ay===curY){
+      bySup["עמיר"]=(bySup["עמיר"]||0)-a.amount;
+      bySup["דשנים ICL"]=(bySup["דשנים ICL"]||0)+a.amount;
+    }
+  });
+  const supEntries=Object.entries(bySup).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("db-month-by-sup").innerHTML = supEntries.length ?
     `<div class="tblw"><table class="dtbl"><thead><tr><th>ספק</th><th>סה"כ</th></tr></thead><tbody>
-      ${supEntries.map(([sup,t])=>`<tr><td>${sup}</td><td style="font-weight:700;color:var(--gm)">₪${Math.round(t).toLocaleString()}</td></tr>`).join('')}
+      ${supEntries.map(([sup,t])=>`<tr><td>${sup}</td><td style="font-weight:700;color:var(--gm)">₪${Math.round(t).toLocaleString()}</td></tr>`).join("")}
     </tbody></table></div>` :
     '<p style="color:var(--grayM);font-size:13px;padding:8px 0">אין רכישות החודש</p>';
 
@@ -4792,6 +4949,18 @@ function generatePDFFiltered(type) {
         if (!ss[d.sup][yk]) ss[d.sup][yk] = {count:0,total:0};
         ss[d.sup][yk].count++;
         ss[d.sup][yk].total += d.items.reduce((s,i)=>s+(i.totalV||0),0);
+      });
+      // תיקון שיוך מוצלב ICL: חסר מעמיר, הוסף לICL
+      const cAttrs = buildCrossAttributions();
+      cAttrs.forEach(a => {
+        if(!passFilter(a.iclDel.date, a.iclDel.sup, a.year)) return;
+        const yk = a.year;
+        if(!ss['עמיר']) ss['עמיר'] = {};
+        if(!ss['עמיר'][yk]) ss['עמיר'][yk] = {count:0,total:0};
+        ss['עמיר'][yk].total -= a.amount;
+        if(!ss['דשנים ICL']) ss['דשנים ICL'] = {};
+        if(!ss['דשנים ICL'][yk]) ss['דשנים ICL'][yk] = {count:0,total:0};
+        ss['דשנים ICL'][yk].total += a.amount;
       });
       const grandTotal = filtered.reduce((s,d)=>s+d.items.reduce((ss,i)=>ss+(i.totalV||0),0),0);
       body += `<div class="summary-box">
