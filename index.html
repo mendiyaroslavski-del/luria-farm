@@ -489,7 +489,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="fr fr1">
       <div class="fg">
         <label class="flabel">סה"כ חשבונית (כולל מע"מ)</label>
-        <input type="number" class="finput" id="inv-total-val" placeholder="0.00">
+        <input type="text" inputmode="decimal" class="finput" id="inv-total-val" placeholder="0.00 (מינוס מותר)">
       </div>
     </div>
     <!-- שדה שולמה -->
@@ -1946,7 +1946,7 @@ function renderDirectItems() {
 function saveInvoice(){
   const num=document.getElementById('inv-num').value.trim();
   const date=document.getElementById('inv-date').value;
-  const total=parseFloat(document.getElementById('inv-total-val').value||0);
+  const total=parseFloat((document.getElementById('inv-total-val').value||'0').replace(',','.'))||0;
   const sup = resolveInvSup();
   if(!sup){ toast('⚠️ הכנס שם ספק'); return; }
   const month=+document.getElementById("inv-month").value;
