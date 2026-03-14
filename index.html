@@ -150,7 +150,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 .chip.on{background:var(--gm);color:#fff;border-color:var(--gm)}
 
 /* SEARCH */
-.srow{display:flex;gap:7px;margin-bottom:12px}
+.srow{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
 .sinput{flex:1;border:1.5px solid #ddd;border-radius:var(--rs);padding:9px 11px;font-family:'Heebo',sans-serif;font-size:13px;direction:rtl;background:#fff}
 .sinput:focus{outline:none;border-color:var(--gl)}
 
@@ -1309,17 +1309,46 @@ function updateFileIndicator(handle){
   }
 }
 
-// שחזור handle בטעינה
-(async()=>{
-  const h = await loadFH();
-  if(h){
-    try{
-      fileHandle = h;
-      updateFileIndicator(h);
-    }catch(e){ await clearFH(); }
-  } else {
+function updateFileIndicatorReconnect(handle){
+  const el = document.getElementById('file-indicator');
+  if(!el) return;
+  el.innerHTML = `<span style="color:#e65100;font-size:12px">📁 ${handle.name}</span>&nbsp;<button onclick="reconnectFH()" style="background:#fff3e0;border:1px solid #ffb74d;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;color:#e65100;font-weight:600">🔄 חבר מחדש</button>&nbsp;<button onclick="clearFH()" style="background:none;border:1px solid #ccc;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:11px;color:#888">✕</button>`;
+  el.style.background='#fff3e0';
+}
+
+async function reconnectFH(){
+  if(!fileHandle){ toast('⚠️ אין קובץ לחיבור'); return; }
+  try{
+    const perm = await fileHandle.requestPermission({mode:'readwrite'});
+    if(perm === 'granted'){
+      updateFileIndicator(fileHandle);
+      toast('✅ הקובץ חובר מחדש: ' + fileHandle.name);
+    } else {
+      toast('⚠️ לא ניתנה הרשאה — בחר קובץ מחדש');
+      updateFileIndicator(null);
+    }
+  }catch(e){
+    toast('⚠️ שגיאה בחיבור — נסה ייצא/ייבא');
     updateFileIndicator(null);
   }
+}
+
+// שחזור handle בטעינה — עם בדיקת הרשאה
+(async()=>{
+  const h = await loadFH();
+  if(!h){ updateFileIndicator(null); return; }
+  try{
+    // בדוק אם יש הרשאה פעילה
+    const perm = await h.queryPermission({mode:'readwrite'});
+    if(perm === 'granted'){
+      fileHandle = h;
+      updateFileIndicator(h);
+    } else {
+      // אין הרשאה — הצג כפתור "חבר מחדש"
+      fileHandle = h; // שמור את ה-handle לשימוש עתידי
+      updateFileIndicatorReconnect(h);
+    }
+  }catch(e){ updateFileIndicator(null); }
 })();
 
 if(!invent.length) {
