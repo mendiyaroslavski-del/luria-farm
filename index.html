@@ -396,6 +396,8 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <option value="">כל הסוגים</option>
         <option value="delivery">משלוח בלבד</option>
       </select>
+      <button onclick="retroLinkAllIcl()" title="סנכרן תעודות ICL עם תעודות עמיר אוטומטית"
+        style="padding:6px 10px;background:#e0f7fa;border:1px solid #81d4fa;border-radius:6px;cursor:pointer;font-size:12px;color:#0277bd;white-space:nowrap">🔀 סנכרן ICL</button>
     </div>
     <div class="tblw">
       <table class="dtbl">
@@ -1709,7 +1711,9 @@ function saveDelFinal(){
     const orig = dels[idx];
     dels[idx] = {...orig, ...d, items:JSON.parse(JSON.stringify(rows)), ts:Date.now()};
     save(K.D,dels);
-    toast(`✅ תעודה ${d.doc} עודכנה`);
+    const linkedEdit = autoLinkIclFromAmir(dels[idx]);
+    const linkMsgEdit = linkedEdit.length ? ` 🔀 ${linkedEdit.length} ICL קושרו` : '';
+    toast(`✅ תעודה ${d.doc} עודכנה${linkMsgEdit}`);
     editingDelId = null;
     document.getElementById('edit-mode-banner').style.display = 'none';
     clearEntry();
@@ -1731,9 +1735,13 @@ function saveDelFinal(){
     if(!confirm(`⚠️ תעודה מספר ${d.doc} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
     dels=dels.filter(x=>x!==dup);
   }
-  dels.push({id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()});
+  const newDel = {id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()};
+  dels.push(newDel);
   save(K.D,dels);
-  toast(`✅ תעודה ${d.doc} נשמרה — ${rows.length} פריטים`);
+  // קישור אוטומטי ICL אם זו תעודת עמיר
+  const linked = autoLinkIclFromAmir(newDel);
+  const linkMsg = linked.length ? ` 🔀 קושרה אוטומטית עם ${linked.length} תעודות ICL` : '';
+  toast(`✅ תעודה ${d.doc} נשמרה — ${rows.length} פריטים${linkMsg}`);
   clearEntry();
   renderDelList();
 }
@@ -1747,8 +1755,10 @@ function saveDelContinue(){
     if(!confirm(`⚠️ תעודה מספר ${d.doc} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
     dels=dels.filter(x=>x!==dup);
   }
-  dels.push({id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()});
+  const newDel2 = {id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()};
+  dels.push(newDel2);
   save(K.D,dels);
+  autoLinkIclFromAmir(newDel2);
   toast(`✅ תעודה ${d.doc} נשמרה. מלא מספר תעודה חדש:`);
   // Clear only doc number and items, keep supplier/date
   rows=[];
@@ -1797,7 +1807,7 @@ function renderDelList(){
       <td><strong>${d.doc||'—'}</strong></td>
       <td>${d.items.length}</td>
       <td>₪${total.toFixed(0)}</td>
-      <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span><button onclick="unlinkDel('${d.id}')" title="בטל שיוך לחשבונית" style="margin-right:4px;background:#ffebee;border:1px solid #ef9a9a;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#c62828">✕ בטל</button>`:d.crossInv?`<span class="bdg" style="background:#e0f7fa;color:#0277bd;cursor:default">🔀 עמיר ${d.crossInv}</span><button onclick="unlinkCross('${d.id}')" title="בטל שיוך מוצלב" style="margin-right:4px;background:#e0f7fa;border:1px solid #81d4fa;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#0277bd">✕ בטל</button>`:'—'}</td>
+      <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span><button onclick="unlinkDel('${d.id}')" title="בטל שיוך לחשבונית" style="margin-right:4px;background:#ffebee;border:1px solid #ef9a9a;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#c62828">✕ בטל</button>`:d.crossInv?`<span class="bdg" style="background:#e0f7fa;color:#0277bd;cursor:default">🔀 עמיר ${d.crossInv}</span><button onclick="unlinkCross('${d.id}')" title="בטל שיוך מוצלב" style="margin-right:4px;background:#e0f7fa;border:1px solid #81d4fa;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#0277bd">✕ בטל</button>`:d.crossDoc?`<span class="bdg" style="background:#e8f5e9;color:#2d7a2d">🔗 עמיר ${d.crossDoc}</span>`:'—'}</td>
       <td style="white-space:nowrap">
         <button class="del-btn" onclick="deleteDel('${d.id}')" title="מחק תעודה">🗑</button>
         <button class="del-btn" onclick="editDel('${d.id}')" title="ערוך תעודה" style="opacity:0.4">✏️</button>
@@ -2406,8 +2416,15 @@ function buildCrossAttributions() {
   const allDelsAll = [...HIST, ...dels];
   const attrs = [];
   allDelsAll.forEach(d => {
-    if(d.sup !== "דשנים ICL" || !d.crossInv) return;
-    const amount = getIclCrossAmount(d);
+    if(d.sup !== "דשנים ICL") return;
+    // תמיכה בשני סוגי קישור: ידני (crossInv) ואוטומטי (crossDoc)
+    let amount = 0;
+    if(d.crossInv) {
+      amount = getIclCrossAmount(d);
+    } else if(d.crossDoc) {
+      // מחיר כבר עודכן אוטומטית ב-items[0]
+      amount = (d.items||[]).reduce((s,it)=>s+(it.totalV||0),0);
+    }
     if(!amount) return;
     const dt = d.date ? new Date(d.date) : null;
     attrs.push({ iclDel: d, amount,
@@ -2415,6 +2432,62 @@ function buildCrossAttributions() {
       month: dt ? dt.getMonth()+1 : 0 });
   });
   return attrs;
+}
+
+
+
+// סריקה רטרואקטיבית — מקשרת כל תעודות עמיר קיימות לICL
+function retroLinkAllIcl() {
+  const allAmir = [...HIST, ...dels].filter(d => d.sup === 'עמיר');
+  let total = 0;
+  allAmir.forEach(d => {
+    const linked = autoLinkIclFromAmir(d);
+    total += linked.length;
+  });
+  if (total) { save(K.D, dels); renderDelList(); }
+  toast(total ? `✅ קושרו ${total} תעודות ICL אוטומטית` : `ℹ️ לא נמצאו תעודות ICL לקישור`);
+}
+
+// ═══ קישור אוטומטי ICL ↔ עמיר ═══
+// כשנשמרת תעודת עמיר עם שורה שמכילה "ת.מ XXXXX" — מוצאת תעודת ICL ומקשרת אוטומטית
+function autoLinkIclFromAmir(amir_del) {
+  if(!amir_del || amir_del.sup !== 'עמיר') return [];
+  const linked = [];
+  const allDelsAll = [...HIST, ...dels];
+
+  (amir_del.items || []).forEach(it => {
+    // חפש "ת.מ" ואחריו מספר תעודה (רצף ספרות, אפשר עם מקף)
+    const m = (it.product || '').match(/ת\.מ[.\s]+([0-9][0-9\-]+)/);
+    if (!m) return;
+    const iclDoc = m[1].split('-')[0]; // קח רק החלק הראשון לפני מקף
+
+    // מצא תעודת ICL עם המספר הזה
+    const iclDel = dels.find(d => d.sup === 'דשנים ICL' && String(d.doc) === iclDoc);
+    if (!iclDel) return;
+
+    // עדכן את המחיר בתעודת ICL מהשורה בתעודת עמיר
+    const amount = it.totalV || it.total || 0;
+    if (amount) {
+      if (!iclDel.items || !iclDel.items.length) {
+        iclDel.items = [{id:'icl-auto', product: it.product, qty: 1, price: amount, total: amount, vat: 0, totalV: amount}];
+      } else {
+        iclDel.items[0].totalV = amount;
+        iclDel.items[0].total = amount / 1.18;
+        iclDel.items[0].vat = amount - amount / 1.18;
+        iclDel.items[0].price = iclDel.items[0].total;
+        if (!iclDel.items[0].product || iclDel.items[0].product.match(/^\d{4}-\d{2}-\d{2}/)) {
+          iclDel.items[0].product = it.product;
+        }
+      }
+    }
+
+    // קשר: תעודת ICL ← תעודת עמיר (doc של תעודת עמיר, לא חשבונית)
+    iclDel.crossDoc = amir_del.doc;
+    linked.push({iclDoc, amir: amir_del.doc, amount});
+  });
+
+  if (linked.length) save(K.D, dels);
+  return linked;
 }
 
 function unlinkCross(id){
