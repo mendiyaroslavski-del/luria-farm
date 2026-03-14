@@ -1344,9 +1344,21 @@ async function reconnectFH(){
       fileHandle = h;
       updateFileIndicator(h);
     } else {
-      // אין הרשאה — הצג כפתור "חבר מחדש"
-      fileHandle = h; // שמור את ה-handle לשימוש עתידי
+      // אין הרשאה — שמור handle והתחבר אוטומטית בגעת הראשונה
+      fileHandle = h;
       updateFileIndicatorReconnect(h);
+      const doAutoReconnect = async (e) => {
+        if(!fileHandle) return;
+        try {
+          const p = await fileHandle.requestPermission({mode:'readwrite'});
+          if(p === 'granted'){
+            updateFileIndicator(fileHandle);
+            toast('✅ הקובץ חובר אוטומטית: ' + fileHandle.name);
+          }
+        } catch(err){}
+      };
+      document.addEventListener('click',    doAutoReconnect, {once:true});
+      document.addEventListener('touchend', doAutoReconnect, {once:true});
     }
   }catch(e){ updateFileIndicator(null); }
 })();
