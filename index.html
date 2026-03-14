@@ -1333,13 +1333,21 @@ async function reconnectFH(){
   }
 }
 
-// שחזור handle בטעינה — הקובץ תמיד "מחובר" אם נשמר, הרשאה תתבקש רק ברגע הייצוא
+// שחזור handle בטעינה — עם בדיקת הרשאה
 (async()=>{
   const h = await loadFH();
   if(!h){ updateFileIndicator(null); return; }
   try{
-    fileHandle = h;
-    updateFileIndicator(h); // תמיד מוצג כמחובר — הרשאה תתבקש ב-exportAll אם צריך
+    // בדוק אם יש הרשאה פעילה
+    const perm = await h.queryPermission({mode:'readwrite'});
+    if(perm === 'granted'){
+      fileHandle = h;
+      updateFileIndicator(h);
+    } else {
+      // אין הרשאה — הצג כפתור "חבר מחדש"
+      fileHandle = h; // שמור את ה-handle לשימוש עתידי
+      updateFileIndicatorReconnect(h);
+    }
   }catch(e){ updateFileIndicator(null); }
 })();
 
@@ -2225,7 +2233,7 @@ function openLinkDocs(invId){
   // תעודות ICL לחיוב מוצלב (רק כשהחשבונית של עמיר)
   if(inv.sup === 'עמיר'){
     const crossSet = new Set((inv.crossIds||[]).map(String));
-    const iclDels = dels.filter(d => d.sup === 'דשנים ICL').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const iclDels = [...HIST, ...dels].filter(d => d.sup === 'דשנים ICL').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     modal._iclDels = iclDels;
     modal._crossSet = crossSet;
     renderCrossModalList(iclDels, crossSet);
