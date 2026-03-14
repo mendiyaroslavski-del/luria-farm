@@ -1537,9 +1537,9 @@ function renderRows() {
         </div>
         ${hint?`<div class="phint">💡 מחיר אחרון: ₪${hint}</div>`:''}
       </td>
-      <td><input type="text" inputmode="decimal" id="q-${r.id}" value="${r.qty}" oninput="calcRow(${r.id})" style="width:55px"></td>
-      <td><input type="text" inputmode="decimal" id="pr-${r.id}" value="${r.price}" placeholder="${hint||''}" oninput="calcRow(${r.id})" style="width:68px"></td>
-      <td><input type="text" inputmode="decimal" id="dc-${r.id}" value="${r.discount||''}" placeholder="0" oninput="calcRow(${r.id})" style="width:50px"></td>
+      <td><input type="text" inputmode="text" id="q-${r.id}" value="${r.qty}" oninput="calcRow(${r.id})" style="width:55px"></td>
+      <td><input type="text" inputmode="text" id="pr-${r.id}" value="${r.price}" placeholder="${hint||''}" oninput="calcRow(${r.id})" style="width:68px"></td>
+      <td><input type="text" inputmode="text" id="dc-${r.id}" value="${r.discount||''}" placeholder="0" oninput="calcRow(${r.id})" style="width:50px"></td>
       <td id="t-${r.id}" style="font-weight:600">${r.total?'₪'+r.total.toFixed(2):'—'}</td>
       <td id="v-${r.id}">${r.vat?'₪'+r.vat.toFixed(2):'—'}</td>
       <td id="tv-${r.id}" style="font-weight:700;color:var(--gm)">${r.totalV?'₪'+r.totalV.toFixed(2):'—'}</td>
