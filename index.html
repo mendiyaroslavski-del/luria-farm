@@ -216,6 +216,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn" onclick="showTab(this,'search')">🔍 מחירים</button>
     <button class="navbtn" onclick="showTab(this,'globsearch')">🔎 חיפוש כללי</button>
     <button class="navbtn" onclick="showTab(this,'stats')">📊 סטטיסטיקה</button>
+    <button class="navbtn" onclick="showTab(this,'annual')">📅 דו"ח שנתי</button>
     <button class="navbtn" onclick="showTab(this,'spray')">🌿 ריסוסים</button>
     <button class="navbtn" onclick="showTab(this,'inventory')">📦 מלאי</button>
     <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
@@ -776,6 +777,53 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div id="kw-editor"></div>
       <button onclick="reAutoClassify()" style="margin-top:10px;background:#1565c0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px">🔄 סווג מחדש אוטומטית</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- דו"ח שנתי (מוגן PIN)                      -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="tab-annual" class="sec">
+  <div class="shtitle">📅 דו"ח שנתי</div>
+
+  <!-- מסך נעילה -->
+  <div id="annual-lock" style="text-align:center;padding:40px 20px">
+    <div style="font-size:48px;margin-bottom:12px">🔒</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:6px">דו"ח מוגן</div>
+    <div style="font-size:13px;color:#888;margin-bottom:20px">הזן קוד PIN לצפייה</div>
+    <input id="annual-pin-input" type="password" inputmode="numeric" maxlength="6"
+      placeholder="••••" autocomplete="off"
+      style="font-size:22px;letter-spacing:8px;text-align:center;border:2px solid #ddd;border-radius:10px;padding:10px 20px;width:140px;outline:none"
+      onkeydown="if(event.key==='Enter')checkAnnualPin()">
+    <br><br>
+    <button onclick="checkAnnualPin()" style="background:var(--gm);color:#fff;border:none;border-radius:8px;padding:10px 30px;font-size:14px;cursor:pointer">כניסה</button>
+    <div id="annual-pin-err" style="color:#e53935;font-size:12px;margin-top:8px;display:none">❌ קוד שגוי</div>
+    <div style="margin-top:16px;font-size:11px;color:#ccc" id="annual-pin-set-hint"></div>
+  </div>
+
+  <!-- תוכן הדו"ח -->
+  <div id="annual-content" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="annual-sup-filter" class="fsel" onchange="renderAnnual()" style="width:130px">
+          <option value="all">כל הספקים</option>
+          <option value="עמיר">עמיר</option>
+          <option value="המשביר">המשביר</option>
+          <option value="דשנים ICL">דשנים ICL</option>
+        </select>
+        <button onclick="lockAnnual()" style="font-size:12px;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:4px 10px;cursor:pointer">🔒 נעל</button>
+        <button onclick="changeAnnualPin()" style="font-size:12px;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:4px 10px;cursor:pointer">🔑 שנה PIN</button>
+      </div>
+    </div>
+
+    <!-- גרף -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="ctitle">📈 הוצאות חודשיות לפי שנים</div>
+      <div class="chwrap"><canvas id="annual-chart"></canvas></div>
+    </div>
+
+    <!-- טבלה שנתית -->
+    <div id="annual-table-wrap"></div>
   </div>
 </div>
 
@@ -1479,6 +1527,7 @@ function showTab(btn, name) {
   btn.classList.add('on');
   if(name==='stats') initStats();
   if(name==='dashboard') initDashboard();
+  if(name==='annual') initAnnualTab();
   if(name==='expenses'){ renderExpenses(); const ed=document.getElementById('exp-date'); if(ed&&!ed.value) ed.value=new Date().toISOString().split('T')[0]; }
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); }
@@ -6475,6 +6524,217 @@ function getCatBadgeHtml(d) {
 loadKwMap();
 catMap = load(K.CAT);
 initCatPicker();
+
+// ═══════════════════════════════════════════════════════
+// 📅  ANNUAL REPORT — PIN PROTECTED
+// ═══════════════════════════════════════════════════════
+
+const ANNUAL_PIN_KEY = 'luria_annual_pin';
+const ANNUAL_UNLOCKED_KEY = 'luria_annual_unlocked';
+let annualChartInst = null;
+
+function initAnnualTab() {
+  const pin = localStorage.getItem(ANNUAL_PIN_KEY);
+  const hint = document.getElementById('annual-pin-set-hint');
+
+  // אם אין PIN — הצג הנחיה להגדרה
+  if (!pin) {
+    if (hint) hint.textContent = 'טרם הוגדר PIN — הזן קוד חדש לצורך הגדרה';
+  }
+
+  // אם כבר פתוח בסשן זה
+  if (sessionStorage.getItem(ANNUAL_UNLOCKED_KEY) === '1') {
+    showAnnualContent();
+    return;
+  }
+
+  document.getElementById('annual-lock').style.display = 'block';
+  document.getElementById('annual-content').style.display = 'none';
+  setTimeout(() => { document.getElementById('annual-pin-input')?.focus(); }, 100);
+}
+
+function checkAnnualPin() {
+  const input = document.getElementById('annual-pin-input').value.trim();
+  const stored = localStorage.getItem(ANNUAL_PIN_KEY);
+  const err = document.getElementById('annual-pin-err');
+
+  if (!stored) {
+    // הגדרת PIN חדש
+    if (input.length < 4) { err.textContent = '❌ PIN חייב להיות לפחות 4 ספרות'; err.style.display = 'block'; return; }
+    localStorage.setItem(ANNUAL_PIN_KEY, input);
+    sessionStorage.setItem(ANNUAL_UNLOCKED_KEY, '1');
+    err.style.display = 'none';
+    toast('✅ PIN הוגדר בהצלחה');
+    showAnnualContent();
+    return;
+  }
+
+  if (input === stored) {
+    sessionStorage.setItem(ANNUAL_UNLOCKED_KEY, '1');
+    err.style.display = 'none';
+    document.getElementById('annual-pin-input').value = '';
+    showAnnualContent();
+  } else {
+    err.textContent = '❌ קוד שגוי';
+    err.style.display = 'block';
+    document.getElementById('annual-pin-input').value = '';
+    document.getElementById('annual-pin-input').focus();
+  }
+}
+
+function showAnnualContent() {
+  document.getElementById('annual-lock').style.display = 'none';
+  document.getElementById('annual-content').style.display = 'block';
+  renderAnnual();
+}
+
+function lockAnnual() {
+  sessionStorage.removeItem(ANNUAL_UNLOCKED_KEY);
+  document.getElementById('annual-lock').style.display = 'block';
+  document.getElementById('annual-content').style.display = 'none';
+  document.getElementById('annual-pin-input').value = '';
+  if (annualChartInst) { annualChartInst.destroy(); annualChartInst = null; }
+}
+
+function changeAnnualPin() {
+  const newPin = prompt('הזן קוד PIN חדש (לפחות 4 ספרות):');
+  if (!newPin || newPin.length < 4) { toast('❌ PIN לא שונה'); return; }
+  localStorage.setItem(ANNUAL_PIN_KEY, newPin);
+  toast('✅ PIN עודכן');
+}
+
+function renderAnnual() {
+  const supFilter = document.getElementById('annual-sup-filter')?.value || 'all';
+  const filtDels = supFilter === 'all' ? dels : dels.filter(d => d.sup === supFilter);
+
+  const MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const years = [...new Set(filtDels.map(d => parseInt(d.year)))].filter(Boolean).sort();
+  const itemsSum = items => items.reduce((s,it) => s + (isNaN(it.totalV) ? 0 : it.totalV), 0);
+
+  // Build data structure: year → month (1-12) → total
+  const data = {};
+  years.forEach(yr => {
+    data[yr] = Array(12).fill(0);
+    filtDels.forEach(d => {
+      if (parseInt(d.year) !== yr) return;
+      const dt = new Date(d.date);
+      if (isNaN(dt)) return;
+      const mo = dt.getMonth(); // 0-11
+      data[yr][mo] += itemsSum(d.items);
+    });
+  });
+
+  // ── גרף ──
+  const ctx = document.getElementById('annual-chart');
+  if (ctx) {
+    if (annualChartInst) annualChartInst.destroy();
+    const cols = { 2022:'#9c27b0', 2023:'#4caf50', 2024:'#2196f3', 2025:'#ff9800', 2026:'#e91e63' };
+    annualChartInst = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: MONTHS,
+        datasets: years.map(yr => ({
+          label: String(yr),
+          data: data[yr],
+          backgroundColor: (cols[yr]||'#607d8b') + '22',
+          borderColor: cols[yr]||'#607d8b',
+          borderWidth: 2, tension: 0.4, fill: false,
+          pointRadius: 4
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: { callbacks: { label: c => ' ₪' + Math.round(c.raw).toLocaleString() } }
+        },
+        scales: { y: { ticks: { callback: v => '₪' + Math.round(v/1000) + 'K' } } }
+      }
+    });
+  }
+
+  // ── טבלה שנתית ──
+  const wrap = document.getElementById('annual-table-wrap');
+  if (!wrap) return;
+
+  let html = '';
+  years.slice().reverse().forEach(yr => {
+    const yearTotal = data[yr].reduce((a,b) => a+b, 0);
+    if (yearTotal === 0) return;
+
+    html += `<div class="card" style="margin-bottom:12px;overflow-x:auto">
+      <div class="ctitle" style="display:flex;justify-content:space-between">
+        <span>📅 ${yr}</span>
+        <span style="font-size:13px;color:var(--gm)">סה"כ: ₪${Math.round(yearTotal).toLocaleString()}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px">
+        <thead>
+          <tr style="background:#f5f5f5">
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee">חודש</th>
+            ${supFilter==='all' ? `
+              <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">עמיר</th>
+              <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">המשביר</th>
+              <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">ICL</th>
+              <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">אחר</th>
+            ` : ''}
+            <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;font-weight:700">סה"כ</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+    let hasAny = false;
+    MONTHS.forEach((moName, moIdx) => {
+      // per-supplier breakdown
+      const getSupTotal = (sup) => filtDels.filter(d =>
+        parseInt(d.year)===yr && d.sup===sup &&
+        !isNaN(new Date(d.date)) && new Date(d.date).getMonth()===moIdx
+      ).reduce((s,d) => s + itemsSum(d.items), 0);
+
+      const amir  = getSupTotal('עמיר');
+      const hamash = getSupTotal('המשביר');
+      const icl   = getSupTotal('דשנים ICL');
+      const other = filtDels.filter(d =>
+        parseInt(d.year)===yr && !['עמיר','המשביר','דשנים ICL'].includes(d.sup) &&
+        !isNaN(new Date(d.date)) && new Date(d.date).getMonth()===moIdx
+      ).reduce((s,d) => s + itemsSum(d.items), 0);
+      const total = data[yr][moIdx];
+      if (total === 0) return;
+      hasAny = true;
+
+      const fmt = v => v > 0 ? `<span style="color:#333">₪${Math.round(v).toLocaleString()}</span>` : '<span style="color:#ddd">—</span>';
+      html += `<tr style="border-bottom:1px solid #f5f5f5">
+        <td style="padding:5px 8px;font-weight:600">${moName}</td>
+        ${supFilter==='all' ? `
+          <td style="padding:5px 8px;text-align:center">${fmt(amir)}</td>
+          <td style="padding:5px 8px;text-align:center">${fmt(hamash)}</td>
+          <td style="padding:5px 8px;text-align:center">${fmt(icl)}</td>
+          <td style="padding:5px 8px;text-align:center">${fmt(other)}</td>
+        ` : ''}
+        <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gm)">₪${Math.round(total).toLocaleString()}</td>
+      </tr>`;
+    });
+
+    // שורת סיכום שנה
+    if (supFilter === 'all') {
+      const sumAmir   = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='עמיר').reduce((s,d)=>s+itemsSum(d.items),0);
+      const sumHamash = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='המשביר').reduce((s,d)=>s+itemsSum(d.items),0);
+      const sumIcl    = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='דשנים ICL').reduce((s,d)=>s+itemsSum(d.items),0);
+      const sumOther  = filtDels.filter(d=>parseInt(d.year)===yr&&!['עמיר','המשביר','דשנים ICL'].includes(d.sup)).reduce((s,d)=>s+itemsSum(d.items),0);
+      html += `<tr style="background:#f9f9f9;font-weight:700;border-top:2px solid #ddd">
+        <td style="padding:6px 8px">סה"כ ${yr}</td>
+        <td style="padding:6px 8px;text-align:center;color:#2196f3">₪${Math.round(sumAmir).toLocaleString()}</td>
+        <td style="padding:6px 8px;text-align:center;color:#e53935">₪${Math.round(sumHamash).toLocaleString()}</td>
+        <td style="padding:6px 8px;text-align:center;color:#ff9800">₪${Math.round(sumIcl).toLocaleString()}</td>
+        <td style="padding:6px 8px;text-align:center;color:#607d8b">₪${Math.round(sumOther).toLocaleString()}</td>
+        <td style="padding:6px 8px;text-align:center;color:var(--gm)">₪${Math.round(yearTotal).toLocaleString()}</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table></div>`;
+  });
+
+  wrap.innerHTML = html || '<div style="color:#aaa;text-align:center;padding:20px">אין נתונים</div>';
+}
 </script>
 </body>
 </html>
