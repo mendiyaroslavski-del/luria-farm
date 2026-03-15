@@ -1655,7 +1655,7 @@ function refreshCustomSupDropdowns() {
 
 function addRow() {
   const id = Date.now()+Math.random();
-  rows.push({id, product:'', qty:1, price:'', discount:0, total:0, vat:0, totalV:0});
+  rows.push({id, product:'', qty:1, price:'', discount:0, total:0, vat:0, totalV:0, cat:null});
   renderRows();
   setTimeout(()=>{const el=document.getElementById('p-'+id);if(el)el.focus()},40);
 }
@@ -1664,6 +1664,16 @@ function renderRows() {
   const sup = document.getElementById('e-sup').value;
   document.getElementById('items-body').innerHTML = rows.map(r=>{
     const hint = PRICES[r.product+'|'+sup];
+    const catObj = r.cat ? getCatObj(r.cat) : null;
+    const catBtnHtml = `<div style="margin-top:3px">
+      <div class="cat-row-picker" id="crp-${r.id}" style="display:none;flex-wrap:wrap;gap:3px;padding:3px 0">
+        <button type="button" class="cat-btn" style="font-size:10px;padding:1px 5px" onclick="setItemCat(${r.id},null)">— ללא</button>
+        ${CATS.map(c=>`<button type="button" class="cat-btn" style="font-size:10px;padding:1px 5px;background:${r.cat===c.id?c.color:'#f5f5f5'};color:${r.cat===c.id?'#fff':'#333'};border-color:${r.cat===c.id?c.color:'#ddd'}" onclick="setItemCat(${r.id},'${c.id}')">${c.icon} ${c.label}</button>`).join('')}
+      </div>
+      <button type="button" onclick="toggleCrp(${r.id})" style="font-size:10px;border:1px solid ${catObj?catObj.color:'#ddd'};background:${catObj?catObj.bg:'#f9f9f9'};color:${catObj?catObj.color:'#aaa'};border-radius:4px;padding:1px 6px;cursor:pointer;white-space:nowrap">
+        ${catObj ? catObj.icon+' '+catObj.label : '🏷️ קטגוריה'}
+      </button>
+    </div>`;
     return `<tr>
       <td>
         <div class="acw">
@@ -1672,6 +1682,7 @@ function renderRows() {
           <div class="aclist" id="ac-${r.id}"></div>
         </div>
         ${hint?`<div class="phint">💡 מחיר אחרון: ₪${hint}</div>`:''}
+        ${catBtnHtml}
       </td>
       <td><input type="text" inputmode="text" id="q-${r.id}" value="${r.qty}" oninput="calcRow(${r.id})" style="width:55px"></td>
       <td><input type="text" inputmode="text" id="pr-${r.id}" value="${r.price}" placeholder="${hint||''}" oninput="calcRow(${r.id})" style="width:68px"></td>
@@ -1694,6 +1705,34 @@ function onPI(inp, rid) {
   const price=PRICES[inp.value+'|'+sup];
   const prEl=document.getElementById('pr-'+rid);
   if(price&&prEl&&!prEl.value){prEl.value=price;calcRow(rid)}
+  // אוטו-זיהוי קטגוריה
+  autoDetectItemCat(rid, inp.value);
+}
+
+function autoDetectItemCat(rid, productName) {
+  if (!productName) return;
+  const row = rows.find(r => r.id === rid);
+  if (!row || row.cat) return; // אל תדרוס בחירה ידנית
+  loadKwMap();
+  const name = productName.toLowerCase();
+  const sorted = Object.entries(kwMap).sort((a,b) => b[0].length - a[0].length);
+  for (const [kw, cat] of sorted) {
+    if (name.includes(kw.toLowerCase())) {
+      row.cat = cat;
+      renderRows(); // רענן כדי להציג את הקטגוריה
+      return;
+    }
+  }
+}
+
+function toggleCrp(rid) {
+  const el = document.getElementById('crp-' + rid);
+  if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+function setItemCat(rid, catId) {
+  const row = rows.find(r => r.id === rid);
+  if (row) { row.cat = catId; renderRows(); }
 }
 
 function showAC(rid,val){
@@ -1724,7 +1763,7 @@ function onPK(e,rid){
 
 function selProd(rid,prod){
   const row=rows.find(r=>r.id===rid);
-  if(row)row.product=prod;
+  if(row){ row.product=prod; if(!row.cat) autoDetectItemCat(rid, prod); }
   document.getElementById('ac-'+rid)?.classList.remove('open');
   document.getElementById('p-'+rid).value=prod;
   const sup=document.getElementById('e-sup').value;
@@ -6212,21 +6251,42 @@ function renderCatStats() {
   sums['_none'] = 0;
 
   filtered.forEach(d => {
-    const total = (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
-
-    // כלל 1: תעודה ללא סכום — דלג (ICL ממתינות וכד')
-    if (total <= 0) return;
-
-    // כלל 2: תעודת עמיר "ביניים" של ICL — קיימת חשבונית SI שמייצגת אותה
-    // (זיהוי: מכיל "דשן נוזלי" / "דשנים -" בשם המוצר, ותעודה אינה SI)
+    // דלג על תעודות עמיר "ביניים" של ICL
     const isIclIntermediary = d.sup === 'עמיר'
       && !/^SI/.test(d.doc || '')
       && (d.items || []).some(it => /דשן נוזלי|דשנים\s*-/i.test(it.product || ''));
     if (isIclIntermediary) return;
 
-    const cat = getCatForDel(d);
-    if (cat && sums[cat] !== undefined) sums[cat] += total;
-    else sums['_none'] += total;
+    // סכם לפי קטגוריה של כל פריט
+    (d.items || []).forEach(it => {
+      const amt = isNaN(it.totalV) ? 0 : it.totalV;
+      if (amt === 0) return;
+
+      // קטגוריית ICL — כל ספק ICL
+      if (d.sup === 'דשנים ICL') {
+        sums['liquid'] = (sums['liquid'] || 0) + amt;
+        return;
+      }
+
+      // קטגוריה שנשמרה על הפריט
+      if (it.cat && sums[it.cat] !== undefined) {
+        sums[it.cat] += amt;
+        return;
+      }
+
+      // אוטו-זיהוי לפי שם מוצר
+      const name = (it.product || '').toLowerCase();
+      const sorted = Object.entries(kwMap).sort((a,b) => b[0].length - a[0].length);
+      let found = false;
+      for (const [kw, cat] of sorted) {
+        if (name.includes(kw.toLowerCase())) {
+          sums[cat] = (sums[cat] || 0) + amt;
+          found = true;
+          break;
+        }
+      }
+      if (!found) sums['_none'] += amt;
+    });
   });
 
   const grandTotal = Object.values(sums).reduce((a,b)=>a+b,0);
@@ -6375,13 +6435,40 @@ function reAutoClassify() {
   renderCatStats();
 }
 
-// Render cat badge in del list
+// Render cat badges in del list - per item breakdown
 function getCatBadgeHtml(d) {
   loadKwMap();
-  const catId = getCatForDel(d);
-  if (!catId) return '<span style="color:#ccc;font-size:11px">❓</span>';
-  const c = getCatObj(catId);
-  return `<span class="cat-badge" style="background:${c.bg};color:${c.color}">${c.icon} ${c.label}</span>`;
+
+  // ICL — תמיד דישון נוזלי
+  if (d.sup === 'דשנים ICL') {
+    const c = getCatObj('liquid');
+    return `<span class="cat-badge" style="background:${c.bg};color:${c.color}">${c.icon} ${c.label}</span>`;
+  }
+
+  // סכם לפי פריטים
+  const catTotals = {};
+  (d.items || []).forEach(it => {
+    const amt = isNaN(it.totalV) ? 0 : it.totalV;
+    if (amt <= 0) return;
+    let cat = it.cat;
+    if (!cat) {
+      const name = (it.product || '').toLowerCase();
+      const sorted = Object.entries(kwMap).sort((a,b) => b[0].length - a[0].length);
+      for (const [kw, c] of sorted) {
+        if (name.includes(kw.toLowerCase())) { cat = c; break; }
+      }
+    }
+    if (cat) catTotals[cat] = (catTotals[cat] || 0) + amt;
+  });
+
+  const entries = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+  if (!entries.length) return '<span style="color:#ccc;font-size:11px">❓</span>';
+
+  // הצג עד 2 קטגוריות עיקריות
+  return entries.slice(0,2).map(([catId]) => {
+    const c = getCatObj(catId);
+    return `<span class="cat-badge" style="background:${c.bg};color:${c.color};margin-left:2px">${c.icon}</span>`;
+  }).join('');
 }
 
 // Init on load
