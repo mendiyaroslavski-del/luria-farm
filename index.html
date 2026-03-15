@@ -6114,7 +6114,19 @@ function exportQualityExcel() {
 
 function loadKwMap() {
   const stored = localStorage.getItem('lkw2');
-  kwMap = stored ? JSON.parse(stored) : { ...DEFAULT_KW };
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    // אם מכיל את המילה הישנה 'שפר' שגרמה לכפילויות — אפס לברירת מחדל
+    if (parsed['שפר'] === 'liquid') {
+      localStorage.removeItem('lkw2');
+      kwMap = { ...DEFAULT_KW };
+      saveKwMap();
+    } else {
+      kwMap = parsed;
+    }
+  } else {
+    kwMap = { ...DEFAULT_KW };
+  }
 }
 function saveKwMap() { localStorage.setItem('lkw2', JSON.stringify(kwMap)); }
 
@@ -6205,14 +6217,8 @@ function renderCatStats() {
     // כלל 1: תעודה ללא סכום — דלג (ICL ממתינות וכד')
     if (total <= 0) return;
 
-    // כלל 2: תעודה שמקושרת לחשבונית (invNum) — דלג, החשבונית תספור
-    if (d.invNum) return;
-
-    // כלל 3: תעודה שמקושרת מוצלב לחשבונית עמיר (crossInv) — דלג
-    if (d.crossInv) return;
-
-    // כלל 4: תעודת עמיר "ביניים" של ICL — אם יש חשבונית SI מקבילה, דלג
-    // (זיהוי: מוצר = "דשן נוזלי" או "דשנים -" והתעודה אינה SI)
+    // כלל 2: תעודת עמיר "ביניים" של ICL — קיימת חשבונית SI שמייצגת אותה
+    // (זיהוי: מכיל "דשן נוזלי" / "דשנים -" בשם המוצר, ותעודה אינה SI)
     const isIclIntermediary = d.sup === 'עמיר'
       && !/^SI/.test(d.doc || '')
       && (d.items || []).some(it => /דשן נוזלי|דשנים\s*-/i.test(it.product || ''));
@@ -6359,10 +6365,12 @@ function addKw(catId) {
 }
 
 function reAutoClassify() {
-  loadKwMap();
-  // Clear auto-classifications (keep manual ones that were set via openCatManager)
-  // Actually just re-run — getCatForDel uses kwMap dynamically, no need to store
-  toast('✅ הסיווג האוטומטי עודכן');
+  // איפוס מילות מפתח לברירת מחדל (מנקה מילות מפתח ישנות/שגויות)
+  localStorage.removeItem('lkw2');
+  loadKwMap(); // טוען מחדש מ-DEFAULT_KW
+  saveKwMap();
+  toast('✅ מילות מפתח אופסו לברירת מחדל וסיווג עודכן');
+  renderKwEditor();
   renderUncatList();
   renderCatStats();
 }
