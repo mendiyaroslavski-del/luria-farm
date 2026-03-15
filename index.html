@@ -1330,6 +1330,9 @@ const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יו�
 
 // ═══ STORAGE ═══
 const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2'};
+const IDB_NAME  = 'luria-fh-db';
+const IDB_STORE = 'handles';
+const IDB_KEY   = 'main';
 const load = k => { try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]} };
 const save = (k,v) => localStorage.setItem(k,JSON.stringify(v));
 
@@ -6525,6 +6528,76 @@ loadKwMap();
 catMap = load(K.CAT);
 initCatPicker();
 
+// ── Drilldown modal ──
+function showMonthDrilldown(yr, mo, supFilter) {
+  const MONTHS = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const itemsSum = items => items.reduce((s,it) => s+(isNaN(it.totalV)?0:it.totalV), 0);
+
+  const filtered = dels.filter(d => {
+    if (parseInt(d.year) !== yr) return false;
+    const dt = new Date(d.date);
+    if (isNaN(dt)) return false;
+    if (dt.getMonth()+1 !== mo) return false;
+    if (supFilter !== 'all' && d.sup !== supFilter) return false;
+    return true;
+  }).sort((a,b) => new Date(a.date)-new Date(b.date));
+
+  const monthTotal = filtered.reduce((s,d)=>s+itemsSum(d.items),0);
+
+  const rows = filtered.map(d => {
+    const total = itemsSum(d.items);
+    const supColor = d.sup==='עמיר'?'#1565c0':d.sup==='המשביר'?'#c62828':d.sup==='דשנים ICL'?'#e65100':'#555';
+    const prods = (d.items||[]).map(it=>it.product).filter(Boolean).filter(p=>p!=='שירות/הובלה'&&p!=='שרות/הובלה').slice(0,3).join(' • ');
+    return `<tr style="border-bottom:1px solid #f5f5f5">
+      <td style="padding:6px 8px;font-size:12px;color:#888">${d.date}</td>
+      <td style="padding:6px 8px"><span style="font-size:11px;background:${supColor}22;color:${supColor};border-radius:4px;padding:1px 6px">${d.sup}</span></td>
+      <td style="padding:6px 8px;font-weight:600;font-size:13px">${d.doc||'—'}</td>
+      <td style="padding:6px 8px;font-size:11px;color:#666;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prods}</td>
+      <td style="padding:6px 8px;font-weight:700;color:var(--gm);text-align:left">₪${Math.round(total).toLocaleString()}</td>
+      <td style="padding:6px 8px">${d.invNum?`<span style="font-size:11px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px">✓ ${d.invNum}</span>`:'<span style="color:#ddd;font-size:11px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'drilldown-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:#0008;z-index:9999;overflow-y:auto;padding:16px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:700px;margin:0 auto;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <strong style="font-size:16px">📋 ${MONTHS[mo]} ${yr}</strong>
+          ${supFilter!=='all'?`<span style="font-size:12px;color:#888;margin-right:8px">• ${supFilter}</span>`:''}
+        </div>
+        <button onclick="document.getElementById('drilldown-modal').remove()"
+          style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">✕</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:#f5f5f5;font-size:11px;color:#888">
+              <th style="padding:6px 8px;text-align:right">תאריך</th>
+              <th style="padding:6px 8px;text-align:right">ספק</th>
+              <th style="padding:6px 8px;text-align:right">תעודה/חשבונית</th>
+              <th style="padding:6px 8px;text-align:right">מוצרים עיקריים</th>
+              <th style="padding:6px 8px;text-align:left">סה"כ</th>
+              <th style="padding:6px 8px;text-align:right">חשבונית</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr style="background:#f9f9f9;font-weight:700;border-top:2px solid #ddd">
+              <td colspan="4" style="padding:8px">סה"כ חודש — ${filtered.length} תעודות</td>
+              <td style="padding:8px;color:var(--gm)">₪${Math.round(monthTotal).toLocaleString()}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
 // ═══════════════════════════════════════════════════════
 // 📅  ANNUAL REPORT — PIN PROTECTED
 // ═══════════════════════════════════════════════════════
@@ -6703,7 +6776,13 @@ function renderAnnual() {
 
       const fmt = v => v > 0 ? `<span style="color:#333">₪${Math.round(v).toLocaleString()}</span>` : '<span style="color:#ddd">—</span>';
       html += `<tr style="border-bottom:1px solid #f5f5f5">
-        <td style="padding:5px 8px;font-weight:600">${moName}</td>
+        <td style="padding:5px 8px;font-weight:600">
+          ${moName}
+          <button onclick="showMonthDrilldown(${yr},${moIdx+1},'${supFilter}')"
+            style="margin-right:6px;font-size:10px;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:4px;padding:1px 6px;cursor:pointer">
+            פירוט ▾
+          </button>
+        </td>
         ${supFilter==='all' ? `
           <td style="padding:5px 8px;text-align:center">${fmt(amir)}</td>
           <td style="padding:5px 8px;text-align:center">${fmt(hamash)}</td>
