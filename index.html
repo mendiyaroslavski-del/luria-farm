@@ -165,6 +165,12 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 .bdg{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .bdg-g{background:#e8f5e3;color:var(--gm)}.bdg-b{background:#e3f2fd;color:var(--blue)}
 .bdg-r{background:#ffebee;color:var(--red)}.bdg-o{background:#fff8e1;color:#7a4f00}
+.cat-badge{display:inline-block;font-size:11px;border-radius:4px;padding:1px 5px;cursor:default;white-space:nowrap}
+.cat-picker{display:flex;flex-wrap:wrap;gap:5px;padding:8px 0}
+.cat-btn{font-size:12px;border:1px solid #ddd;border-radius:5px;padding:3px 8px;cursor:pointer;background:#f5f5f5;transition:all .15s}
+.cat-btn.selected{border-color:transparent;color:#fff;font-weight:600}
+.cat-chart-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+@media(max-width:600px){.cat-chart-wrap{grid-template-columns:1fr}}
 .del-btn{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 5px;border-radius:4px;opacity:0.4;transition:opacity 0.15s}.del-btn:hover{opacity:1;background:#ffebee}
 
 /* TOAST */
@@ -345,6 +351,11 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 12px;font-size:12px;color:#5d4037">
       💡 <strong>מילוי שוטף:</strong> מלא את פרטי התעודה פעם אחת — ואז הוסף פריטים כמה שצריך. לתעודה חדשה לחץ "שמור וסיים תעודה".
     </div>
+    <!-- קטגוריה -->
+    <div style="margin-top:8px">
+      <label class="flabel">קטגוריה <span style="font-size:11px;color:#aaa;font-weight:400">(אופציונלי)</span></label>
+      <div class="cat-picker" id="e-cat-picker"></div>
+    </div>
     <!-- סוג תעודה -->
 
   </div><!-- /card פרטי התעודה -->
@@ -401,7 +412,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="tblw">
       <table class="dtbl">
-        <thead><tr><th>תאריך</th><th>ספק</th><th>תעודה</th><th>פריטים</th><th>סה"כ</th><th>חשבונית</th><th></th></tr></thead>
+        <thead><tr><th>תאריך</th><th>ספק</th><th>תעודה</th><th>פריטים</th><th>סה"כ</th><th>קטגוריה</th><th>חשבונית</th><th></th></tr></thead>
         <tbody id="del-list"></tbody>
       </table>
       <div id="del-list-more" style="display:none;text-align:center;padding:10px">
@@ -720,6 +731,50 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="cmpgrid">
       <div class="cmpcard"><div class="cmpyr" id="cy1l">—</div><div class="cmpamt" id="cy1a">—</div><div class="cmpdiff" id="cy1d"></div></div>
       <div class="cmpcard"><div class="cmpyr" id="cy2l">—</div><div class="cmpamt" id="cy2a">—</div></div>
+    </div>
+  </div>
+  <!-- קטגוריות -->
+  <div class="card">
+    <div class="ctitle">🏷️ הוצאות לפי קטגוריה</div>
+    <div class="fr fr2" style="gap:8px;margin-bottom:10px">
+      <div class="fg">
+        <label class="flabel">שנה</label>
+        <select class="fsel" id="cat-yr-filter" onchange="renderCatStats()">
+          <option value="all">כל השנים</option>
+          <option>2026</option><option selected>2025</option><option>2024</option><option>2023</option><option>2022</option>
+        </select>
+      </div>
+    </div>
+    <div class="cat-chart-wrap">
+      <div style="position:relative;height:240px"><canvas id="chart-cat-pie"></canvas></div>
+      <div id="cat-stats-table" style="font-size:13px"></div>
+    </div>
+    <div style="margin-top:10px;padding:8px;background:#f9f9f9;border-radius:6px;font-size:12px;color:#888">
+      💡 לסיווג תעודות לא מסווגות — <button onclick="openCatManager()" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:12px;text-decoration:underline;padding:0">לחץ כאן לניהול קטגוריות</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- MODAL: ניהול קטגוריות                    -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="cat-modal" style="display:none;position:fixed;inset:0;background:#0008;z-index:9999;overflow-y:auto;padding:16px">
+  <div style="background:#fff;border-radius:12px;max-width:600px;margin:0 auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <strong style="font-size:16px">🏷️ ניהול קטגוריות</strong>
+      <button onclick="closeCatManager()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <!-- תעודות לא מסווגות -->
+    <div style="margin-bottom:16px">
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px">⚠️ תעודות לא מסווגות <span id="uncat-count" style="color:#e53935"></span></div>
+      <div id="uncat-list" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+    <hr style="margin:12px 0">
+    <!-- מילות מפתח -->
+    <div>
+      <div style="font-weight:600;margin-bottom:8px;font-size:13px">⚙️ מילות מפתח לזיהוי אוטומטי</div>
+      <div id="kw-editor"></div>
+      <button onclick="reAutoClassify()" style="margin-top:10px;background:#1565c0;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px">🔄 סווג מחדש אוטומטית</button>
     </div>
   </div>
 </div>
@@ -1226,9 +1281,59 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2'};
 const load = k => { try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]} };
 const save = (k,v) => localStorage.setItem(k,JSON.stringify(v));
+
+// ═══ CATEGORY SYSTEM — declarations must be before any code runs ═══
+const CATS = [
+  { id:'pest',    icon:'🐛', label:'הדברה',        color:'#6d4c41', bg:'#efebe9' },
+  { id:'herb',    icon:'🌿', label:'עשביה',        color:'#2e7d32', bg:'#e8f5e9' },
+  { id:'fert',    icon:'🌱', label:'דישון',         color:'#558b2f', bg:'#f1f8e9' },
+  { id:'liquid',  icon:'💧', label:'דישון נוזלי',  color:'#0277bd', bg:'#e1f5fe' },
+  { id:'irrig',   icon:'🚿', label:'השקיה/צנרת',  color:'#00838f', bg:'#e0f7fa' },
+  { id:'equip',   icon:'🔧', label:'ציוד/כלים',    color:'#5d4037', bg:'#fbe9e7' },
+  { id:'general', icon:'📦', label:'כללי',          color:'#616161', bg:'#f5f5f5' },
+];
+const DEFAULT_KW = {
+  'דיקרזול':'pest','ארמדה':'pest','פרדיסו':'pest','ביומקטין':'pest','ביומקטיין':'pest',
+  'מסאי מייט':'pest','טרייסר':'pest','דיפנדר':'pest','אנווידור':'pest','אקסמייט':'pest',
+  'אקטרה':'pest','רופסט':'pest','רופאסט':'pest','טופ מייט':'pest','מובנטו':'pest',
+  'ספרטה':'pest','ורמירק':'pest','נימגארד':'pest','איזידור':'pest','נימזל':'pest',
+  'מסאי':'pest','ברלקס':'pest','ברודיטופ':'pest','דימול':'pest','קוצייד':'pest',
+  'טרופיגן':'pest','רידומיל':'pest','פרפקט':'pest','מלתיון':'pest',
+  'אומי':'pest','טיטאן':'pest','אקטיפולו':'pest','פורמון':'pest',
+  'קודקוד':'pest','רקס':'pest','ברק':'pest','קנון':'pest','אטלס':'pest',
+  'סיבנטו':'pest','ננובץ':'pest','דפנדר':'pest',
+  'גלייפוס':'herb','גליפוגו':'herb','גליפוגן':'herb','רודאו':'herb','גלובוס':'herb',
+  'חנקת אשלגן':'fert','חנקת מגנזיום':'fert','גפרת נחושת':'fert','גפרת מגנזיום':'fert',
+  'גפרת אבץ':'fert','גפרת מנגן':'fert','גפרת ברזל':'fert','גפרת אמון':'fert',
+  'מגניסל':'fert','עלוואמיד':'fert','חומצה זרחתית':'fert','אמינו':'fert',
+  'אמינופליק':'fert','מגנזיום סולפאט':'fert','דו רה מי':'fert','דו.רה.מי':'fert',
+  'חנקת':'fert','אמון חנקתי':'fert','אמון גופרתי':'fert',
+  'דשן 12':'fert','דשן 23':'fert','טופ מנגן':'fert',
+  'אקטיפולו מנגן':'fert','אקטיפולו סידן':'fert','אקטיפולו מגנזיום':'fert',
+  'שפר':'liquid','דשן נוזלי':'liquid','אגה 12%':'liquid','אגה':'liquid',
+  'דשנים - שפר':'liquid','דשנים - אגה':'liquid',
+  'צינור':'irrig','ברז':'irrig','מצמד':'irrig','ניפל':'irrig','רקורד':'irrig',
+  'זקיף':'irrig','הסתעפות':'irrig','זווית':'irrig','טפלון':'irrig','גומיה':'irrig',
+  'מחבר שן':'irrig','מחבר זווית':'irrig','מחבר מהיר':'irrig','אביזר':'irrig',
+  'שסתום':'irrig','מד לחץ':'irrig','זרנוק':'irrig','פין ליצול':'irrig',
+  'מעבר חפ':'irrig','בושינג':'irrig','פקק נקר':'irrig',
+  'תחילית':'irrig','מייצב':'irrig','מרסס':'irrig','ש.דריפנט':'irrig',
+  'טפטפת':'irrig','מכלול חץ':'irrig','מכלול בית':'irrig','יחידות ויסות':'irrig',
+  'סרבל':'equip','כפפות':'equip','מגף':'equip','מספרים':'equip','מספרי גיזום':'equip',
+  'חבל':'equip','חוט רפיה':'equip','חוט ברזל':'equip','חוט כיסוח':'equip',
+  'חוט ניילון':'equip','שמן':'equip','כד מידה':'equip','מסכת':'equip',
+  'מקטפה':'equip','מקב':'equip','נעל':'equip','רשת':'equip',
+  'פלסטיק':'equip','דבק':'equip','מיכל דולב':'equip','מסנן':'equip',
+  'אל חוזר':'equip','בית צלינדרים':'equip','ערכת':'equip',
+  'שק שתילה':'equip','סרט':'equip','לוחיות דבק':'equip',
+};
+let catMap = {};
+let kwMap = {};
+let selectedCat = null;
+let catPieInst = null;
 
 // Merge historical into deliveries (only first time)
 function initData() {
@@ -1836,6 +1941,7 @@ function renderDelList(){
       <td><strong>${d.doc||'—'}</strong></td>
       <td>${d.items.length}</td>
       <td>₪${total.toFixed(0)}</td>
+      <td>${getCatBadgeHtml(d)}</td>
       <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span><button onclick="unlinkDel('${d.id}')" title="בטל שיוך לחשבונית" style="margin-right:4px;background:#ffebee;border:1px solid #ef9a9a;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#c62828">✕ בטל</button>`:d.crossInv?`<span class="bdg" style="background:#e0f7fa;color:#0277bd;cursor:default">🔀 עמיר ${d.crossInv}</span><button onclick="unlinkCross('${d.id}')" title="בטל שיוך מוצלב" style="margin-right:4px;background:#e0f7fa;border:1px solid #81d4fa;border-radius:4px;cursor:pointer;font-size:11px;padding:1px 5px;color:#0277bd">✕ בטל</button>`:d.crossDoc?`<span class="bdg" style="background:#e8f5e9;color:#2d7a2d">🔗 עמיר ${d.crossDoc}</span>`:'—'}</td>
       <td style="white-space:nowrap">
         <button class="del-btn" onclick="deleteDel('${d.id}')" title="מחק תעודה">🗑</button>
@@ -1843,7 +1949,7 @@ function renderDelList(){
         <button class="del-btn" onclick="printDeliveryPdf('${d.id}')" title="PDF לתעודה" style="opacity:0.6">📄</button>
       </td>
     </tr>`;
-  }).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--grayM)">אין תעודות</td></tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--grayM)">אין תעודות</td></tr>';
 
   // כפתור "הצג עוד"
   const moreRow = document.getElementById('del-list-more');
@@ -6001,6 +6107,263 @@ function exportQualityExcel() {
     toast('⚠️ XLSX לא זמין — יצא לא הצליח');
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// 🏷️  CATEGORY SYSTEM — functions
+// ═══════════════════════════════════════════════════════
+
+function loadKwMap() {
+  const stored = localStorage.getItem('lkw2');
+  kwMap = stored ? JSON.parse(stored) : { ...DEFAULT_KW };
+}
+function saveKwMap() { localStorage.setItem('lkw2', JSON.stringify(kwMap)); }
+
+function getCatForDel(d) {
+  // 1. Manual override
+  if (catMap[d.id]) return catMap[d.id];
+  // 2. Special: ICL = liquid fert
+  if (d.sup === 'דשנים ICL') return 'liquid';
+  // 3. Auto by items
+  const names = (d.items||[]).map(it=>(it.product||'').toLowerCase()).join(' ');
+  const sorted = Object.entries(kwMap).sort((a,b)=>b[0].length-a[0].length);
+  for (const [kw,cat] of sorted) {
+    if (names.includes(kw.toLowerCase())) return cat;
+  }
+  return null; // unclassified
+}
+
+function getCatObj(id) { return CATS.find(c=>c.id===id) || CATS.find(c=>c.id==='general'); }
+
+// ── Entry form category picker ──
+
+function renderCatPicker(pickerEl, current) {
+  pickerEl.innerHTML = '';
+  // "ללא" option
+  const noneBtn = document.createElement('button');
+  noneBtn.type = 'button';
+  noneBtn.className = 'cat-btn' + (!current ? ' selected' : '');
+  noneBtn.style.background = !current ? '#757575' : '';
+  noneBtn.style.color = !current ? '#fff' : '';
+  noneBtn.textContent = '— ללא';
+  noneBtn.onclick = () => { selectedCat = null; renderCatPicker(pickerEl, null); };
+  pickerEl.appendChild(noneBtn);
+
+  CATS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-btn' + (current===c.id ? ' selected' : '');
+    if (current === c.id) { btn.style.background = c.color; btn.style.borderColor = c.color; }
+    btn.textContent = c.icon + ' ' + c.label;
+    btn.onclick = () => { selectedCat = c.id; renderCatPicker(pickerEl, c.id); };
+    pickerEl.appendChild(btn);
+  });
+}
+
+function initCatPicker() {
+  const el = document.getElementById('e-cat-picker');
+  if (el) { selectedCat = null; renderCatPicker(el, null); }
+}
+
+// Hook into saveDelFinal / saveDelContinue
+const _origSaveDelFinal = saveDelFinal;
+saveDelFinal = function() {
+  _origSaveDelFinal.apply(this, arguments);
+  // after save, assign cat to last saved del
+  assignCatToLastDel();
+};
+const _origSaveDelContinue = saveDelContinue;
+saveDelContinue = function() {
+  _origSaveDelContinue.apply(this, arguments);
+  assignCatToLastDel();
+};
+
+function assignCatToLastDel() {
+  if (!selectedCat) return;
+  // find most recently saved del
+  if (!dels.length) return;
+  const last = dels[dels.length-1];
+  catMap[last.id] = selectedCat;
+  save(K.CAT, catMap);
+  selectedCat = null;
+  const el = document.getElementById('e-cat-picker');
+  if (el) renderCatPicker(el, null);
+}
+
+// ── Stats: category breakdown ──
+
+function renderCatStats() {
+  loadKwMap();
+  const yr = document.getElementById('cat-yr-filter')?.value || 'all';
+  const filtered = yr==='all' ? dels : dels.filter(d=>String(d.year)===yr || String(d.date||'').startsWith(yr));
+  const sums = {};
+  CATS.forEach(c => sums[c.id] = 0);
+  sums['_none'] = 0;
+
+  filtered.forEach(d => {
+    const total = (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
+    if (total <= 0) return;
+    const cat = getCatForDel(d);
+    if (cat && sums[cat] !== undefined) sums[cat] += total;
+    else sums['_none'] += total;
+  });
+
+  const grandTotal = Object.values(sums).reduce((a,b)=>a+b,0);
+
+  // Pie chart
+  const ctx = document.getElementById('chart-cat-pie');
+  if (!ctx) return;
+  if (catPieInst) catPieInst.destroy();
+  const activeCats = CATS.filter(c => sums[c.id] > 0);
+  catPieInst = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: activeCats.map(c=>c.icon+' '+c.label),
+      datasets: [{
+        data: activeCats.map(c=>sums[c.id]),
+        backgroundColor: activeCats.map(c=>c.color),
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => ' ₪'+Math.round(c.raw).toLocaleString() + ' ('+((c.raw/grandTotal)*100).toFixed(1)+'%)' } }
+      }
+    }
+  });
+
+  // Table
+  const tbl = document.getElementById('cat-stats-table');
+  if (!tbl) return;
+  const rows = CATS
+    .filter(c => sums[c.id] > 0)
+    .sort((a,b) => sums[b.id]-sums[a.id])
+    .map(c => {
+      const pct = grandTotal ? ((sums[c.id]/grandTotal)*100).toFixed(1) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0f0">
+        <span style="font-size:16px">${c.icon}</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12px">${c.label}</div>
+          <div style="background:#eee;border-radius:3px;height:5px;margin-top:3px">
+            <div style="background:${c.color};height:5px;border-radius:3px;width:${pct}%"></div>
+          </div>
+        </div>
+        <div style="text-align:left;font-size:12px">
+          <div style="font-weight:700">₪${Math.round(sums[c.id]).toLocaleString()}</div>
+          <div style="color:#999">${pct}%</div>
+        </div>
+      </div>`;
+    });
+
+  if (sums['_none'] > 0) {
+    const pct = grandTotal ? ((sums['_none']/grandTotal)*100).toFixed(1) : 0;
+    rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;color:#999">
+      <span style="font-size:16px">❓</span>
+      <div style="flex:1"><div style="font-size:12px">לא מסווג</div></div>
+      <div style="text-align:left;font-size:12px">₪${Math.round(sums['_none']).toLocaleString()} <span style="color:#ccc">${pct}%</span></div>
+    </div>`);
+  }
+
+  tbl.innerHTML = rows.join('') || '<div style="color:#aaa;font-size:13px;padding:20px 0;text-align:center">אין נתונים</div>';
+}
+
+// ── Hook initStats to also render cats ──
+const _origInitStats = initStats;
+initStats = function() {
+  _origInitStats.apply(this, arguments);
+  renderCatStats();
+};
+
+// ── Category manager modal ──
+function openCatManager() {
+  loadKwMap();
+  renderUncatList();
+  renderKwEditor();
+  document.getElementById('cat-modal').style.display = 'block';
+}
+function closeCatManager() {
+  document.getElementById('cat-modal').style.display = 'none';
+  renderCatStats();
+}
+
+function renderUncatList() {
+  const uncat = dels.filter(d => !getCatForDel(d));
+  const el = document.getElementById('uncat-list');
+  const cnt = document.getElementById('uncat-count');
+  cnt.textContent = uncat.length ? `(${uncat.length} תעודות)` : '(אין)';
+  if (!uncat.length) { el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0">כל התעודות מסווגות ✅</div>'; return; }
+
+  el.innerHTML = uncat.slice(0,50).map(d => {
+    const total = (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
+    const prods = (d.items||[]).map(it=>it.product).filter(Boolean).slice(0,2).join(', ');
+    return `<div style="border:1px solid #eee;border-radius:6px;padding:8px;margin-bottom:6px">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">${d.date} • ${d.sup} • תעודה ${d.doc} • ₪${Math.round(total).toLocaleString()}</div>
+      <div style="font-size:11px;color:#aaa;margin-bottom:6px">${prods}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${CATS.map(c=>`<button onclick="manualCat('${d.id}','${c.id}')" style="font-size:11px;background:${c.bg};color:${c.color};border:1px solid ${c.color}44;border-radius:4px;padding:2px 7px;cursor:pointer">${c.icon} ${c.label}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  if (uncat.length > 50) el.innerHTML += `<div style="color:#aaa;font-size:12px;text-align:center;padding:8px">ועוד ${uncat.length-50} תעודות...</div>`;
+}
+
+function manualCat(delId, catId) {
+  catMap[delId] = catId;
+  save(K.CAT, catMap);
+  renderUncatList();
+}
+
+function renderKwEditor() {
+  const el = document.getElementById('kw-editor');
+  if (!el) return;
+  el.innerHTML = CATS.map(c => {
+    const words = Object.entries(kwMap).filter(([,v])=>v===c.id).map(([k])=>k);
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:12px;font-weight:600;color:${c.color};margin-bottom:4px">${c.icon} ${c.label}</div>
+      <div style="font-size:11px;color:#888;background:#f9f9f9;border-radius:5px;padding:5px 8px;min-height:24px">${words.join(' • ')}</div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <input id="kw-add-${c.id}" type="text" placeholder="הוסף מילת מפתח..." style="font-size:12px;padding:3px 8px;border:1px solid #ddd;border-radius:5px;flex:1">
+        <button onclick="addKw('${c.id}')" style="font-size:12px;background:${c.color};color:#fff;border:none;border-radius:5px;padding:3px 10px;cursor:pointer">הוסף</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addKw(catId) {
+  const inp = document.getElementById(`kw-add-${catId}`);
+  const kw = inp.value.trim().toLowerCase();
+  if (!kw) return;
+  kwMap[kw] = catId;
+  saveKwMap();
+  inp.value = '';
+  renderKwEditor();
+  toast(`✅ "${kw}" נוסף לקטגוריה`);
+}
+
+function reAutoClassify() {
+  loadKwMap();
+  // Clear auto-classifications (keep manual ones that were set via openCatManager)
+  // Actually just re-run — getCatForDel uses kwMap dynamically, no need to store
+  toast('✅ הסיווג האוטומטי עודכן');
+  renderUncatList();
+  renderCatStats();
+}
+
+// Render cat badge in del list
+function getCatBadgeHtml(d) {
+  loadKwMap();
+  const catId = getCatForDel(d);
+  if (!catId) return '<span style="color:#ccc;font-size:11px">❓</span>';
+  const c = getCatObj(catId);
+  return `<span class="cat-badge" style="background:${c.bg};color:${c.color}">${c.icon} ${c.label}</span>`;
+}
+
+// Init on load
+loadKwMap();
+catMap = load(K.CAT);
+initCatPicker();
 </script>
 </body>
 </html>
