@@ -5892,6 +5892,10 @@ function runQualityChecks() {
     // בדיקה 4: שורות ללא מספר חשבונית
     // ─────────────────────────────────────────────
     allDels.forEach(d => {
+      // דלג על תעודות ICL משויכות (crossDoc = תעודת עמיר, crossInv = חשבונית)
+      if (d.crossDoc || d.crossInv) return;
+      // דלג על תעודות ICL ממתינות (סכום 0 — מחכות לחשבונית)
+      if (d.sup === 'דשנים ICL') return;
       if (!d._hist && !d.invNum) { // רק תעודות שהוזנו ידנית
         const tot = (d.items||[]).reduce((s,i)=>s+(i.totalV||0),0);
         if (tot > 100) {
