@@ -6201,7 +6201,23 @@ function renderCatStats() {
 
   filtered.forEach(d => {
     const total = (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
+
+    // כלל 1: תעודה ללא סכום — דלג (ICL ממתינות וכד')
     if (total <= 0) return;
+
+    // כלל 2: תעודה שמקושרת לחשבונית (invNum) — דלג, החשבונית תספור
+    if (d.invNum) return;
+
+    // כלל 3: תעודה שמקושרת מוצלב לחשבונית עמיר (crossInv) — דלג
+    if (d.crossInv) return;
+
+    // כלל 4: תעודת עמיר "ביניים" של ICL — אם יש חשבונית SI מקבילה, דלג
+    // (זיהוי: מוצר = "דשן נוזלי" או "דשנים -" והתעודה אינה SI)
+    const isIclIntermediary = d.sup === 'עמיר'
+      && !/^SI/.test(d.doc || '')
+      && (d.items || []).some(it => /דשן נוזלי|דשנים\s*-/i.test(it.product || ''));
+    if (isIclIntermediary) return;
+
     const cat = getCatForDel(d);
     if (cat && sums[cat] !== undefined) sums[cat] += total;
     else sums['_none'] += total;
