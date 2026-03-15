@@ -4991,6 +4991,8 @@ function importAll(input){
 
       save(K.D,dels); save(K.I,invs); save(K.S,sprs); save(K.IV,invent); save(K.C,customSups); save(K.EX,expenses);
       refreshCustomSupDropdowns();
+      // סנכרון ICL אוטומטי אחרי ייבוא
+      setTimeout(() => { retroLinkAllIcl(); }, 100);
       renderDelList(); renderInvList(); renderSprays(); renderSpraySummary(); renderInventory(); if(document.getElementById('exp-list-area')) renderExpenses();
       toast(`📥 יובאו: ${addedDels} תעודות${skippedDels?' ('+skippedDels+' כפולות)':''}, ${addedInvs} חשבוניות, ${addedSprs} ריסוסים, מלאי: ${updInv} עדכונים + ${addInvItem} חדשים`);
     } catch(err){ toast('❌ שגיאה בייבוא: '+err.message); }
