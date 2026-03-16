@@ -6703,87 +6703,127 @@ async function runBot() {
   const actions = document.getElementById('bot-actions');
 
   status.style.display = 'block';
-  status.textContent = '⏳ מעבד...';
+  status.textContent = '⏳ מחפש...';
   results.innerHTML = '';
   actions.style.display = 'none';
   botResults = [];
 
-  // סיכום תעודות לשליחה
-  const summary = dels.map(d => ({
-    id: String(d.id),
-    sup: d.sup,
-    date: d.date,
-    doc: d.doc,
-    year: d.year,
-    invNum: d.invNum || '',
-    crossDoc: d.crossDoc || '',
-    total: (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0).toFixed(0),
-    items: (d.items||[]).slice(0,3).map(it=>it.product).filter(Boolean).join(', ')
-  }));
-
-  const invSummary = invs.map(inv => ({
-    id: String(inv.id),
-    sup: inv.sup,
-    num: inv.num,
-    date: inv.date||'',
-    total: inv.total||0
-  }));
-
-  const prompt = `אתה עוזר מערכת לניהול משק חקלאי. יש לך גישה לנתוני תעודות משלוח וחשבוניות.
-
-הוראה מהמשתמש: "${query}"
-
-נתוני תעודות (JSON):
-${JSON.stringify(summary)}
-
-נתוני חשבוניות (JSON):
-${JSON.stringify(invSummary)}
-
-החזר JSON בלבד עם המבנה הבא — ללא טקסט נוסף, ללא markdown:
-{
-  "title": "כותרת תוצאות",
-  "type": "dels",
-  "ids": ["id1","id2"],
-  "summary": "תיאור קצר"
-}
-
-type = "dels" לתעודות, "invs" לחשבוניות. ids = מזהי הרשומות הרלוונטיות. אם לא נמצא — ids: [].`;
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await resp.json();
-    const text = (data.content||[]).map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
-    const parsed = JSON.parse(text);
-
-    status.style.display = 'none';
-
-    if (!parsed.ids || parsed.ids.length === 0) {
-      results.innerHTML = `<div style="text-align:center;padding:24px;color:#888">🔍 לא נמצאו תוצאות</div>`;
-      return;
+  setTimeout(() => {
+    try {
+      const found = botLocalSearch(query);
+      status.style.display = 'none';
+      if (!found.results.length) {
+        results.innerHTML = `<div style="text-align:center;padding:24px;color:#888">🔍 לא נמצאו תוצאות עבור: "${query}"</div>`;
+        return;
+      }
+      botResults = found.results;
+      renderBotResults(found.title, found.summary, found.type);
+      actions.style.display = 'flex';
+    } catch(e) {
+      status.style.display = 'none';
+      results.innerHTML = `<div style="color:#e53935;padding:12px">❌ שגיאה: ${e.message}</div>`;
     }
-
-    const found = parsed.type === 'invs'
-      ? invs.filter(x => parsed.ids.includes(String(x.id)))
-      : dels.filter(x => parsed.ids.includes(String(x.id)));
-
-    botResults = found.map(x => ({ ...x, _type: parsed.type }));
-    renderBotResults(parsed.title, parsed.summary, parsed.type);
-    actions.style.display = 'flex';
-
-  } catch(e) {
-    status.style.display = 'none';
-    results.innerHTML = `<div style="color:#e53935;padding:12px">❌ שגיאה: ${e.message}</div>`;
-  }
+  }, 50);
 }
+
+function botLocalSearch(q) {
+  const MONTHS_HE = {
+    'ינואר':1,'פברואר':2,'מרץ':3,'מארס':3,'אפריל':4,'מאי':5,'יוני':6,
+    'יולי':7,'אוגוסט':8,'ספטמבר':9,'אוקטובר':10,'נובמבר':11,'דצמבר':12
+  };
+
+  // ספק
+  let sup = null;
+  if (/עמיר/.test(q)) sup = 'עמיר';
+  else if (/משביר/.test(q)) sup = 'המשביר';
+  else if (/icl|דשנים/i.test(q)) sup = 'דשנים ICL';
+
+  // שנה
+  const yearM = q.match(/20\d{2}/);
+  const year = yearM ? yearM[0] : null;
+
+  // חודש
+  let month = null;
+  for (const [name, num] of Object.entries(MONTHS_HE)) {
+    if (q.includes(name)) { month = num; break; }
+  }
+  const moNumM = q.match(/\b(0?[1-9]|1[0-2])\/(20\d{2})\b/);
+  if (moNumM) { month = parseInt(moNumM[1]); }
+
+  // סכום מינימלי
+  const aboveM = q.match(/מעל\s*([\d,]+)/);
+  const minAmount = aboveM ? parseFloat(aboveM[1].replace(',','')) : null;
+
+  // סוגים
+  const isInv   = /חשבונית|חשבוניות/.test(q);
+  const isNoInv = /ללא חשבונית|לא משויך/.test(q);
+  const isDup   = /כפול|כפולות|כפל/.test(q);
+  const docM    = q.match(/תעודה\s*(\d+)/);
+  const docNum  = docM ? docM[1] : null;
+
+  let type = isInv ? 'invs' : 'dels';
+  let filtered = [];
+  const titleParts = [];
+
+  if (type === 'invs') {
+    filtered = [...invs];
+  } else {
+    filtered = [...dels];
+  }
+
+  if (sup) { filtered = filtered.filter(x => x.sup === sup); titleParts.push(sup); }
+  if (year) {
+    filtered = filtered.filter(x => {
+      const d = type === 'invs' ? (x.date||'') : (String(x.year||x.date||''));
+      return d.includes(year);
+    });
+    titleParts.push(year);
+  }
+  if (month) {
+    const moName = Object.keys(MONTHS_HE).find(k=>MONTHS_HE[k]===month);
+    filtered = filtered.filter(x => {
+      const dt = new Date((x.date||''));
+      return !isNaN(dt) && (dt.getMonth()+1) === month;
+    });
+    if (moName) titleParts.push(moName);
+  }
+  if (minAmount !== null) {
+    filtered = filtered.filter(x => {
+      const t = type === 'invs' ? (x.total||0) : (x.items||[]).reduce((s,it)=>s+(it.totalV||0),0);
+      return t >= minAmount;
+    });
+    titleParts.push('מעל ₪'+minAmount.toLocaleString());
+  }
+  if (isNoInv && type === 'dels') {
+    filtered = filtered.filter(d => !d.invNum && !d.crossDoc && !d.crossInv
+      && (d.items||[]).reduce((s,it)=>s+(it.totalV||0),0) > 0);
+    titleParts.push('ללא חשבונית');
+  }
+  if (docNum) {
+    filtered = filtered.filter(x => String(x.doc||x.num||'').includes(docNum));
+    titleParts.push('תעודה '+docNum);
+  }
+  if (isDup && type === 'dels') {
+    const cnt = {};
+    dels.forEach(d => { const k=d.sup+'|'+d.doc; cnt[k]=(cnt[k]||0)+1; });
+    filtered = filtered.filter(d => cnt[d.sup+'|'+d.doc] > 1);
+    titleParts.push('כפולות');
+  }
+
+  filtered.sort((a,b) => new Date(a.date||'') - new Date(b.date||''));
+
+  const total = filtered.reduce((s,x) => {
+    return s + (type==='invs' ? (x.total||0) : (x.items||[]).reduce((ss,it)=>ss+(it.totalV||0),0));
+  }, 0);
+
+  return {
+    type,
+    results: filtered.map(x => ({...x, _type:type})),
+    title: titleParts.length ? titleParts.join(' — ') : 'תוצאות חיפוש',
+    summary: `${filtered.length} רשומות | ₪${Math.round(total).toLocaleString()}`
+  };
+}
+
 
 function renderBotResults(title, summary, type) {
   const results = document.getElementById('bot-results');
