@@ -221,6 +221,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn" onclick="showTab(this,'inventory')">📦 מלאי</button>
     <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
     <button class="navbtn" id="navbtn-quality" onclick="showTab(this,'quality')">🔍 בדיקת נתונים</button>
+    <button class="navbtn" onclick="showTab(this,'bot')">🤖 עוזר חכם</button>
   </nav>
   <div id="file-indicator" style="display:flex;align-items:center;gap:8px;padding:5px 18px;font-size:12px;border-top:1px solid rgba(255,255,255,.1);background:#fff3e0;flex-wrap:wrap;direction:rtl">
     <span style="color:#999;font-size:12px">⚠️ לא מחובר לקובץ — לחץ ייצא/ייבא לבחור</span>
@@ -1025,6 +1026,52 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 
 <!-- ═══════════════════════════════════ -->
+<!-- 🤖 עוזר חכם                        -->
+<!-- ═══════════════════════════════════ -->
+<div id="tab-bot" class="sec">
+  <div class="shtitle">🤖 עוזר חכם</div>
+
+  <div style="background:#e8f5e9;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#2e7d32">
+    💡 כתוב הוראה בעברית חופשית — למשל:<br>
+    <span style="color:#1b5e20">• "הצג כל תעודות עמיר מיולי 2023"</span><br>
+    <span style="color:#1b5e20">• "מצא תעודות המשביר מעל 5000 ₪"</span><br>
+    <span style="color:#1b5e20">• "הצג כל חשבוניות ICL משנת 2025"</span>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <input id="bot-input" type="text" placeholder="הקלד הוראה..." autocomplete="off"
+      style="flex:1;border:2px solid #a5d6a7;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;outline:none;direction:rtl"
+      onkeydown="if(event.key==='Enter')runBot()">
+    <button onclick="runBot()"
+      style="background:var(--gm);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;white-space:nowrap">
+      🔍 חפש
+    </button>
+  </div>
+
+  <div id="bot-status" style="display:none;text-align:center;padding:16px;color:#888;font-size:13px">
+    ⏳ מחפש...
+  </div>
+
+  <!-- כלי פעולה על תוצאות -->
+  <div id="bot-actions" style="display:none;margin-bottom:10px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
+    <label style="font-size:13px;cursor:pointer">
+      <input type="checkbox" id="bot-select-all" onchange="botSelectAll(this.checked)"> בחר הכל
+    </label>
+    <span id="bot-sel-count" style="font-size:12px;color:#888"></span>
+    <button onclick="botDeleteSelected()"
+      style="background:#e53935;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer">
+      🗑️ מחק נבחרים
+    </button>
+    <button onclick="botExportSelected()"
+      style="background:#1976d2;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer">
+      📋 העתק רשימה
+    </button>
+  </div>
+
+  <div id="bot-results"></div>
+</div>
+
+<!-- ═══════════════════════════════════ -->
 <!-- 8. הוצאות כלליות                    -->
 <!-- ═══════════════════════════════════ -->
 <div id="tab-expenses" class="sec">
@@ -1531,6 +1578,7 @@ function showTab(btn, name) {
   if(name==='stats') initStats();
   if(name==='dashboard') initDashboard();
   if(name==='annual') initAnnualTab();
+  if(name==='bot') setTimeout(()=>document.getElementById('bot-input')?.focus(),100);
   if(name==='expenses'){ renderExpenses(); const ed=document.getElementById('exp-date'); if(ed&&!ed.value) ed.value=new Date().toISOString().split('T')[0]; }
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); }
@@ -6529,8 +6577,44 @@ function getCatBadgeHtml(d) {
   }).join('');
 }
 
-// Init on load
-loadKwMap();
+// ── ניקוי חד-פעמי: שמירת רק 12 תעודות עמיר 07/2023 מחשבונית 070180472 ──
+(function cleanupJul2023(){
+  const DONE_KEY = 'luria_cleanup_jul2023_done';
+  if (localStorage.getItem(DONE_KEY)) return;
+
+  const KEEP_DOCS = new Set([
+    '070467082','70467082',
+    '070467695','70467695',
+    '070467696','70467696',
+    '070467967','70467967',
+    '070468067','70468067',
+    '070468435','70468435',
+    '070468475','70468475',
+    '070468974','70468974',
+    '070469161','70469161',
+    '070469410','70469410',
+    '070469419','70469419',
+    '076002023','76002023',
+  ]);
+
+  const before = dels.length;
+  dels = dels.filter(d => {
+    if (d.sup !== 'עמיר') return true;
+    const date = String(d.date || '');
+    if (!date.startsWith('2023-07')) return true;
+    // תעודת עמיר מ-07/2023 — שמור רק אם ברשימה
+    const doc = String(d.doc || '').trim();
+    return KEEP_DOCS.has(doc);
+  });
+
+  const removed = before - dels.length;
+  if (removed > 0) {
+    save(K.D, dels);
+    console.log(`✅ ניקוי 07/2023: נמחקו ${removed} תעודות כפולות`);
+    toast(`🧹 נוקו ${removed} תעודות כפולות מ-07/2023`);
+  }
+  localStorage.setItem(DONE_KEY, '1');
+})();
 catMap = load(K.CAT);
 initCatPicker();
 
@@ -6602,6 +6686,202 @@ function showMonthDrilldown(yr, mo, supFilter) {
     </div>`;
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
+}
+
+// ════════════════════════════════════════════════
+// 🤖 עוזר חכם — Claude API
+// ════════════════════════════════════════════════
+
+let botResults = [];
+
+async function runBot() {
+  const query = document.getElementById('bot-input').value.trim();
+  if (!query) return;
+
+  const status = document.getElementById('bot-status');
+  const results = document.getElementById('bot-results');
+  const actions = document.getElementById('bot-actions');
+
+  status.style.display = 'block';
+  status.textContent = '⏳ מעבד...';
+  results.innerHTML = '';
+  actions.style.display = 'none';
+  botResults = [];
+
+  // סיכום תעודות לשליחה
+  const summary = dels.map(d => ({
+    id: String(d.id),
+    sup: d.sup,
+    date: d.date,
+    doc: d.doc,
+    year: d.year,
+    invNum: d.invNum || '',
+    crossDoc: d.crossDoc || '',
+    total: (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0).toFixed(0),
+    items: (d.items||[]).slice(0,3).map(it=>it.product).filter(Boolean).join(', ')
+  }));
+
+  const invSummary = invs.map(inv => ({
+    id: String(inv.id),
+    sup: inv.sup,
+    num: inv.num,
+    date: inv.date||'',
+    total: inv.total||0
+  }));
+
+  const prompt = `אתה עוזר מערכת לניהול משק חקלאי. יש לך גישה לנתוני תעודות משלוח וחשבוניות.
+
+הוראה מהמשתמש: "${query}"
+
+נתוני תעודות (JSON):
+${JSON.stringify(summary)}
+
+נתוני חשבוניות (JSON):
+${JSON.stringify(invSummary)}
+
+החזר JSON בלבד עם המבנה הבא — ללא טקסט נוסף, ללא markdown:
+{
+  "title": "כותרת תוצאות",
+  "type": "dels",
+  "ids": ["id1","id2"],
+  "summary": "תיאור קצר"
+}
+
+type = "dels" לתעודות, "invs" לחשבוניות. ids = מזהי הרשומות הרלוונטיות. אם לא נמצא — ids: [].`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await resp.json();
+    const text = (data.content||[]).map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(text);
+
+    status.style.display = 'none';
+
+    if (!parsed.ids || parsed.ids.length === 0) {
+      results.innerHTML = `<div style="text-align:center;padding:24px;color:#888">🔍 לא נמצאו תוצאות</div>`;
+      return;
+    }
+
+    const found = parsed.type === 'invs'
+      ? invs.filter(x => parsed.ids.includes(String(x.id)))
+      : dels.filter(x => parsed.ids.includes(String(x.id)));
+
+    botResults = found.map(x => ({ ...x, _type: parsed.type }));
+    renderBotResults(parsed.title, parsed.summary, parsed.type);
+    actions.style.display = 'flex';
+
+  } catch(e) {
+    status.style.display = 'none';
+    results.innerHTML = `<div style="color:#e53935;padding:12px">❌ שגיאה: ${e.message}</div>`;
+  }
+}
+
+function renderBotResults(title, summary, type) {
+  const results = document.getElementById('bot-results');
+  const grandTotal = botResults.reduce((s,d) => {
+    return s + (type === 'dels'
+      ? (d.items||[]).reduce((ss,it)=>ss+(isNaN(it.totalV)?0:it.totalV),0)
+      : (d.total||0));
+  }, 0);
+
+  let html = `<div style="margin-bottom:10px">
+    <strong style="font-size:15px">${title}</strong>
+    <span style="font-size:12px;color:#888;margin-right:8px">${summary||''}</span>
+    <span style="font-size:12px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 8px">
+      ${botResults.length} רשומות | ₪${Math.round(grandTotal).toLocaleString()}
+    </span>
+  </div>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:480px">
+    <thead><tr style="background:#f5f5f5">
+      <th style="padding:6px;width:30px"></th>
+      <th style="padding:6px;text-align:right">תאריך</th>
+      <th style="padding:6px;text-align:right">ספק</th>
+      <th style="padding:6px;text-align:right">מסמך</th>
+      <th style="padding:6px;text-align:right">תוכן</th>
+      <th style="padding:6px;text-align:left">סה"כ</th>
+      <th style="padding:6px;text-align:right">חשבונית</th>
+    </tr></thead><tbody>`;
+
+  botResults.forEach((d, i) => {
+    const t = type === 'dels'
+      ? (d.items||[]).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0)
+      : (d.total||0);
+    const prods = type === 'dels'
+      ? (d.items||[]).slice(0,2).map(it=>it.product).filter(p=>p&&!/הובלה/.test(p)).join(' • ')
+      : '';
+    const invLabel = type === 'dels'
+      ? (d.invNum ? `✓ ${d.invNum}` : d.crossDoc ? `🔀 ${d.crossDoc}` : '—')
+      : '';
+    const doc = type === 'dels' ? d.doc : d.num;
+    html += `<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:6px;text-align:center"><input type="checkbox" class="bot-cb" data-idx="${i}" onchange="updateBotSelCount()"></td>
+      <td style="padding:6px;color:#666">${d.date||''}</td>
+      <td style="padding:6px"><span style="font-size:11px;background:#e8f5e9;border-radius:3px;padding:1px 5px">${d.sup||''}</span></td>
+      <td style="padding:6px;font-weight:600">${doc||''}</td>
+      <td style="padding:6px;color:#888;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${prods}">${prods}</td>
+      <td style="padding:6px;font-weight:700;color:var(--gm)">₪${Math.round(t).toLocaleString()}</td>
+      <td style="padding:6px;font-size:11px;color:#888">${invLabel}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  results.innerHTML = html;
+  updateBotSelCount();
+}
+
+function updateBotSelCount() {
+  const cbs = document.querySelectorAll('.bot-cb');
+  const sel = [...cbs].filter(c=>c.checked).length;
+  const el = document.getElementById('bot-sel-count');
+  if (el) el.textContent = sel ? `${sel} נבחרו` : '';
+}
+
+function botSelectAll(checked) {
+  document.querySelectorAll('.bot-cb').forEach(cb => cb.checked = checked);
+  updateBotSelCount();
+}
+
+function botDeleteSelected() {
+  const cbs = [...document.querySelectorAll('.bot-cb')].filter(c=>c.checked);
+  if (!cbs.length) { toast('⚠️ לא נבחרו רשומות'); return; }
+  const toDelete = cbs.map(cb => botResults[parseInt(cb.dataset.idx)]);
+  const type = toDelete[0]?._type || 'dels';
+  if (!confirm(`⚠️ למחוק ${toDelete.length} ${type==='dels'?'תעודות':'חשבוניות'}?\n${toDelete.map(d=>d.doc||d.num).join(', ')}`)) return;
+
+  if (type === 'dels') {
+    const ids = new Set(toDelete.map(d=>String(d.id)));
+    dels = dels.filter(d => !ids.has(String(d.id)));
+    save(K.D, dels); renderDelList();
+  } else {
+    const ids = new Set(toDelete.map(d=>String(d.id)));
+    invs = invs.filter(x => !ids.has(String(x.id)));
+    save(K.I, invs); renderInvList();
+  }
+
+  const idxSet = new Set(cbs.map(cb=>parseInt(cb.dataset.idx)));
+  botResults = botResults.filter((_,i) => !idxSet.has(i));
+  toast(`✅ נמחקו ${toDelete.length} רשומות`);
+  if (botResults.length) renderBotResults('תוצאות מעודכנות', '', type);
+  else { document.getElementById('bot-results').innerHTML = ''; document.getElementById('bot-actions').style.display='none'; }
+}
+
+function botExportSelected() {
+  const cbs = [...document.querySelectorAll('.bot-cb')].filter(c=>c.checked);
+  const list = cbs.length ? cbs.map(cb=>botResults[parseInt(cb.dataset.idx)]) : botResults;
+  const text = list.map(d => {
+    const t = (d.items||[]).reduce((s,it)=>s+(it.totalV||0),0) || d.total || 0;
+    return `${d.date||''} | ${d.sup||''} | ${d.doc||d.num||''} | ₪${Math.round(t).toLocaleString()}`;
+  }).join('\n');
+  navigator.clipboard.writeText(text).then(()=>toast('📋 הועתק ללוח')).catch(()=>toast('⚠️ לא ניתן להעתיק'));
 }
 
 // ═══════════════════════════════════════════════════════
