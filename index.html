@@ -677,6 +677,12 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <tbody id="price-results"></tbody>
       </table>
     </div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee">
+      <button class="btn" onclick="bakePricesIntoFile()" style="background:var(--gd);color:#fff;width:100%;padding:11px;font-size:14px;font-weight:700;border-radius:8px;border:none;cursor:pointer">
+        🔒 קבע מחירים בקובץ — הורד index.html מעודכן
+      </button>
+      <div id="bake-status" style="margin-top:8px;font-size:12px;color:var(--gm);text-align:center;display:none"></div>
+    </div>
   </div>
 </div>
 
@@ -2869,6 +2875,75 @@ function searchPrices(){
       <td style="color:#777;font-size:13px">${r.date?new Date(r.date).toLocaleDateString('he-IL'):''}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">לא נמצאו תוצאות</td></tr>';
+}
+
+// ═══ BAKE PRICES INTO FILE ═══
+function bakePricesIntoFile(){
+  const statusEl = document.getElementById('bake-status');
+  statusEl.style.display='';
+  statusEl.style.color='var(--gm)';
+  statusEl.textContent = '⏳ מחשב מחירים עדכניים...';
+
+  // בנה dynPrices מכל התעודות
+  const dynPrices={};
+  dels.forEach(d=>{
+    d.items.forEach(it=>{
+      if(!it.product||!it.price)return;
+      const k=it.product+'|'+d.sup;
+      if(!dynPrices[k]||d.date>dynPrices[k].date)
+        dynPrices[k]={price:it.price,date:d.date};
+    });
+  });
+  // בנה גם מחשבוניות
+  invs.forEach(inv=>{
+    if(!inv.sup)return;
+    (inv.items||[]).forEach(it=>{
+      if(!it.product||!it.price)return;
+      const k=it.product+'|'+inv.sup;
+      const d=inv.date||'';
+      if(!dynPrices[k]||d>dynPrices[k].date)
+        dynPrices[k]={price:it.price,date:d};
+    });
+  });
+
+  // מיזוג PRICES הסטטי + dynPrices (dynPrices מנצח)
+  const merged={};
+  Object.entries(PRICES).forEach(([k,p])=>{
+    merged[k]=dynPrices[k] ? dynPrices[k].price : p;
+  });
+  Object.entries(dynPrices).forEach(([k,v])=>{
+    merged[k]=v.price;
+  });
+
+  const count=Object.keys(merged).length;
+  statusEl.textContent = `✅ נמצאו ${count} מחירים — מכין קובץ...`;
+
+  // קרא את הקובץ הנוכחי דרך fetch
+  fetch(location.href)
+    .then(r=>r.text())
+    .then(html=>{
+      const newPricesStr = 'const PRICES   = '+JSON.stringify(merged)+';';
+      const updated = html.replace(/const PRICES\s*=\s*\{[\s\S]*?\};/, newPricesStr);
+
+      if(updated===html){
+        statusEl.style.color='#c00';
+        statusEl.textContent='❌ שגיאה: לא הצלחתי למצוא את אובייקט המחירים בקובץ';
+        return;
+      }
+
+      const blob=new Blob([updated],{type:'text/html;charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download='index.html'; a.click();
+      URL.revokeObjectURL(url);
+
+      statusEl.style.color='var(--gm)';
+      statusEl.textContent=`✅ הורד! הקובץ מכיל ${count} מחירים מעודכנים — העלה ל-GitHub`;
+    })
+    .catch(err=>{
+      statusEl.style.color='#c00';
+      statusEl.textContent='❌ שגיאה בקריאת הקובץ: '+err.message;
+    });
 }
 
 // ═══ GLOBAL SEARCH ═══
