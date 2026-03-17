@@ -3149,7 +3149,10 @@ function initDashboard(){
   }).sort((a,b)=>getPayDate(a)-getPayDate(b));
 
   // תעודות ללא חשבונית
-  const unmatched = dels.filter(d=>!d.invNum);
+  // בנה סט של כל IDs תעודות שמשויכות לחשבונית דרך docIds
+  const linkedByDocIds = new Set();
+  invs.forEach(inv=>{(inv.docIds||[]).forEach(id=>linkedByDocIds.add(String(id)));});
+  const unmatched = dels.filter(d=>!d.invNum && !d.crossInv && !d.crossDoc && !linkedByDocIds.has(String(d.id)));
 
   // רכישות החודש
   const now = new Date();
