@@ -1492,6 +1492,17 @@ function initData() {
 
 let dels = initData();
 let invs = load(K.I);
+// סנכרון invNum: לכל תעודה שמופיעה ב-docIds של חשבונית — וודא שה-invNum שלה מעודכן
+(function syncInvNums(){
+  let changed = false;
+  invs.forEach(inv=>{
+    (inv.docIds||[]).forEach(did=>{
+      const d = dels.find(x=>String(x.id)===String(did));
+      if(d && d.invNum !== inv.num){ d.invNum = inv.num; changed = true; }
+    });
+  });
+  if(changed){ save(K.D, dels); console.log('[sync] עודכנו invNum לתעודות משויכות'); }
+})();
 let sprs = load(K.S);
 let invent = load(K.IV);
 let customSups = load(K.C); // ספקים מזדמנים
@@ -2708,18 +2719,16 @@ function saveLinkDocs(invId){
     }
   });
 
-  // הוסף שיוך לתעודות חדשות
+  // הוסף/עדכן שיוך לכל תעודה ב-newLinked
   newLinked.forEach(did=>{
-    if(!oldLinked.has(did)){
-      const d = dels.find(x=>String(x.id)===did);
-      if(d){
-        // אם היתה משויכת לחשבונית אחרת — נקה שם
-        if(d.invNum && d.invNum !== inv.num){
-          const oldInv = invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
-          if(oldInv) oldInv.docIds = (oldInv.docIds||[]).filter(x=>String(x)!==did);
-        }
-        d.invNum = inv.num;
+    const d = dels.find(x=>String(x.id)===did);
+    if(d){
+      // אם היתה משויכת לחשבונית אחרת — נקה שם
+      if(d.invNum && d.invNum !== inv.num){
+        const oldInv = invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
+        if(oldInv) oldInv.docIds = (oldInv.docIds||[]).filter(x=>String(x)!==did);
       }
+      d.invNum = inv.num; // תמיד עדכן
     }
   });
 
