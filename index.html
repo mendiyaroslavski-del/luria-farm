@@ -242,6 +242,9 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="scard r"><div class="snum" id="db-overdue-count">—</div><div class="slbl">חשבוניות שעבר מועד</div></div>
     <div class="scard o"><div class="snum" id="db-due-soon-count">—</div><div class="slbl">פירעון ב-30 יום</div></div>
     <div class="scard b"><div class="snum" id="db-unmatched-count">—</div><div class="slbl">תעודות ללא חשבונית</div></div>
+    <div class="scard g"><div class="snum" id="db-spray-month">—</div><div class="slbl">עלות ריסוסים החודש</div></div>
+    <div class="scard o"><div class="snum" id="db-spray-last">—</div><div class="slbl">ריסוס אחרון</div></div>
+    <div class="scard r"><div class="snum" id="db-low-stock">—</div><div class="slbl">⚠️ מלאי נמוך</div></div>
   </div>
 
   <!-- חשבוניות שעבר מועד פירעון -->
@@ -335,13 +338,14 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </div>
       <div class="fg">
         <label class="flabel">תאריך <span id="vat-badge" style="display:inline-block;background:#1b5e20;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:4px">מע"מ 18%</span></label>
-        <input type="date" class="finput" id="e-date" oninput="onDateChange()">
+        <input type="date" class="finput" id="e-date" oninput="onDateChange();checkDocDateMatch()">
       </div>
     </div>
     <div class="fr fr2">
       <div class="fg">
         <label class="flabel">מספר תעודת משלוח</label>
-        <input type="text" class="finput" id="e-doc" placeholder="מספר תעודה" oninput="updateDocBadge()">
+        <input type="text" class="finput" id="e-doc" placeholder="מספר תעודה" oninput="updateDocBadge();checkDocDateMatch()">
+        <div id="doc-date-warn" style="display:none;margin-top:5px;padding:6px 10px;background:#fff3e0;border:1px solid #ffb74d;border-radius:6px;font-size:12px;color:#e65100"></div>
       </div>
       <div class="fg">
         <label class="flabel">שנה</label>
@@ -483,7 +487,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="fr fr3">
       <div class="fg">
         <label class="flabel">חודש</label>
-        <select class="fsel" id="inv-month">
+        <select class="fsel" id="inv-month" onchange="autoLoadInvDocs()">
           <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
           <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
           <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
@@ -492,7 +496,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </div>
       <div class="fg">
         <label class="flabel">שנה</label>
-        <select class="fsel" id="inv-year">
+        <select class="fsel" id="inv-year" onchange="autoLoadInvDocs()">
           <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option>
         </select>
       </div>
@@ -517,7 +521,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <input type="date" class="finput" id="inv-paid-date" style="width:100%">
       </div>
     </div>
-    <button class="btn btnS" style="width:100%;margin-bottom:6px" onclick="loadDocsForInvoice()">📋 טען תעודות לחודש זה</button>
+    <button class="btn btnS" style="width:100%;margin-bottom:6px" onclick="loadDocsForInvoice()">📋 טען תעודות לחודש זה <span style="font-size:11px;opacity:0.7">(מתעדכן אוטומטית)</span></button>
 
     <!-- טוגל: חשבונית ישירה -->
     <div style="display:flex;gap:8px;margin-top:4px">
@@ -867,7 +871,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fg"><label class="flabel">מהירות נסיעה (קמ"ש)</label>
         <input type="number" class="finput" id="spr-speed" min="0" step="0.5" placeholder="קמ&quot;ש">
       </div>
-      <div class="fg"><label class="flabel">בחר חלקה (אופציונלי)</label>
+      <div class="fg"><label class="flabel">בחר חלקה (אופציונלי) <button type="button" onclick="openFieldsManager()" style="background:none;border:none;color:var(--gm);cursor:pointer;font-size:12px;padding:0 4px;text-decoration:underline">+ נהל חלקות</button></label>
         <select class="finput" id="spr-field" onchange="applyFieldDunam()" style="font-family:inherit">
           <option value="">— בחר חלקה —</option>
           <optgroup label="משק לוריא">
@@ -882,6 +886,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
             <option value="בית דגן 9-10-11-12-13-14|28.46">9-10-11-12-13-14 (28.46 ד')</option>
             <option value="בית דגן 1-2-3|14.48">1-2-3 (14.48 ד')</option>
           </optgroup>
+          <optgroup id="spr-field-custom-group" label="חלקות מותאמות"></optgroup>
         </select>
       </div>
       <div class="fg"><label class="flabel">שטח מרוסס (דונם)</label>
@@ -925,6 +930,17 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div class="card">
     <div class="ctitle">📊 סיכום לפי חומר ושטח</div>
     <div id="spr-summary"></div>
+  </div>
+
+  <div class="card">
+    <div class="ctitle">📈 עלות ריסוסים לפי חודש</div>
+    <div class="chips" id="spr-chart-years" style="margin-bottom:8px">
+      <button class="chip on" onclick="setSprYF(this,'all')">כל השנים</button>
+      <button class="chip" onclick="setSprYF(this,2026)">2026</button>
+      <button class="chip" onclick="setSprYF(this,2025)">2025</button>
+      <button class="chip" onclick="setSprYF(this,2024)">2024</button>
+    </div>
+    <div class="chwrap"><canvas id="chart-spray"></canvas></div>
   </div>
 </div>
 
@@ -1024,6 +1040,22 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 <div class="toast" id="toast"></div>
 
+<!-- מודל ניהול חלקות -->
+<div id="modal-fields" style="display:none;position:fixed;inset:0;background:#0008;z-index:9999;overflow-y:auto;padding:16px">
+  <div style="background:#fff;border-radius:12px;max-width:480px;margin:0 auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <strong style="font-size:16px">🌾 ניהול חלקות מותאמות</strong>
+      <button onclick="closeFieldsManager()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="fields-list" style="margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px;align-items:center;border-top:1px solid #eee;padding-top:12px">
+      <input type="text" id="new-field-name" class="finput" placeholder="שם חלקה (למשל: חלקה 20)" style="flex:2">
+      <input type="number" id="new-field-dunam" class="finput" placeholder="דונם" style="flex:1" step="0.01" min="0">
+      <button class="btn btnP" onclick="addCustomField()" style="white-space:nowrap">+ הוסף</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- ═══════════════════════════════════ -->
 <!-- 🤖 עוזר חכם                        -->
@@ -1033,9 +1065,10 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
   <div style="background:#e8f5e9;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#2e7d32">
     💡 כתוב הוראה בעברית חופשית — למשל:<br>
-    <span style="color:#1b5e20">• "הצג כל תעודות עמיר מיולי 2023"</span><br>
-    <span style="color:#1b5e20">• "מצא תעודות המשביר מעל 5000 ₪"</span><br>
-    <span style="color:#1b5e20">• "הצג כל חשבוניות ICL משנת 2025"</span>
+    <span style="color:#1b5e20">• "כמה הוצאתי על דיקרזול ב-2025"</span><br>
+    <span style="color:#1b5e20">• "סה"כ רכישות עמיר 2024"</span><br>
+    <span style="color:#1b5e20">• "הצג תעודות המשביר מעל 5000 ₪"</span><br>
+    <span style="color:#1b5e20">• "כמה עלו רכישות הדברה"</span>
   </div>
 
   <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -1343,7 +1376,8 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="fg" style="margin-bottom:9px"><label class="flabel">שם חומר</label><input class="finput" id="mi-name" placeholder="שם החומר"></div>
     <div class="fg" style="margin-bottom:9px"><label class="flabel">יחידה</label><input class="finput" id="mi-unit" placeholder="שקית/יחידה/ליטר"></div>
     <div class="fg" style="margin-bottom:9px"><label class="flabel">כמות</label><input class="finput" type="number" id="mi-qty" placeholder="0"></div>
-    <div class="fg" style="margin-bottom:13px"><label class="flabel">יחידות לריסוס</label><input class="finput" type="number" id="mi-ups" value="1"></div>
+    <div class="fg" style="margin-bottom:9px"><label class="flabel">יחידות לריסוס</label><input class="finput" type="number" id="mi-ups" value="1"></div>
+    <div class="fg" style="margin-bottom:13px"><label class="flabel">⚠️ סף התראת מלאי נמוך (0 = ללא התראה)</label><input class="finput" type="number" id="mi-threshold" value="0" min="0" step="0.1" placeholder="0"></div>
     <div class="btnrow">
       <button class="btn btnP" onclick="saveInvItem()">שמור</button>
       <button class="btn btnS" onclick="closeMod('modal-inv')">ביטול</button>
@@ -1376,7 +1410,7 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2'};
 const IDB_NAME  = 'luria-fh-db';
 const IDB_STORE = 'handles';
 const IDB_KEY   = 'main';
@@ -1459,19 +1493,9 @@ function initData() {
 let dels = initData();
 let invs = load(K.I);
 let sprs = load(K.S);
-// ניקוי כפילויות ריסוסים (תיקון חד-פעמי)
-(function dedupeSprs(){
-  const seen = new Set();
-  const before = sprs.length;
-  sprs = sprs.filter(s=>{
-    const k=(s.date||'')+'|'+(s.area||'')+'|'+(s.op||'')+'|'+(s.mat||'');
-    if(seen.has(k)) return false;
-    seen.add(k); return true;
-  });
-  if(sprs.length < before){ save(K.S, sprs); console.log('[dedup] הוסרו '+(before-sprs.length)+' ריסוסים כפולים'); }
-})();
 let invent = load(K.IV);
 let customSups = load(K.C); // ספקים מזדמנים
+// customFields מוצהר ב-FIELDS MANAGER section
 let expenses  = load(K.EX); // הוצאות כלליות
 let fileHandle = null; // שמירה
 function openFHDB(){
@@ -1592,9 +1616,11 @@ function showTab(btn, name) {
   if(name==='bot') setTimeout(()=>document.getElementById('bot-input')?.focus(),100);
   if(name==='expenses'){ renderExpenses(); const ed=document.getElementById('exp-date'); if(ed&&!ed.value) ed.value=new Date().toISOString().split('T')[0]; }
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
-  if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); }
+  if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); setTimeout(drawSprayChart,100); }
   if(name==='inventory') renderInventory();
   if(name==='search') searchPrices();
+customFields = load(K.FL) || [];
+renderCustomFields();
   if(name==='invoice') renderInvList();
   if(name==='entry') renderDelList();
 }
@@ -1617,6 +1643,48 @@ function updateDocBadge() {
   const doc = document.getElementById('e-doc').value.trim();
   const el = document.getElementById('e-docbadge');
   el.textContent = doc ? `— תעודה: ${doc}` : '';
+}
+
+function checkDocDateMatch(){
+  const warnEl = document.getElementById('doc-date-warn');
+  if(!warnEl) return;
+  const doc = (document.getElementById('e-doc')?.value||'').trim();
+  const date = document.getElementById('e-date')?.value;
+  const sup = document.getElementById('e-sup')?.value;
+  if(!doc || !date || !sup || sup==='__new__') { warnEl.style.display='none'; return; }
+  const docNum = parseInt(doc);
+  if(isNaN(docNum)) { warnEl.style.display='none'; return; }
+
+  // מצא תעודות אחרות של אותו ספק עם מספר מספרי
+  const supDels = dels.filter(d => d.sup===sup && d.doc && /^\d+$/.test(d.doc) && d.date);
+  if(supDels.length < 3) { warnEl.style.display='none'; return; }
+
+  // מיין לפי מספר תעודה
+  supDels.sort((a,b) => parseInt(a.doc)-parseInt(b.doc));
+
+  // מצא את 4 השכנים הקרובים ביותר במספר
+  const withDist = supDels.map(d=>({d, dist:Math.abs(parseInt(d.doc)-docNum)}));
+  withDist.sort((a,b)=>a.dist-b.dist);
+  const neighbors = withDist.slice(0,5).map(x=>x.d);
+
+  // מה החודש/שנה של השכנים?
+  const enteredYM = date.substring(0,7); // "2025-05"
+  const HMlbl=['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const neighborMonths = neighbors.map(d=>d.date.substring(0,7));
+  const diffNeighbors = neighborMonths.filter(ym=>ym!==enteredYM);
+
+  if(diffNeighbors.length >= 3) {
+    // רוב השכנים שייכים לחודש אחר — אזהרה
+    const freqMap = {};
+    diffNeighbors.forEach(ym=>{ freqMap[ym]=(freqMap[ym]||0)+1; });
+    const topYM = Object.entries(freqMap).sort((a,b)=>b[1]-a[1])[0][0];
+    const [ty,tm] = topYM.split('-');
+    const nearDoc = neighbors.find(d=>d.date.startsWith(topYM));
+    warnEl.style.display='';
+    warnEl.innerHTML = `⚠️ <strong>שים לב:</strong> מספרים קרובים לתעודה ${nearDoc?.doc||''} שייכים ל-<strong>${HMlbl[+tm]} ${ty}</strong> — בדוק שהתאריך נכון`;
+  } else {
+    warnEl.style.display='none';
+  }
 }
 
 function onSupChange() {
@@ -1676,7 +1744,16 @@ function onInvSupChange() {
     document.getElementById('inv-new-sup-input').focus();
   } else {
     row.style.display = 'none';
+    // טען תעודות אוטומטית כשבוחרים ספק
+    setTimeout(autoLoadInvDocs, 50);
   }
+}
+
+function autoLoadInvDocs(){
+  if(currentInvType !== 'normal') return;
+  const sup = resolveInvSup();
+  if(!sup || sup === '__new_inv__') return;
+  loadDocsForInvoice();
 }
 
 // Returns the effective supplier name from the invoice supplier field
@@ -2882,6 +2959,52 @@ function searchPrices(){
   }).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">לא נמצאו תוצאות</td></tr>';
 }
 
+// ═══ FIELDS MANAGER ═══
+let customFields = load(K.FL) || [];
+function renderCustomFields(){
+  const grp = document.getElementById('spr-field-custom-group');
+  if(grp){
+    grp.innerHTML = customFields.map(f=>`<option value="${f.name}|${f.dunam}">${f.name} (${f.dunam} ד')</option>`).join('');
+    grp.style.display = customFields.length ? '' : 'none';
+  }
+}
+function openFieldsManager(){
+  renderFieldsList();
+  document.getElementById('modal-fields').style.display='block';
+}
+function closeFieldsManager(){
+  document.getElementById('modal-fields').style.display='none';
+}
+function renderFieldsList(){
+  const el=document.getElementById('fields-list');
+  if(!customFields.length){el.innerHTML='<p style="color:#aaa;font-size:13px">עדיין אין חלקות מותאמות</p>';return;}
+  el.innerHTML=customFields.map((f,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0f0f0">
+      <span style="flex:1;font-size:13px"><strong>${f.name}</strong> — ${f.dunam} דונם</span>
+      <button onclick="deleteCustomField(${i})" style="background:none;border:none;color:#e53935;cursor:pointer;font-size:16px">🗑</button>
+    </div>`).join('');
+}
+function addCustomField(){
+  const name=document.getElementById('new-field-name').value.trim();
+  const dunam=parseFloat(document.getElementById('new-field-dunam').value||0);
+  if(!name){toast('⚠️ הזן שם חלקה');return;}
+  if(!dunam){toast('⚠️ הזן גודל בדונם');return;}
+  customFields.push({name,dunam});
+  save(K.FL,customFields);
+  renderCustomFields();
+  renderFieldsList();
+  document.getElementById('new-field-name').value='';
+  document.getElementById('new-field-dunam').value='';
+  toast('✅ חלקה "'+name+'" נוספה');
+}
+function deleteCustomField(i){
+  if(!confirm('למחוק חלקה "'+customFields[i].name+'"?'))return;
+  customFields.splice(i,1);
+  save(K.FL,customFields);
+  renderCustomFields();
+  renderFieldsList();
+}
+
 // ═══ GLOBAL SEARCH ═══
 function globalSearch(){
   const q = (document.getElementById('glob-q').value||'').trim().toLowerCase();
@@ -3111,6 +3234,19 @@ function initDashboard(){
     </tbody></table></div>` :
     '<p style="color:var(--grayM);font-size:13px;padding:8px 0">אין רכישות החודש</p>';
 
+  // מלאי נמוך
+  const lowStockItems = invent.filter(item=>{
+    if(!item.threshold || item.threshold<=0) return false;
+    const bought = calcBought ? calcBought(item.name) : 0;
+    const used = sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
+    return (bought-used) <= item.threshold;
+  });
+  const lowStockEl = document.getElementById('db-low-stock');
+  if(lowStockEl){
+    lowStockEl.textContent = lowStockItems.length || '✓';
+    lowStockEl.parentElement.className = 'scard '+(lowStockItems.length>0?'r':'g');
+  }
+
   // גיבוי: הסתר אם גובה עכשיו
   checkBackupReminder();
 
@@ -3211,6 +3347,45 @@ function updateCmp(){
   document.getElementById('cy2a').textContent=p?'₪'+Math.round(p).toLocaleString():'—';
   if(b&&p){const d=((b-p)/p*100).toFixed(1);const el=document.getElementById('cy1d');el.className='cmpdiff '+(d>0?'up':'dn');el.textContent=(d>0?'↑ +':'↓ ')+d+'% לעומת '+py}
   else document.getElementById('cy1d').textContent='';
+}
+
+// ═══ SPRAY CHART ═══
+let sprayChartInst = null;
+let sprYearFilter = 'all';
+function setSprYF(btn,yr){
+  document.querySelectorAll('#spr-chart-years .chip').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  sprYearFilter = yr;
+  drawSprayChart();
+}
+function drawSprayChart(){
+  const ctx = document.getElementById('chart-spray')?.getContext('2d');
+  if(!ctx) return;
+  if(sprayChartInst) sprayChartInst.destroy();
+  const HMlbl=['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const years = sprYearFilter==='all' ? [2024,2025,2026] : [+sprYearFilter];
+  const cols = {2024:'#2196f3',2025:'#ff9800',2026:'#e91e63'};
+  const getSum = (yr,mo) => sprs.filter(s=>{
+    if(!s.date) return false;
+    const dt=new Date(s.date);
+    return dt.getFullYear()===yr && dt.getMonth()+1===mo;
+  }).reduce((s,x)=>s+(x.totalCost||0),0);
+  sprayChartInst = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels: HMlbl.slice(1),
+      datasets: years.map(yr=>({
+        label: String(yr),
+        data: Array.from({length:12},(_,i)=>getSum(yr,i+1)),
+        backgroundColor: (cols[yr]||'#4caf50')+'88',
+        borderColor: cols[yr]||'#4caf50',
+        borderWidth:1
+      }))
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>'₪'+Math.round(c.raw).toLocaleString()}}},
+      scales:{y:{ticks:{callback:v=>'₪'+Math.round(v/1000)+'K'},beginAtZero:true}}}
+  });
 }
 
 // ═══ SPRAY: MULTI-CHEMICAL ═══
@@ -3757,7 +3932,10 @@ function renderInventory(){
     const bought=calcBought(item.name);
     const used=sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
     const stock=bought-used;
-    const col=stock>5?'var(--gm)':stock>0?'#f57c00':'var(--red)';
+    const threshold = item.threshold || 0;
+    const isLow = threshold > 0 && stock <= threshold;
+    const col = stock<=0 ? 'var(--red)' : isLow ? '#f57c00' : 'var(--gm)';
+    const lowIcon = isLow && stock>0 ? ' <span title="מלאי נמוך!" style="color:#f57c00">⚠️</span>' : stock<=0 ? ' <span style="color:var(--red)">🔴</span>' : '';
     const effCat=getEffectiveCat(item);
 
     if (_invEditMode) {
@@ -3779,7 +3957,7 @@ function renderInventory(){
       <td>${item.unit||''}</td>
       <td>${bought.toFixed(1)}</td>
       <td>${used.toFixed(1)}</td>
-      <td style="font-weight:700;color:${col}">${stock.toFixed(1)}</td>
+      <td style="font-weight:700;color:${col}">${stock.toFixed(1)}${lowIcon}</td>
     </tr>`;
   }).join('');
 
@@ -3816,9 +3994,10 @@ function saveInvItem(){
   const unit=document.getElementById('mi-unit').value.trim();
   const qty=parseFloat(document.getElementById('mi-qty').value||0);
   const ups=parseFloat(document.getElementById('mi-ups').value||1);
+  const threshold=parseFloat(document.getElementById('mi-threshold')?.value||0);
   const ex=invent.find(i=>i.name===name);
-  if(ex){ex.unit=unit||ex.unit;ex.purchased=(ex.purchased||0)+qty;ex.ups=ups}
-  else invent.push({name,unit,purchased:qty,ups});
+  if(ex){ex.unit=unit||ex.unit;ex.purchased=(ex.purchased||0)+qty;ex.ups=ups;if(threshold>0)ex.threshold=threshold;}
+  else invent.push({name,unit,purchased:qty,ups,threshold:threshold||0});
   save(K.IV,invent);closeMod('modal-inv');renderInventory();toast('✅ נשמר: '+name);
 }
 
@@ -4990,8 +5169,6 @@ function importAll(input){
           if(data.length < 3) return;
           const hdr = data[1].map(h=>String(h||'').trim());
           const appMap = {};
-          // בנה מפת מפתחות קיימים למניעת כפילויות
-          const existingKeys = new Set(sprs.map(s=>(s.date||'')+'|'+(s.area||'')+'|'+(s.op||'')+'|'+(s.mat||'')));
           for(let i=2; i<data.length; i++){
             const row=data[i]; if(!row||row.every(c=>!c)) continue;
             const mat=String(row[hdr.findIndex(h=>h.includes('חומר'))]||'').trim(); if(!mat) continue;
@@ -4999,9 +5176,6 @@ function importAll(input){
             const ds=d instanceof Date?d.toISOString().split('T')[0]:String(d||'');
             const area=String(row[hdr.findIndex(h=>h.includes('שטח'))]||'');
             const op=String(row[hdr.findIndex(h=>h.includes('מרסס'))]||'');
-            const dupKey=ds+'|'+area+'|'+op+'|'+mat;
-            if(existingKeys.has(dupKey)) continue; // דלג על כפולים
-            existingKeys.add(dupKey);
             const akey=ds+'|'+area+'|'+op;
             if(!appMap[akey]) appMap[akey]=Date.now()+i;
             sprs.push({id:Date.now()+i+Math.random(),appId:appMap[akey],date:ds,op,mat,
@@ -6733,7 +6907,7 @@ async function runBot() {
         return;
       }
       botResults = found.results;
-      renderBotResults(found.title, found.summary, found.type);
+      renderBotResults(found.title, found.summary, found.type, found.summaryCard);
       actions.style.display = 'flex';
     } catch(e) {
       status.style.display = 'none';
@@ -6854,16 +7028,71 @@ function botLocalSearch(q) {
   filtered.sort((a,b)=>new Date(a.date||'')-new Date(b.date||''));
   const total = filtered.reduce((s,x)=>s+(type==='invs'?(x.total||0):(x.items||[]).reduce((ss,it)=>ss+(it.totalV||0),0)),0);
 
+  // זיהוי שאלות סיכום כמותי
+  const isSumQ = /כמה|סה"כ|סכום|עלות|הוצאתי|שילמתי|עלה/.test(q);
+  let summaryCard = null;
+  if(isSumQ) {
+    // חפש שם מוצר ספציפי בשאילתה
+    const prodMatch = dels.flatMap(d=>d.items.map(it=>it.product||''))
+      .filter(Boolean)
+      .find(prod => prod.length > 2 && ql.includes(prod.toLowerCase().substring(0,5)));
+    if(prodMatch || filterCat) {
+      // סיכום לפי מוצר
+      const prodFilter = prodMatch ? (it=>it.product===prodMatch) : (it=>true);
+      const byYear = {};
+      filtered.forEach(d=>{
+        (d.items||[]).filter(prodFilter).forEach(it=>{
+          const yr = new Date(d.date||'').getFullYear()||'?';
+          if(!byYear[yr]) byYear[yr]={qty:0,total:0};
+          byYear[yr].qty += (it.qty||0);
+          byYear[yr].total += (it.totalV||0);
+        });
+      });
+      const rows = Object.entries(byYear).sort((a,b)=>b[0]-a[0])
+        .map(([yr,v])=>`<tr><td>${yr}</td><td>${v.qty.toFixed(1)}</td><td style="font-weight:700;color:#2e7d32">₪${Math.round(v.total).toLocaleString()}</td></tr>`)
+        .join('');
+      if(rows) summaryCard = `
+        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:#1b5e20">📊 סיכום${prodMatch?' — '+prodMatch:''}</div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid #a5d6a7"><th style="text-align:right;padding:4px 6px">שנה</th><th style="text-align:right;padding:4px 6px">כמות</th><th style="text-align:right;padding:4px 6px">סה"כ</th></tr></thead>
+            <tbody>${rows}</tbody>
+            <tfoot><tr style="border-top:2px solid #a5d6a7;font-weight:700"><td colspan="2" style="padding:4px 6px">סה"כ כולל</td><td style="color:#2e7d32;padding:4px 6px">₪${Math.round(total).toLocaleString()}</td></tr></tfoot>
+          </table>
+        </div>`;
+    } else {
+      // סיכום כללי לפי ספק/שנה
+      const bySup = {};
+      filtered.forEach(d=>{
+        const t=(d.items||[]).reduce((s,it)=>s+(it.totalV||0),0);
+        if(!bySup[d.sup]) bySup[d.sup]=0;
+        bySup[d.sup]+=t;
+      });
+      const rows = Object.entries(bySup).sort((a,b)=>b[1]-a[1])
+        .map(([s,v])=>`<tr><td>${s}</td><td style="font-weight:700;color:#2e7d32">₪${Math.round(v).toLocaleString()}</td></tr>`)
+        .join('');
+      if(rows) summaryCard = `
+        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:#1b5e20">📊 סיכום לפי ספק</div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <tbody>${rows}</tbody>
+            <tfoot><tr style="border-top:2px solid #a5d6a7;font-weight:700"><td style="padding:4px 6px">סה"כ</td><td style="color:#2e7d32;padding:4px 6px">₪${Math.round(total).toLocaleString()}</td></tr></tfoot>
+          </table>
+        </div>`;
+    }
+  }
+
   return {
     type,
     results: filtered.map(x=>({...x,_type:type})),
     title: titleParts.length ? titleParts.join(' — ') : 'תוצאות חיפוש',
-    summary: `${filtered.length} רשומות | ₪${Math.round(total).toLocaleString()}`
+    summary: `${filtered.length} רשומות | ₪${Math.round(total).toLocaleString()}`,
+    summaryCard
   };
 }
 
 
-function renderBotResults(title, summary, type) {
+function renderBotResults(title, summary, type, summaryCard) {
   const results = document.getElementById('bot-results');
   const grandTotal = botResults.reduce((s,d) => {
     return s + (type === 'dels'
@@ -6871,7 +7100,7 @@ function renderBotResults(title, summary, type) {
       : (d.total||0));
   }, 0);
 
-  let html = `<div style="margin-bottom:10px">
+  let html = (summaryCard||'') + `<div style="margin-bottom:10px">
     <strong style="font-size:15px">${title}</strong>
     <span style="font-size:12px;color:#888;margin-right:8px">${summary||''}</span>
     <span style="font-size:12px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 8px">
