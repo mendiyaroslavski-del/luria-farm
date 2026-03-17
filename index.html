@@ -6732,6 +6732,28 @@ function botLocalSearch(q) {
     'יולי':7,'אוגוסט':8,'ספטמבר':9,'אוקטובר':10,'נובמבר':11,'דצמבר':12
   };
 
+  // מיפוי שאילתה לקטגוריה
+  const CAT_MAP = [
+    { id:'pest',   words:['הדברה','ריסוס','חרקים','עש','קרדית','מחלה','פטרייה','אקרוס','ארמדה','דיפנדר','ביומקטין','מסאי','פרדיסו','אנווידור','טופ מייט','דיקרזול','אקסמייט','טרייסר','מובנטו'] },
+    { id:'herb',   words:['עשביה','עשבים','גליפוס','גליפוג','רודאו','גלייפוס'] },
+    { id:'fert',   words:['דישון','דשן','חנקת','גפרת','מגנזיום','זרחתית','אשלגן','חנקה','מגניסל','עלוואמיד','חנקת אשלגן'] },
+    { id:'liquid', words:['דישון נוזלי','דשן נוזלי','שפר','icl'] },
+    { id:'irrig',  words:['השקיה','צנרת','ברז','צינור','מסנן','טפטפת','דריפנט','שסתום','זרנוק','רכיבי השקיה'] },
+    { id:'equip',  words:['ציוד','כלים','מרסס','כיסוח','מספריים','סרבל','כפפות','נעל','מגף'] },
+  ];
+
+  const ql = q.toLowerCase();
+  let filterCat = null;
+  let catLabel = null;
+  for (const { id, words } of CAT_MAP) {
+    if (words.some(w => ql.includes(w.toLowerCase()))) {
+      filterCat = id;
+      const catObj = (typeof CATS !== 'undefined') ? CATS.find(c=>c.id===id) : null;
+      catLabel = catObj ? catObj.icon+' '+catObj.label : id;
+      break;
+    }
+  }
+
   // ספק
   let sup = null;
   if (/עמיר/.test(q)) sup = 'עמיר';
@@ -6748,13 +6770,12 @@ function botLocalSearch(q) {
     if (q.includes(name)) { month = num; break; }
   }
   const moNumM = q.match(/\b(0?[1-9]|1[0-2])\/(20\d{2})\b/);
-  if (moNumM) { month = parseInt(moNumM[1]); }
+  if (moNumM) month = parseInt(moNumM[1]);
 
   // סכום מינימלי
   const aboveM = q.match(/מעל\s*([\d,]+)/);
   const minAmount = aboveM ? parseFloat(aboveM[1].replace(',','')) : null;
 
-  // סוגים
   const isInv   = /חשבונית|חשבוניות/.test(q);
   const isNoInv = /ללא חשבונית|לא משויך/.test(q);
   const isDup   = /כפול|כפולות|כפל/.test(q);
@@ -6762,63 +6783,64 @@ function botLocalSearch(q) {
   const docNum  = docM ? docM[1] : null;
 
   let type = isInv ? 'invs' : 'dels';
-  let filtered = [];
+  let filtered = type === 'invs' ? [...invs] : [...dels];
   const titleParts = [];
 
-  if (type === 'invs') {
-    filtered = [...invs];
-  } else {
-    filtered = [...dels];
-  }
-
-  if (sup) { filtered = filtered.filter(x => x.sup === sup); titleParts.push(sup); }
+  if (sup)  { filtered = filtered.filter(x => x.sup === sup); titleParts.push(sup); }
   if (year) {
-    filtered = filtered.filter(x => {
-      const d = type === 'invs' ? (x.date||'') : (String(x.year||x.date||''));
-      return d.includes(year);
-    });
+    filtered = filtered.filter(x => String(type==='invs'?(x.date||''):(x.year||x.date||'')).includes(year));
     titleParts.push(year);
   }
   if (month) {
     const moName = Object.keys(MONTHS_HE).find(k=>MONTHS_HE[k]===month);
-    filtered = filtered.filter(x => {
-      const dt = new Date((x.date||''));
-      return !isNaN(dt) && (dt.getMonth()+1) === month;
-    });
+    filtered = filtered.filter(x => { const dt=new Date(x.date||''); return !isNaN(dt)&&(dt.getMonth()+1)===month; });
     if (moName) titleParts.push(moName);
   }
+
+  // סינון קטגוריה לפי פריטים
+  if (filterCat && type === 'dels') {
+    if (typeof loadKwMap === 'function') loadKwMap();
+    filtered = filtered.filter(d =>
+      (d.items||[]).some(it => {
+        if (it.cat) return it.cat === filterCat;
+        const name = (it.product||'').toLowerCase();
+        if (typeof kwMap !== 'undefined') {
+          const sorted = Object.entries(kwMap).sort((a,b)=>b[0].length-a[0].length);
+          for (const [kw,cat] of sorted) {
+            if (name.includes(kw.toLowerCase())) return cat === filterCat;
+          }
+        }
+        return false;
+      })
+    );
+    if (catLabel) titleParts.push(catLabel);
+  }
+
   if (minAmount !== null) {
     filtered = filtered.filter(x => {
-      const t = type === 'invs' ? (x.total||0) : (x.items||[]).reduce((s,it)=>s+(it.totalV||0),0);
+      const t = type==='invs'?(x.total||0):(x.items||[]).reduce((s,it)=>s+(it.totalV||0),0);
       return t >= minAmount;
     });
     titleParts.push('מעל ₪'+minAmount.toLocaleString());
   }
-  if (isNoInv && type === 'dels') {
-    filtered = filtered.filter(d => !d.invNum && !d.crossDoc && !d.crossInv
-      && (d.items||[]).reduce((s,it)=>s+(it.totalV||0),0) > 0);
+  if (isNoInv && type==='dels') {
+    filtered = filtered.filter(d => !d.invNum&&!d.crossDoc&&!d.crossInv&&(d.items||[]).reduce((s,it)=>s+(it.totalV||0),0)>0);
     titleParts.push('ללא חשבונית');
   }
-  if (docNum) {
-    filtered = filtered.filter(x => String(x.doc||x.num||'').includes(docNum));
-    titleParts.push('תעודה '+docNum);
-  }
-  if (isDup && type === 'dels') {
+  if (docNum) { filtered = filtered.filter(x=>String(x.doc||x.num||'').includes(docNum)); titleParts.push('תעודה '+docNum); }
+  if (isDup && type==='dels') {
     const cnt = {};
-    dels.forEach(d => { const k=d.sup+'|'+d.doc; cnt[k]=(cnt[k]||0)+1; });
-    filtered = filtered.filter(d => cnt[d.sup+'|'+d.doc] > 1);
+    dels.forEach(d=>{ const k=d.sup+'|'+d.doc; cnt[k]=(cnt[k]||0)+1; });
+    filtered = filtered.filter(d=>cnt[d.sup+'|'+d.doc]>1);
     titleParts.push('כפולות');
   }
 
-  filtered.sort((a,b) => new Date(a.date||'') - new Date(b.date||''));
-
-  const total = filtered.reduce((s,x) => {
-    return s + (type==='invs' ? (x.total||0) : (x.items||[]).reduce((ss,it)=>ss+(it.totalV||0),0));
-  }, 0);
+  filtered.sort((a,b)=>new Date(a.date||'')-new Date(b.date||''));
+  const total = filtered.reduce((s,x)=>s+(type==='invs'?(x.total||0):(x.items||[]).reduce((ss,it)=>ss+(it.totalV||0),0)),0);
 
   return {
     type,
-    results: filtered.map(x => ({...x, _type:type})),
+    results: filtered.map(x=>({...x,_type:type})),
     title: titleParts.length ? titleParts.join(' — ') : 'תוצאות חיפוש',
     summary: `${filtered.length} רשומות | ₪${Math.round(total).toLocaleString()}`
   };
