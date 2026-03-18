@@ -2042,15 +2042,9 @@ function editDel(id){
   onDateChange();
   updateDocBadge();
   // מלא פריטים
-  rows = d.items.map(it=>({
+  rows = JSON.parse(JSON.stringify(d.items)).map(it=>({
+    ...it,
     id: Date.now()+Math.random(),
-    product: it.product||'',
-    qty: it.qty||0,
-    price: it.price||0,
-    discount: it.discount||0,
-    total: it.total||0,
-    vat: it.vat||0,
-    totalV: it.totalV||0
   }));
   renderRows();
   // הצג אינדיקטור עריכה
@@ -2107,7 +2101,7 @@ function saveDelFinal(){
     if(!confirm(`⚠️ תעודה מספר ${d.doc} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
     dels=dels.filter(x=>x!==dup);
   }
-  const newDel = {id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()};
+  const newDel = {id:Date.now()+Math.random(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()};
   dels.push(newDel);
   save(K.D,dels);
   // קישור אוטומטי ICL אם זו תעודת עמיר
@@ -2127,7 +2121,7 @@ function saveDelContinue(){
     if(!confirm(`⚠️ תעודה מספר ${d.doc} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
     dels=dels.filter(x=>x!==dup);
   }
-  const newDel2 = {id:Date.now(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()};
+  const newDel2 = {id:Date.now()+Math.random(),...d,items:JSON.parse(JSON.stringify(rows)),invNum:'',ts:Date.now()};
   dels.push(newDel2);
   save(K.D,dels);
   autoLinkIclFromAmir(newDel2);
