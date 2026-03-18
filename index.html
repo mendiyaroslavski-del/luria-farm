@@ -315,7 +315,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
     <button class="btn btnS" onclick="exportDelTemplate()">📋 תבנית ריקה</button>
     <button class="btn" style="background:#c62828;color:#fff" onclick="openPdfModal()">📄 דוח PDF</button>
-    <button class="btn" style="background:#6a1b9a;color:#fff;border:none" onclick="document.getElementById('amir-invoice-input').click()">📥 ייבא חשבונית מרכזת (PDF)</button>
+    <button class="btn" style="background:#6a1b9a;color:#fff;border:none" onclick="document.getElementById('amir-invoice-input').click()">📥 ייבא חשבונית מרכזת — עמיר / המשביר (PDF)</button>
     <input type="file" id="amir-invoice-input" accept=".pdf" style="display:none" onchange="importAmirInvoice(this.files[0])">
   </div>
 
@@ -457,7 +457,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <input type="password" id="inv-api-key" class="finput" placeholder="sk-ant-..." style="flex:1;font-size:12px">
         <button class="btn btnP" onclick="saveApiKey()" style="white-space:nowrap">שמור</button>
       </div>
-      <div id="api-key-saved" style="display:none;font-size:12px;color:#2e7d32;font-weight:600">✅ מפתח שמור</div>
+      <div id="api-key-saved" style="font-size:12px;color:#2e7d32;font-weight:600">✅ מפתח שמור</div>
     </div>
   </div>
 
@@ -1666,6 +1666,8 @@ function showTab(btn, name) {
   if(name==='search') searchPrices();
 customFields = load(K.FL) || [];
 renderCustomFields();
+// הצג סטטוס מפתח API
+if(_apiKey){ const sd=document.getElementById('api-key-saved'); if(sd) sd.style.display='block'; const inp=document.getElementById('inv-api-key'); if(inp) inp.placeholder='••••••• (שמור)'; }
   if(name==='invoice') renderInvList();
   if(name==='entry') renderDelList();
 }
@@ -3044,38 +3046,42 @@ async function importAmirInvoice(file) {
       r.readAsDataURL(file);
     });
 
-    const prompt = `זוהי חשבונית מרכזת של עמיר שיווק. חלץ את הנתונים הבאים והחזר JSON בלבד ללא הסברים:
+    const prompt = `זוהי חשבונית מרכזת מספק ישראלי חקלאי (עמיר שיווק או המשביר לחקלאות). 
+חלץ את הנתונים הבאים והחזר JSON בלבד ללא הסברים:
 
 {
+  "supplier": "שם הספק — עמיר או המשביר",
   "invoice": {
-    "num": "מספר החשבונית SI...",
+    "num": "מספר החשבונית",
     "date": "תאריך YYYY-MM-DD",
-    "total_before_vat": סכום לפני מע"מ,
-    "vat": סכום מע"מ,
-    "total_with_vat": סכום כולל מע"מ
+    "total_before_vat": סכום לפני מע"מ כמספר,
+    "vat": סכום מע"מ כמספר,
+    "total_with_vat": סכום כולל מע"מ כמספר
   },
   "deliveries": [
     {
-      "doc": "מספר תעודה SH...",
+      "doc": "מספר תעודת משלוח",
       "date": "תאריך YYYY-MM-DD",
       "items": [
         {
-          "product": "שם מוצר",
+          "product": "שם מוצר בעברית",
           "qty": כמות מספרית,
-          "price": מחיר ליחידה לאחר הנחה,
+          "price": מחיר ליחידה לאחר הנחה כמספר,
           "discount": אחוז הנחה מספרי (0 אם אין),
-          "total": סה"כ
+          "total": סה"כ לשורה כמספר
         }
       ]
     }
   ]
 }
 
-חשוב: 
-- אל תכלול שורות "שירות/הובלה/ביטוח" עם מחיר 3 ש"ח בפריטים — אלו עמלה, כלול אותן בנפרד רק אם המחיר שונה מ-3
-- המחיר שיש לרשום הוא מחיר ליחידה אחרי הנחה
-- תעודות שמספרן מתחיל ב-SH
-- תאריכים בפורמט YYYY-MM-DD`;
+כללים חשובים:
+- זהה את הספק לפי הלוגו/שם: "עמיר שיווק" → supplier: "עמיר", "המשביר לחקלאות" → supplier: "המשביר"
+- כלול את כל תעודות המשלוח כולל זיכויים (סכומים שליליים)
+- אל תכלול שורות "שירות/הובלה" ו"הובלה/שירות דלפק" בפריטים
+- המחיר שיש לרשום הוא מחיר ליחידה לאחר הנחה
+- תאריכים: המר מ-DD.MM.YY או DD/MM/YY לפורמט YYYY-MM-DD
+- מספרי תעודה: כפי שמופיעים (עמיר: SH..., המשביר: מספר רגיל)`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -3163,8 +3169,9 @@ function confirmAmirImport() {
   const VAT = 0.18;
   let added = 0, skipped = 0;
 
+  const supplier = _amirImportData.supplier || 'עמיר';
   dels_list.forEach(d => {
-    const existIdx = dels.findIndex(x => x.doc === d.doc && x.sup === 'עמיר');
+    const existIdx = dels.findIndex(x => x.doc === d.doc && x.sup === supplier);
     const items = d.items.map(it => {
       const qty = it.qty || 0;
       const price = it.price || 0;
@@ -3186,7 +3193,7 @@ function confirmAmirImport() {
     const year = d.date ? d.date.substring(0,4) : '2026';
     const newDel = {
       id: Date.now() + Math.random(),
-      sup: 'עמיר', date: d.date, doc: d.doc, year,
+      sup: supplier, date: d.date, doc: d.doc, year,
       items, invNum: '', ts: Date.now()
     };
     if (existIdx >= 0) {
@@ -3206,7 +3213,7 @@ function confirmAmirImport() {
     const year = invDate ? invDate.substring(0,4) : '2026';
     const docIds = dels.filter(d => dels_list.some(x => x.doc === d.doc)).map(d => String(d.id));
     invs.push({
-      id: Date.now()+Math.random(), num: invNum, sup: 'עמיר',
+      id: Date.now()+Math.random(), num: invNum, sup: supplier,
       date: invDate, month, year,
       total: inv.total_with_vat || 0,
       docIds, paid: false, paidDate: ''
@@ -4827,7 +4834,7 @@ async function backupNow(){
 
 // ═══ קליטת חשבונית מ-PDF ═══
 
-let _apiKey = '';
+let _apiKey = localStorage.getItem('luria_api_key') || '';
 
 function toggleApiKey() {
   const w = document.getElementById('api-key-wrap');
@@ -4835,6 +4842,7 @@ function toggleApiKey() {
 }
 function saveApiKey() {
   _apiKey = document.getElementById('inv-api-key').value.trim();
+  if (_apiKey) { localStorage.setItem('luria_api_key', _apiKey); } else { localStorage.removeItem('luria_api_key'); }
   if (_apiKey) {
     document.getElementById('api-key-saved').style.display = 'block';
     document.getElementById('inv-api-key').value = '';
