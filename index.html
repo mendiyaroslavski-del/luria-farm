@@ -3188,9 +3188,12 @@ function renderAmirImportPreview(data) {
       </div>
       <table style="width:100%;font-size:11px;border-collapse:collapse" id="imp-tbl-${di}">
         ${d.items.map((it,ii) => { return `<tr id="imp-row-${di}-${ii}">
-          <td style="padding:2px 2px">
-            <input type="text" value="${it.product}" onchange="_updateImportItem(${di},${ii},'product',this.value)"
+          <td style="padding:2px 2px;position:relative">
+            <input type="text" id="imp-prod-${di}-${ii}" value="${it.product}"
+              oninput="_impAC(this,${di},${ii})" onchange="_updateImportItem(${di},${ii},'product',this.value)"
+              onblur="setTimeout(()=>{const a=document.getElementById('impac-${di}-${ii}');if(a)a.remove()},200)"
               style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:3px;padding:1px 4px;font-family:inherit;direction:rtl">
+            <div id="impac-${di}-${ii}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid #c8e6c9;border-radius:4px;z-index:9999;max-height:140px;overflow-y:auto;min-width:180px;box-shadow:0 2px 8px #0002"></div>
           </td>
           <td style="padding:2px 2px;width:38px">
             <input type="text" value="${it.qty}" onchange="_updateImportItem(${di},${ii},'qty',this.value)"
@@ -3306,6 +3309,51 @@ function confirmAmirImport() {
   const replacedMsg = skipped ? ` (${skipped} הוחלפו)` : '';
   toast(`✅ יובאו ${added} תעודות חדשות${replacedMsg} + חשבונית ${invNum}`);
   _amirImportData = null;
+}
+
+// ═══ IMPORT AUTOCOMPLETE ═══
+function _impAC(inp, di, ii) {
+  _updateImportItem(di, ii, 'product', inp.value);
+  const val = inp.value.trim();
+  const listEl = document.getElementById(`impac-${di}-${ii}`);
+  if (!listEl) return;
+  if (val.length < 1) { listEl.style.display = 'none'; return; }
+  const matches = PRODUCTS.filter(p => p.includes(val)).slice(0, 10);
+  if (!matches.length) { listEl.style.display = 'none'; return; }
+  listEl.innerHTML = matches.map(p =>
+    `<div onmousedown="_impSelect(${di},${ii},'${p.replace(/'/g,"\'")}')"
+      style="padding:5px 10px;cursor:pointer;font-size:12px;direction:rtl;border-bottom:1px solid #f0f0f0"
+      onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background=''">${p}</div>`
+  ).join('');
+  listEl.style.display = 'block';
+}
+
+function _impSelect(di, ii, product) {
+  const inp = document.getElementById(`imp-prod-${di}-${ii}`);
+  if (inp) inp.value = product;
+  _updateImportItem(di, ii, 'product', product);
+  const listEl = document.getElementById(`impac-${di}-${ii}`);
+  if (listEl) listEl.style.display = 'none';
+  // מלא מחיר אוטומטי אם קיים
+  const supplier = _amirImportData?.supplier || 'עמיר';
+  const price = PRICES[product + '|' + supplier];
+  if (price) {
+    _updateImportItem(di, ii, 'price', price);
+    const prEl = document.querySelector(`#imp-row-${di}-${ii} input[type=text]:nth-child(3)`);
+    // עדכן שדה מחיר בתצוגה
+    const item = _amirImportData?.deliveries?.[di]?.items?.[ii];
+    if (item) {
+      item.price = +price;
+      item.total = +(item.qty * item.price).toFixed(2);
+      const totalEl = document.getElementById(`imp-total-${di}-${ii}`);
+      if (totalEl) totalEl.textContent = '₪' + item.total.toFixed(2);
+      const delTotalEl = document.getElementById(`imp-deltotal-${di}`);
+      if (delTotalEl) {
+        const dt = _amirImportData.deliveries[di].items.reduce((s,it)=>s+(it.total||0),0);
+        delTotalEl.textContent = '₪' + dt.toFixed(2);
+      }
+    }
+  }
 }
 
 // ═══ FIELDS MANAGER ═══
