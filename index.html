@@ -3167,22 +3167,27 @@ function renderAmirImportPreview(data) {
   html += `<div style="font-size:12px;color:#555;margin-bottom:8px">${dels_list.length} תעודות | ${newDels.length} חדשות | ${dupDels.length} יוחלפו</div>`;
 
   dels_list.forEach((d, di) => {
+    // נקה פריטים ריקים לגמרי (ללא שם וללא מחיר)
+    d.items = d.items.filter(it => it.product || it.price > 0);
+    // חשב total לכל פריט שחסר
+    d.items.forEach(it => {
+      if ((!it.total || it.total === 0) && it.qty && it.price) {
+        it.total = +(it.qty * it.price).toFixed(2);
+      }
+    });
     const isExist = existingNorm.has(normalizeDoc(d.doc));
     const bg = isExist ? '#fff8e1' : '#f9fbe7';
     const badge = isExist
       ? '<span style="background:#ff9800;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:4px">יוחלף</span>'
       : '<span style="background:#4caf50;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:4px">חדש</span>';
-    const total = d.items.reduce((s,it) => s+(it.total || (it.qty&&it.price ? it.qty*it.price : 0)), 0);
+    const total = d.items.reduce((s,it) => s+(it.total||0), 0);
     html += `<div style="background:${bg};border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:8px" id="imp-del-${di}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
         <span>${badge}<strong>${d.doc}</strong> — ${d.date}</span>
         <span id="imp-deltotal-${di}" style="font-weight:700;color:#2e7d32">₪${total.toFixed(2)}</span>
       </div>
       <table style="width:100%;font-size:11px;border-collapse:collapse" id="imp-tbl-${di}">
-        ${d.items.map((it,ii) => {
-          // חשב total אם חסר
-          if((!it.total || it.total===0) && it.qty && it.price) it.total = +(it.qty*it.price).toFixed(2);
-          return `<tr id="imp-row-${di}-${ii}">
+        ${d.items.map((it,ii) => { return `<tr id="imp-row-${di}-${ii}">
           <td style="padding:2px 2px">
             <input type="text" value="${it.product}" onchange="_updateImportItem(${di},${ii},'product',this.value)"
               style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:3px;padding:1px 4px;font-family:inherit;direction:rtl">
