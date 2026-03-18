@@ -3172,32 +3172,35 @@ function renderAmirImportPreview(data) {
     const badge = isExist
       ? '<span style="background:#ff9800;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:4px">יוחלף</span>'
       : '<span style="background:#4caf50;color:#fff;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:4px">חדש</span>';
-    const total = d.items.reduce((s,it) => s+(it.total||0), 0);
+    const total = d.items.reduce((s,it) => s+(it.total || (it.qty&&it.price ? it.qty*it.price : 0)), 0);
     html += `<div style="background:${bg};border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:8px" id="imp-del-${di}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
         <span>${badge}<strong>${d.doc}</strong> — ${d.date}</span>
-        <span style="font-weight:700;color:#2e7d32">₪${total.toFixed(2)}</span>
+        <span id="imp-deltotal-${di}" style="font-weight:700;color:#2e7d32">₪${total.toFixed(2)}</span>
       </div>
       <table style="width:100%;font-size:11px;border-collapse:collapse" id="imp-tbl-${di}">
-        ${d.items.map((it,ii) => `<tr id="imp-row-${di}-${ii}">
+        ${d.items.map((it,ii) => {
+          // חשב total אם חסר
+          if((!it.total || it.total===0) && it.qty && it.price) it.total = +(it.qty*it.price).toFixed(2);
+          return `<tr id="imp-row-${di}-${ii}">
           <td style="padding:2px 2px">
-            <input type="text" value="${it.product}" onchange="_amirImportData.deliveries[${di}].items[${ii}].product=this.value"
+            <input type="text" value="${it.product}" onchange="_updateImportItem(${di},${ii},'product',this.value)"
               style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:3px;padding:1px 4px;font-family:inherit;direction:rtl">
           </td>
           <td style="padding:2px 2px;width:38px">
-            <input type="text" value="${it.qty}" onchange="_amirImportData.deliveries[${di}].items[${ii}].qty=+this.value"
+            <input type="text" value="${it.qty}" onchange="_updateImportItem(${di},${ii},'qty',this.value)"
               style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:3px;padding:1px 2px;text-align:center;font-family:inherit">
           </td>
           <td style="padding:2px 2px;width:52px">
-            <input type="text" value="${(it.price||0).toFixed(2)}" onchange="_amirImportData.deliveries[${di}].items[${ii}].price=+this.value"
+            <input type="text" value="${(it.price||0).toFixed(2)}" onchange="_updateImportItem(${di},${ii},'price',this.value)"
               style="width:100%;font-size:11px;border:1px solid #ddd;border-radius:3px;padding:1px 2px;text-align:left;font-family:inherit">
           </td>
-          <td style="padding:2px 2px;width:52px;font-weight:600;color:#2e7d32;font-size:11px">₪${(it.total||0).toFixed(2)}</td>
+          <td id="imp-total-${di}-${ii}" style="padding:2px 2px;width:52px;font-weight:600;color:#2e7d32;font-size:11px">₪${(it.total||0).toFixed(2)}</td>
           <td style="padding:2px 2px;width:22px">
             <button onclick="_amirImportData.deliveries[${di}].items.splice(${ii},1);renderAmirImportPreview(_amirImportData)"
               style="background:#ffebee;border:1px solid #ef9a9a;border-radius:3px;cursor:pointer;font-size:10px;color:#c62828;padding:0 4px">✕</button>
           </td>
-        </tr>`).join('')}
+        </tr>`; }).join('')}
       </table>
       <button onclick="_addImportItem(${di})" style="margin-top:6px;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:4px;cursor:pointer;font-size:11px;color:#2e7d32;padding:2px 8px;font-family:inherit">+ הוסף פריט</button>
     </div>`;
@@ -3212,6 +3215,23 @@ function _addImportItem(di) {
   if (!_amirImportData) return;
   _amirImportData.deliveries[di].items.push({product:'', qty:1, price:0, discount:0, total:0});
   renderAmirImportPreview(_amirImportData);
+}
+
+function _updateImportItem(di, ii, field, val) {
+  if (!_amirImportData) return;
+  const item = _amirImportData.deliveries[di].items[ii];
+  item[field] = isNaN(+val) ? val : (field==='product' ? val : +val);
+  // חשב total אוטומטית
+  if (field !== 'product') {
+    item.total = +(item.qty * item.price).toFixed(2);
+  }
+  // עדכן תצוגת total בשורה
+  const totalEl = document.getElementById(`imp-total-${di}-${ii}`);
+  if (totalEl) totalEl.textContent = '₪' + (item.total||0).toFixed(2);
+  // עדכן סכום תעודה
+  const delTotal = _amirImportData.deliveries[di].items.reduce((s,it)=>s+(it.total||0),0);
+  const delTotalEl = document.getElementById(`imp-deltotal-${di}`);
+  if (delTotalEl) delTotalEl.textContent = '₪' + delTotal.toFixed(2);
 }
 
 function confirmAmirImport() {
