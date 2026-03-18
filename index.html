@@ -5292,6 +5292,9 @@ async function analyzeWithClaude(text, base64) {
     const filled = fillInvoiceForm(inv);
     const conf = inv.confidence === 'high' ? '✅ זיהוי בטוח' : '⚠️ בדוק לפני שמירה';
 
+    // שמור פריטים לשימוש מאוחר
+    window._pdfInvItems = inv.items || [];
+
     // הצג פירוט פריטים אם קיים
     let itemsHtml = '';
     if (inv.items && inv.items.length) {
@@ -5305,7 +5308,10 @@ async function analyzeWithClaude(text, base64) {
         </tr>`).join('');
       itemsHtml = `
         <div style="margin-top:10px;border:1px solid #c8e6c9;border-radius:6px;overflow:hidden">
-          <div style="background:#e8f5e9;padding:5px 10px;font-weight:700;font-size:12px">📋 פירוט פריטים (${inv.items.length})</div>
+          <div style="background:#e8f5e9;padding:5px 10px;font-weight:700;font-size:12px;display:flex;justify-content:space-between;align-items:center">
+            <span>📋 פירוט פריטים (${inv.items.length})</span>
+            <button onclick="importPdfItemsToForm()" style="background:#2e7d32;color:#fff;border:none;border-radius:6px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:inherit">⬇️ ייבא לטופס</button>
+          </div>
           <table style="width:100%;font-size:11px;border-collapse:collapse">
             <thead><tr style="background:#f5f5f5">
               <th style="padding:3px 6px;text-align:right">תיאור</th>
@@ -5328,6 +5334,34 @@ async function analyzeWithClaude(text, base64) {
   } catch(err) {
     showPdfStatus('error', `❌ שגיאת Claude API: ${err.message}`);
   }
+}
+
+function importPdfItemsToForm() {
+  const items = window._pdfInvItems;
+  if (!items || !items.length) { toast('⚠️ אין פריטים לייבוא'); return; }
+
+  // עבור לחשבונית ישירה
+  setInvType('direct');
+  directItems = [];
+
+  items.forEach(it => {
+    const total = it.total || +(( it.qty||1) * (it.unit_price||0)).toFixed(2);
+    directItems.push({
+      id: Date.now() + Math.random(),
+      desc: it.desc || '',
+      amount: total
+    });
+  });
+
+  renderDirectItems();
+
+  // גלול לאזור הפריטים
+  setTimeout(() => {
+    const el = document.getElementById('inv-direct-card');
+    if (el) el.scrollIntoView({behavior:'smooth'});
+  }, 100);
+
+  toast(`✅ יובאו ${items.length} פריטים לטופס`);
 }
 
 function buildWorkbook() {
