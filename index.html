@@ -3168,7 +3168,7 @@ function renderAmirImportPreview(data) {
 
   dels_list.forEach((d, di) => {
     // נקה פריטים ריקים לגמרי (ללא שם וללא מחיר)
-    d.items = d.items.filter(it => it.product || it.price > 0);
+    d.items = d.items.filter(it => it._new || it.product || it.price > 0);
     // חשב total לכל פריט שחסר
     d.items.forEach(it => {
       if ((!it.total || it.total === 0) && it.qty && it.price) {
@@ -3218,7 +3218,7 @@ function renderAmirImportPreview(data) {
 
 function _addImportItem(di) {
   if (!_amirImportData) return;
-  _amirImportData.deliveries[di].items.push({product:'', qty:1, price:0, discount:0, total:0});
+  _amirImportData.deliveries[di].items.push({product:'', qty:1, price:0, discount:0, total:0, _new:true});
   renderAmirImportPreview(_amirImportData);
 }
 
