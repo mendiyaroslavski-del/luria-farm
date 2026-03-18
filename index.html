@@ -2286,6 +2286,13 @@ function clearInvoice(){
   setInvType('normal');
   directItems=[];
   renderDirectItems();
+  // נקה אזור PDF
+  const pdfStatus = document.getElementById('pdf-inv-status');
+  if(pdfStatus){pdfStatus.style.display='none'; pdfStatus.innerHTML='';}
+  window._pdfInvItems = [];
+  // אפס קלט PDF
+  const pdfInput = document.getElementById('pdf-inv-input');
+  if(pdfInput) pdfInput.value='';
 }
 
 // ── חשבונית ישירה ──────────────────────────────────────
@@ -5287,8 +5294,19 @@ async function analyzeWithClaude(text, base64) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || 'שגיאת API');
     const raw = data.content?.find(b => b.type === 'text')?.text || '';
-    const jsonStr = raw.replace(/```json|```/g,'').trim();
-    const inv = JSON.parse(jsonStr.substring(jsonStr.indexOf('{'), jsonStr.lastIndexOf('}')+1));
+    let jsonStr = raw.replace(/```json|```/g,'').trim();
+    const s = jsonStr.indexOf('{'), e = jsonStr.lastIndexOf('}');
+    if (s !== -1 && e !== -1) jsonStr = jsonStr.substring(s, e+1);
+    let inv;
+    try {
+      inv = JSON.parse(jsonStr);
+    } catch(je) {
+      // נסה לתקן גרשיים כפולות בתוך ערכי מחרוזות
+      const fixed = jsonStr.replace(/([^\\])"([^":\[\]{},]+)"([^":\[\]{},])/g,
+        (m,a,b,c) => a + '"' + b.replace(/"/g,'\\"') + '"' + c);
+      try { inv = JSON.parse(fixed); }
+      catch(je2) { throw new Error('שגיאת JSON: ' + je.message + ' — נסה שוב'); }
+    }
     const filled = fillInvoiceForm(inv);
     const conf = inv.confidence === 'high' ? '✅ זיהוי בטוח' : '⚠️ בדוק לפני שמירה';
 
