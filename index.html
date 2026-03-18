@@ -3161,7 +3161,7 @@ async function importAmirInvoice(file) {
 function renderAmirImportPreview(data) {
   const inv = data.invoice;
   const dels_list = data.deliveries || [];
-  const supplier = data.supplier || 'עמיר';
+  const supplier = data.supplier || 'לא זוהה';
 
   // ── בדיקת כפילויות חכמה ──
   // 1. כפילות לפי מספר תעודה (עם נרמול SH)
@@ -3172,6 +3172,14 @@ function renderAmirImportPreview(data) {
 
   // 2. בדיקת חפיפת חודש — אם קיימות כבר תעודות לאותו חודש+ספק בסכום דומה
   const invMonth = inv.date ? inv.date.substring(0,7) : '';
+  // אזהרה אם ספק לא זוהה
+  let supplierWarning = '';
+  if (!data.supplier || data.supplier === 'לא זוהה') {
+    supplierWarning = `<div style="background:#fff3e0;border:2px solid #ff9800;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#e65100">
+      ⚠️ <strong>הספק לא זוהה אוטומטית</strong> — בחר ספק מהרשימה למטה לפני הייבוא
+    </div>`;
+  }
+
   let monthWarning = '';
   if (invMonth) {
     const existingMonthDels = dels.filter(d => d.sup===supplier && (d.date||'').startsWith(invMonth));
@@ -3186,13 +3194,36 @@ function renderAmirImportPreview(data) {
     }
   }
 
-  let html = `<div style="background:#e8f5e9;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
-    <strong>חשבונית ${inv.num}</strong> | ${inv.date} | ספק: ${supplier} |
-    סה"כ: <strong>₪${(inv.total_with_vat||0).toLocaleString()}</strong>
-    (לפני מע"מ: ₪${(inv.total_before_vat||0).toLocaleString()})
+  // רשימת ספקים — עמיר, המשביר, ספקים מזדמנים
+  const knownSupplier = supplier && supplier !== 'לא זוהה';
+  const allSuppliers = ['עמיר', 'המשביר', ...customSups];
+  const unknownOption = !knownSupplier ? '<option value="לא זוהה" selected disabled style="color:#aaa">— בחר ספק —</option>' : '';
+  const supOptions = allSuppliers.map(s =>
+    `<option value="${s}" ${s===supplier?'selected':''}>${s}</option>`
+  ).join('');
+
+  let html = `<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+      <strong>חשבונית ${inv.num}</strong>
+      <span style="color:#666">${inv.date}</span>
+      <span style="color:#2e7d32;font-weight:700">₪${(inv.total_with_vat||0).toLocaleString()}</span>
+      <span style="color:#888;font-size:11px">(לפני מע"מ: ₪${(inv.total_before_vat||0).toLocaleString()})</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-weight:600;font-size:12px;white-space:nowrap">ספק:</label>
+      <select id="imp-supplier-sel" onchange="_changeImportSupplier(this.value)"
+        style="font-family:inherit;font-size:12px;padding:3px 8px;border-radius:6px;border:2px solid ${!knownSupplier?'#ff9800':supplier==='עמיר'?'#2e7d32':supplier==='המשביר'?'#1565c0':'#888'};background:#fff;cursor:pointer">
+        ${unknownOption}${supOptions}
+        <optgroup label="ספקים מזדמנים">
+          ${customSups.map(s=>`<option value="${s}" ${s===supplier?'selected':''}>${s}</option>`).join('')}
+        </optgroup>
+        <option value="__new__">➕ ספק חדש...</option>
+      </select>
+      ${supplier!=='עמיר'&&supplier!=='המשביר'?`<span style="background:#ff9800;color:#fff;border-radius:4px;padding:1px 8px;font-size:11px">⚠️ זוהה אוטומטית — בדוק</span>`:''}
+    </div>
   </div>`;
 
-  html += monthWarning;
+  html += supplierWarning + monthWarning;
 
   if (dupDels.length) {
     html += `<div style="background:#fff3e0;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#e65100">
@@ -3251,7 +3282,16 @@ function renderAmirImportPreview(data) {
   });
 
   document.getElementById('amir-import-preview').innerHTML = html;
-  document.getElementById('amir-import-status').innerHTML = `✅ זוהו ${dels_list.length} תעודות — ערוך לפי הצורך ואשר ייבוא`;
+  const suppOK = supplier && supplier !== 'לא זוהה';
+  document.getElementById('amir-import-status').innerHTML = suppOK
+    ? `✅ זוהו ${dels_list.length} תעודות — ערוך לפי הצורך ואשר ייבוא`
+    : `⚠️ בחר ספק לפני הייבוא`;
+  const importBtn = document.getElementById('amir-import-btn');
+  if (importBtn) {
+    importBtn.disabled = !suppOK;
+    importBtn.style.opacity = suppOK ? '1' : '0.4';
+    importBtn.style.cursor = suppOK ? 'pointer' : 'not-allowed';
+  }
   document.getElementById('amir-import-actions').style.display = 'flex';
 }
 
@@ -3280,12 +3320,16 @@ function _updateImportItem(di, ii, field, val) {
 
 function confirmAmirImport() {
   if (!_amirImportData) return;
+  const supplier = _amirImportData.supplier || '';
+  if (!supplier || supplier === 'לא זוהה') {
+    toast('⚠️ בחר ספק לפני הייבוא');
+    return;
+  }
   const inv = _amirImportData.invoice;
   const dels_list = _amirImportData.deliveries || [];
   const VAT = 0.18;
   let added = 0, skipped = 0;
 
-  const supplier = _amirImportData.supplier || 'עמיר';
   dels_list.forEach(d => {
     const normDoc = d.doc.replace(/^SH/i,'').replace(/SH$/i,'').trim();
     const existIdx = dels.findIndex(x => x.sup === supplier &&
@@ -3345,6 +3389,27 @@ function confirmAmirImport() {
   const replacedMsg = skipped ? ` (${skipped} הוחלפו)` : '';
   toast(`✅ יובאו ${added} תעודות חדשות${replacedMsg} + חשבונית ${invNum}`);
   _amirImportData = null;
+}
+
+// ═══ IMPORT SUPPLIER CHANGE ═══
+function _changeImportSupplier(val) {
+  if (!_amirImportData) return;
+  if (val === '__new__') {
+    const name = prompt('שם ספק חדש:');
+    if (!name) {
+      document.getElementById('imp-supplier-sel').value = _amirImportData.supplier || 'עמיר';
+      return;
+    }
+    if (!customSups.includes(name)) {
+      customSups.push(name);
+      save(K.C, customSups);
+      refreshCustomSupDropdowns();
+    }
+    _amirImportData.supplier = name;
+  } else {
+    _amirImportData.supplier = val;
+  }
+  renderAmirImportPreview(_amirImportData);
 }
 
 // ═══ IMPORT AUTOCOMPLETE ═══
