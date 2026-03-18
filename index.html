@@ -445,6 +445,22 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
   </div>
 
+  <!-- כרטיס מפתח API -->
+  <div class="card" style="background:#f3e5f5;border:1px solid #ce93d8">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:20px">🔑</span>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px;color:#6a1b9a">מפתח API של Anthropic</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">נדרש לייבוא חשבוניות PDF אוטומטי</div>
+      </div>
+      <div id="api-key-wrap" style="display:flex;gap:6px;align-items:center;flex:1;min-width:200px">
+        <input type="password" id="inv-api-key" class="finput" placeholder="sk-ant-..." style="flex:1;font-size:12px">
+        <button class="btn btnP" onclick="saveApiKey()" style="white-space:nowrap">שמור</button>
+      </div>
+      <div id="api-key-saved" style="display:none;font-size:12px;color:#2e7d32;font-weight:600">✅ מפתח שמור</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="ctitle">📋 חשבונית חדשה</div>
     <div class="fr fr2">
@@ -4819,8 +4835,12 @@ function toggleApiKey() {
 }
 function saveApiKey() {
   _apiKey = document.getElementById('inv-api-key').value.trim();
-  document.getElementById('api-key-wrap').style.display = 'none';
-  toast(_apiKey ? '🔑 מפתח API נשמר' : '🔑 מפתח נמחק');
+  if (_apiKey) {
+    document.getElementById('api-key-saved').style.display = 'block';
+    document.getElementById('inv-api-key').value = '';
+    document.getElementById('inv-api-key').placeholder = '••••••• (שמור)';
+  }
+  toast(_apiKey ? '🔑 מפתח API נשמר בהצלחה' : '🔑 מפתח נמחק');
 }
 
 function handleInvPdfDrop(e) {
