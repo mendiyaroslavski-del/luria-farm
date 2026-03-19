@@ -535,7 +535,8 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <input type="checkbox" id="inv-paid-cb" style="width:18px;height:18px;cursor:pointer" onchange="onInvPaidChange()">
         ✅ חשבונית שולמה
       </label>
-      <div id="inv-paid-date-row" style="display:none;flex:1">
+      <div id="inv-dup-warn" style="display:none;background:#ffebee;border:2px solid #e53935;border-radius:8px;padding:10px 14px;font-size:13px;color:#b71c1c;margin-top:8px"></div>
+  <div id="inv-paid-date-row" style="display:none;flex:1">
         <input type="date" class="finput" id="inv-paid-date" style="width:100%">
       </div>
     </div>
@@ -2293,6 +2294,8 @@ function clearInvoice(){
   // אפס קלט PDF
   const pdfInput = document.getElementById('pdf-inv-input');
   if(pdfInput) pdfInput.value='';
+  const dupWarn = document.getElementById('inv-dup-warn');
+  if(dupWarn) dupWarn.style.display='none';
 }
 
 // ── חשבונית ישירה ──────────────────────────────────────
@@ -2363,6 +2366,13 @@ function renderDirectItems() {
   calcDirectTotal();
 }
 
+function _forceSaveInvoice() {
+  // מסמן שאפשר לשמור גם עם כפילות חודש
+  window._forceInvSave = true;
+  saveInvoice();
+  window._forceInvSave = false;
+}
+
 function saveInvoice(){
   const num=document.getElementById('inv-num').value.trim();
   const date=document.getElementById('inv-date').value;
@@ -2372,11 +2382,30 @@ function saveInvoice(){
   const month=+document.getElementById("inv-month").value;
   const year=+document.getElementById("inv-year").value;
   if(!num){toast('⚠️ הזן מספר חשבונית');return}
-  const dup=invs.find(x=>x.num===num&&x.sup===sup);
-  if(dup){
-    if(!confirm(`⚠️ חשבונית מספר ${num} כבר קיימת במערכת (${dup.date}).\n\nלחץ אישור למחיקת הישנה ושמירת החדשה.\nלחץ ביטול לביטול הפעולה.`))return;
-    dup.docIds?.forEach(id=>{const d=dels.find(x=>x.id==id);if(d&&d.invNum===num)d.invNum='';});
-    invs=invs.filter(x=>x!==dup);
+
+  // ── בדיקת כפילות חשבונית ──
+  // 1. כפילות לפי מספר חשבונית + ספק
+  const dupByNum = invs.find(x => x.num === num && x.sup === sup);
+  if(dupByNum){
+    if(!confirm(`⚠️ חשבונית מספר ${num} של ${sup} כבר קיימת (${dupByNum.date}, ₪${(dupByNum.total||0).toLocaleString()}).\n\nאישור = מחק ישנה ושמור חדשה\nביטול = עצור`)) return;
+    dupByNum.docIds?.forEach(id=>{const d=dels.find(x=>x.id==id);if(d&&d.invNum===num)d.invNum='';});
+    invs=invs.filter(x=>x!==dupByNum);
+  }
+
+  // 2. כפילות לפי חודש + ספק + סכום דומה
+  if(!dupByNum && !window._forceInvSave) {
+    const samePeriod = invs.filter(x => x.sup===sup && x.month===month && x.year===year);
+    const dupByAmount = samePeriod.find(x => Math.abs((x.total||0) - total) < total * 0.02 && total > 0);
+    if(dupByAmount) {
+      const warn = document.getElementById('inv-dup-warn');
+      if(warn) {
+        warn.style.display = 'block';
+        warn.innerHTML = `🚨 <strong>אזהרת כפילות!</strong> כבר קיימת חשבונית של ${sup} לחודש זה בסכום דומה: מספר ${dupByAmount.num} | ₪${(dupByAmount.total||0).toLocaleString()} | ${dupByAmount.date}<br>
+          <button onclick="document.getElementById('inv-dup-warn').style.display='none';_forceSaveInvoice()" style="background:#e53935;color:#fff;border:none;border-radius:5px;padding:4px 12px;margin-top:6px;cursor:pointer;font-family:inherit">שמור בכל זאת</button>
+          <button onclick="document.getElementById('inv-dup-warn').style.display='none'" style="background:#eee;border:none;border-radius:5px;padding:4px 12px;margin-top:6px;cursor:pointer;font-family:inherit;margin-right:6px">ביטול</button>`;
+        return; // עצור — המשתמש יחליט
+      }
+    }
   }
 
   if(currentInvType === 'direct') {
