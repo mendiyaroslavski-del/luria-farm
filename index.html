@@ -699,6 +699,30 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   </div>
 </div>
 
+<!-- מודל פירוט מסמך -->
+<div id="modal-doc-detail" style="display:none;position:fixed;inset:0;background:#0009;z-index:9999;overflow-y:auto;padding:16px">
+  <div style="background:#fff;border-radius:12px;max-width:640px;margin:20px auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div id="ddoc-title" style="font-size:16px;font-weight:700;color:#1a3c28"></div>
+        <div id="ddoc-sub" style="font-size:13px;color:#888;margin-top:2px"></div>
+      </div>
+      <button onclick="document.getElementById('modal-doc-detail').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">✕</button>
+    </div>
+    <div class="tblw">
+      <table class="dtbl" style="font-size:13px">
+        <thead><tr><th>מוצר</th><th>כמות</th><th>מחיר</th><th>סה"כ</th></tr></thead>
+        <tbody id="ddoc-items"></tbody>
+        <tfoot><tr style="font-weight:700;background:#f5f9f6">
+          <td colspan="3" style="text-align:left">סה"כ כולל מע"מ</td>
+          <td id="ddoc-total" style="color:#1a6b3a"></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div id="ddoc-inv-link" style="margin-top:12px;font-size:13px"></div>
+  </div>
+</div>
+
 <div id="tab-search" class="sec">
   <div class="shtitle">🔍 חיפוש מחירים</div>
   <div class="card">
@@ -3683,6 +3707,60 @@ function deleteCustomField(i){
 }
 
 // ═══ GLOBAL SEARCH ═══
+function showDocDetail(type, id) {
+  const modal = document.getElementById('modal-doc-detail');
+  const allDels = [...HIST, ...dels];
+  let items = [], title = '', sub = '', invLink = '';
+
+  if (type === 'del') {
+    const d = allDels.find(x => x.id === id);
+    if (!d) return;
+    const supCls = d.sup==='עמיר'?'bdg-b':d.sup==='דשנים ICL'?'bdg-o':'bdg-r';
+    title = `<span class="bdg ${supCls}">${d.sup}</span> תעודה ${d.doc||'—'}`;
+    sub = d.date || '';
+    if (d.invNum) invLink = `<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')">🔗 חשבונית ${d.invNum}</span>`;
+    items = d.items || [];
+  } else if (type === 'inv') {
+    const inv = invs.find(x => x.num === id);
+    if (!inv) return;
+    title = `📄 חשבונית ${inv.num}`;
+    sub = `${inv.sup} • ${inv.date||''}`;
+    if (inv.direct && inv.directItems) {
+      items = inv.directItems;
+    } else {
+      // collect items from linked dels
+      const linked = (inv.docIds||[]).flatMap(did => {
+        const d = allDels.find(x => x.id === did || x.doc === did);
+        return d ? (d.items||[]).map(it => ({...it, _delDoc: d.doc, _delDate: d.date})) : [];
+      });
+      items = linked;
+    }
+    if ((inv.docIds||[]).length) {
+      invLink = `<span style="color:#888">${inv.docIds.length} תעודות משויכות: ${inv.docIds.slice(0,5).join(', ')}${inv.docIds.length>5?'...':''}</span>`;
+    }
+  }
+
+  document.getElementById('ddoc-title').innerHTML = title;
+  document.getElementById('ddoc-sub').textContent = sub;
+  document.getElementById('ddoc-inv-link').innerHTML = invLink;
+
+  const total = items.reduce((s,it)=>s+(it.totalV||0),0);
+  document.getElementById('ddoc-total').textContent = '₪'+total.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  document.getElementById('ddoc-items').innerHTML = items.map(it => {
+    const tv = it.totalV||0;
+    const isNeg = tv < 0;
+    return `<tr style="${isNeg?'color:#c00':''}">
+      <td>${it.product||'—'}</td>
+      <td>${it.qty||'—'}</td>
+      <td>${it.price?'₪'+(+it.price).toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+      <td><strong>${tv?'₪'+tv.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</strong></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:#aaa;text-align:center">אין פריטים</td></tr>';
+
+  modal.style.display = 'block';
+}
+
 function globalSearch(){
   const q = (document.getElementById('glob-q').value||'').trim().toLowerCase();
   const empty = document.getElementById('glob-empty');
@@ -3718,13 +3796,13 @@ function globalSearch(){
       const cls = d.sup==='עמיר'?'bdg-b':d.sup==='דשנים ICL'?'bdg-o':'bdg-r';
       const matchItems = d.items.filter(i=>i.product?.toLowerCase().includes(q));
       const itemsLabel = matchItems.length ? matchItems.map(i=>`<span class="bdg" style="background:#f3f3f3;color:#555">${i.product}</span>`).join(' ') : `${d.items.length} פריטים`;
-      return `<tr>
+      return `<tr style="cursor:pointer" onclick="showDocDetail('del','${d.id}')" title="לחץ לפירוט">
         <td>${d.date||'—'}</td>
         <td><span class="bdg ${cls}">${d.sup}</span></td>
         <td><strong>${d.doc||'—'}</strong></td>
         <td style="font-size:12px">${itemsLabel}</td>
         <td>₪${total.toFixed(0)}</td>
-        <td>${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span>`:'—'}</td>
+        <td onclick="event.stopPropagation()">${d.invNum?`<span class="bdg bdg-g" style="cursor:pointer" onclick="openInvFromDel('${d.invNum}','${d.sup}')" title="פתח חשבונית">${d.invNum} 🔗</span>`:'—'}</td>
       </tr>`;
     }).join('');
   } else { delCard.style.display='none'; }
@@ -3743,7 +3821,7 @@ function globalSearch(){
     invCard.style.display='';
     document.getElementById('glob-invs-count').textContent = invResults.length;
     document.getElementById('glob-invs-list').innerHTML = invResults.map(i=>`
-      <tr>
+      <tr style="cursor:pointer" onclick="showDocDetail('inv','${i.num}')" title="לחץ לפירוט">
         <td>${i.date||'—'}</td>
         <td><strong>${i.num}</strong></td>
         <td>${i.sup}</td>
