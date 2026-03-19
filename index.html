@@ -890,23 +890,21 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fg"><label class="flabel">מהירות נסיעה (קמ"ש)</label>
         <input type="number" class="finput" id="spr-speed" min="0" step="0.5" placeholder="קמ&quot;ש">
       </div>
-      <div class="fg"><label class="flabel">בחר חלקה (אופציונלי) <button type="button" onclick="openFieldsManager()" style="background:none;border:none;color:var(--gm);cursor:pointer;font-size:12px;padding:0 4px;text-decoration:underline">+ נהל חלקות</button></label>
-        <select class="finput" id="spr-field" onchange="applyFieldDunam()" style="font-family:inherit">
-          <option value="">— בחר חלקה —</option>
-          <optgroup label="משק לוריא">
-            <option value="16-17|15.44">16-17 (15.44 ד')</option>
-            <option value="5-6-7|20.81">5-6-7 (20.81 ד')</option>
-            <option value="3-4|20.66">3-4 (20.66 ד')</option>
-            <option value="8|6.70">8 (6.70 ד')</option>
-            <option value="14|4.69">14 (4.69 ד')</option>
-            <option value="15|2.89">15 (2.89 ד')</option>
-          </optgroup>
-          <optgroup label="בית דגן">
-            <option value="בית דגן 9-10-11-12-13-14|28.46">9-10-11-12-13-14 (28.46 ד')</option>
-            <option value="בית דגן 1-2-3|14.48">1-2-3 (14.48 ד')</option>
-          </optgroup>
-          <optgroup id="spr-field-custom-group" label="חלקות מותאמות"></optgroup>
-        </select>
+      <div class="fg" style="grid-column:1/-1"><label class="flabel">בחר חלקות (ניתן לסמן מספר) <button type="button" onclick="openFieldsManager()" style="background:none;border:none;color:var(--gm);cursor:pointer;font-size:12px;padding:0 4px;text-decoration:underline">+ נהל חלקות</button></label>
+        <div id="spr-fields-wrap" style="border:1px solid #c8e6c9;border-radius:8px;padding:8px 12px;background:#f9fdf9;display:flex;flex-wrap:wrap;gap:6px 12px">
+          <div style="width:100%;font-size:11px;color:#888;margin-bottom:2px">משק לוריא:</div>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="16-17|15.44" onchange="applyFieldDunam()"> 16-17 (15.44 ד')</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="5-6-7|20.81" onchange="applyFieldDunam()"> 5-6-7 (20.81 ד')</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="3-4|20.66" onchange="applyFieldDunam()"> 3-4 (20.66 ד')</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="8|6.70" onchange="applyFieldDunam()"> 8 (6.70 ד')</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="14|4.69" onchange="applyFieldDunam()"> 14 (4.69 ד')</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="15|2.89" onchange="applyFieldDunam()"> 15 (2.89 ד')</label>
+          <div style="width:100%;font-size:11px;color:#888;margin-top:4px;margin-bottom:2px">בית דגן:</div>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="בית דגן 9-10-11-12-13-14|28.46" onchange="applyFieldDunam()"> 9-10-11-12-13-14 (28.46 ד')</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer"><input type="checkbox" value="בית דגן 1-2-3|14.48" onchange="applyFieldDunam()"> 1-2-3 (14.48 ד')</label>
+          <div id="spr-field-custom-group" style="width:100%;display:flex;flex-wrap:wrap;gap:6px 12px"></div>
+        </div>
+        <div id="spr-fields-summary" style="display:none;margin-top:4px;font-size:12px;color:var(--gm);font-weight:600"></div>
       </div>
       <div class="fg"><label class="flabel">שטח מרוסס (דונם)</label>
         <input type="text" class="finput" id="spr-dunam" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="דונם" oninput="calcSprayTotals()">
@@ -3497,9 +3495,24 @@ function _impSelect(di, ii, product) {
 let customFields = load(K.FL) || [];
 function renderCustomFields(){
   const grp = document.getElementById('spr-field-custom-group');
-  if(grp){
-    grp.innerHTML = customFields.map(f=>`<option value="${f.name}|${f.dunam}">${f.name} (${f.dunam} ד')</option>`).join('');
-    grp.style.display = customFields.length ? '' : 'none';
+  if(!grp) return;
+  grp.innerHTML = '';
+  if(customFields.length) {
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'width:100%;font-size:11px;color:#888;margin-top:4px;margin-bottom:2px';
+    lbl.textContent = 'חלקות מותאמות:';
+    grp.appendChild(lbl);
+    customFields.forEach(f=>{
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = f.name+'|'+(f.dunam||'0');
+      cb.addEventListener('change', applyFieldDunam);
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(f.name+(f.dunam?' ('+f.dunam+' ד\')'  :'')));
+      grp.appendChild(label);
+    });
   }
 }
 function openFieldsManager(){
@@ -3929,11 +3942,26 @@ function drawSprayChart(){
 let sprayMats = []; // [{id, mat, qty, phytem}]
 
 function applyFieldDunam(){
-  const sel = document.getElementById('spr-field');
-  if(!sel||!sel.value) return;
-  const dunam = sel.value.split('|')[1];
+  const wrap = document.getElementById('spr-fields-wrap');
+  if(!wrap) return;
+  const checked = [...wrap.querySelectorAll('input[type=checkbox]:checked')];
+  const totalDunam = checked.reduce((s,cb) => s + (parseFloat(cb.value.split('|')[1])||0), 0);
+  const names = checked.map(cb => cb.value.split('|')[0]).join(', ');
   const inp = document.getElementById('spr-dunam');
-  if(inp){ inp.value = dunam; calcSprayTotals(); }
+  if(inp && totalDunam > 0){ inp.value = totalDunam.toFixed(2); calcSprayTotals(); }
+  // עדכן שדה אזור
+  const areaInp = document.getElementById('spr-area');
+  if(areaInp && names) areaInp.value = names;
+  // הצג סיכום
+  const sum = document.getElementById('spr-fields-summary');
+  if(sum) {
+    if(checked.length > 0) {
+      sum.style.display = 'block';
+      sum.textContent = `✅ ${checked.length} חלקות נבחרו — סה"כ ${totalDunam.toFixed(2)} דונם`;
+    } else {
+      sum.style.display = 'none';
+    }
+  }
 }
 
 function calcSprayTotals(){
@@ -4170,7 +4198,11 @@ function saveSpray(){
   document.getElementById('spr-notes').value='';
   document.getElementById('spr-area').value='';
   if(document.getElementById('spr-dunam')) document.getElementById('spr-dunam').value='';
-  if(document.getElementById('spr-field')) document.getElementById('spr-field').value='';
+  // נקה כל ה-checkboxes של חלקות
+  const fwrap = document.getElementById('spr-fields-wrap');
+  if(fwrap) fwrap.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked=false);
+  const fsum = document.getElementById('spr-fields-summary');
+  if(fsum) fsum.style.display='none';
   if(document.getElementById('spr-num-tanks')) document.getElementById('spr-num-tanks').value='';
   if(document.getElementById('spr-last-liters')) document.getElementById('spr-last-liters').value='';
   if(document.getElementById('spr-speed')) document.getElementById('spr-speed').value='';
