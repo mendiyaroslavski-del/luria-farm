@@ -5312,6 +5312,9 @@ async function analyzeWithClaude(text, base64) {
 
     // שמור פריטים לשימוש מאוחר
     window._pdfInvItems = inv.items || [];
+    window._pdfInvItems._vatAmount = inv.vat_amount || 0;
+    window._pdfInvItems._invoiceTotal = inv.total_with_vat || 0;
+    window._pdfInvItems._beforeVat = inv.total_before_vat || 0;
 
     // הצג פירוט פריטים אם קיים
     let itemsHtml = '';
@@ -5362,14 +5365,42 @@ function importPdfItemsToForm() {
   setInvType('direct');
   directItems = [];
 
+  let itemsSum = 0;
   items.forEach(it => {
     const total = it.total || +(( it.qty||1) * (it.unit_price||0)).toFixed(2);
+    itemsSum += total;
     directItems.push({
       id: Date.now() + Math.random(),
       desc: it.desc || '',
       amount: total
     });
   });
+
+  const invoiceTotal = window._pdfInvItems._invoiceTotal || 0;
+  const vatAmount = window._pdfInvItems._vatAmount || 0;
+  const beforeVat = window._pdfInvItems._beforeVat || 0;
+
+  // אם יש הפרש בין סכום פריטים לפני מע"מ — הוסף שורת הנחה/הפרש
+  if (beforeVat > 0) {
+    const diff = +(beforeVat - itemsSum).toFixed(2);
+    if (Math.abs(diff) > 0.5) {
+      directItems.push({
+        id: Date.now() + Math.random(),
+        desc: diff < 0 ? 'הנחה' : 'חיוב נוסף',
+        amount: +diff.toFixed(2)
+      });
+      itemsSum = beforeVat;
+    }
+  }
+
+  // הוסף מע"מ
+  if (vatAmount > 0) {
+    directItems.push({
+      id: Date.now() + Math.random(),
+      desc: `מע"מ ${Math.round(vatAmount/(itemsSum||1)*100)}%`,
+      amount: +vatAmount.toFixed(2)
+    });
+  }
 
   renderDirectItems();
 
