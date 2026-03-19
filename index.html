@@ -4221,7 +4221,7 @@ function renderSprays(){
   const groups={};
   filtered.forEach(s=>{
     const key=s.appId||s.id;
-    if(!groups[key]) groups[key]={appId:key,date:s.date,op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters,area:s.area,speed:s.speed,notes:s.notes,mats:[]};
+    if(!groups[key]) groups[key]={appId:key,date:s.date,op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters,area:s.area,dunam:s.dunam,speed:s.speed,notes:s.notes,mats:[]};
     groups[key].mats.push(s);
   });
   const badge=document.getElementById('spr-last-badge');
