@@ -466,19 +466,35 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="fr fr2">
       <!-- PDF IMPORT BUTTON -->
       <div style="grid-column:1/-1;margin-bottom:4px">
-        <div style="background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px dashed #81c784;border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all 0.2s" 
-             onclick="document.getElementById('pdf-inv-input').click()"
-             ondragover="event.preventDefault();this.style.background='#c8e6c9'"
-             ondragleave="this.style.background=''"
-             ondrop="event.preventDefault();this.style.background='';handleInvPdfDrop(event)">
-          <div style="font-size:24px;margin-bottom:6px">📄</div>
-          <div style="font-size:14px;font-weight:700;color:#2d5a27">גרור PDF של חשבונית לכאן</div>
-          <div style="font-size:12px;color:#777;margin-top:3px">או לחץ לבחירת קובץ — Claude יקרא ויממלא אוטומטית</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:2px dashed #81c784;border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:all 0.2s" 
+               onclick="document.getElementById('pdf-inv-input').click()"
+               ondragover="event.preventDefault();this.style.background='#c8e6c9'"
+               ondragleave="this.style.background=''"
+               ondrop="event.preventDefault();this.style.background='';handleInvPdfDrop(event)">
+            <div style="font-size:20px;margin-bottom:4px">📄</div>
+            <div style="font-size:13px;font-weight:700;color:#2d5a27">חשבונית בודדת</div>
+            <div style="font-size:11px;color:#777;margin-top:2px">קרא ומלא טופס</div>
+          </div>
+          <div style="flex:1;min-width:180px;background:linear-gradient(135deg,#e8eaf6,#f3e5f5);border:2px dashed #9fa8da;border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:all 0.2s"
+               onclick="document.getElementById('pdf-inv-multi-input').click()">
+            <div style="font-size:20px;margin-bottom:4px">📂</div>
+            <div style="font-size:13px;font-weight:700;color:#283593">ריבוי חשבוניות</div>
+            <div style="font-size:11px;color:#777;margin-top:2px">בחר מספר PDF — שמור אחד אחד</div>
+          </div>
         </div>
         <input type="file" id="pdf-inv-input" accept=".pdf" style="display:none" onchange="readInvPdf(this.files[0])">
+        <input type="file" id="pdf-inv-multi-input" accept=".pdf" multiple style="display:none" onchange="startMultiInvImport(this.files)">
       </div>
 
       <!-- PDF STATUS -->
+      <div id="pdf-inv-queue-bar" style="grid-column:1/-1;display:none;background:#ede7f6;border:1px solid #9fa8da;border-radius:8px;padding:8px 14px;font-size:13px;color:#283593;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <span id="pdf-inv-queue-txt"></span>
+        <div style="display:flex;gap:6px">
+          <button id="pdf-inv-queue-next" class="btn btnP" style="font-size:12px;padding:3px 10px" onclick="_nextInvPdf()">⏭ הבא</button>
+          <button class="btn" style="font-size:12px;padding:3px 10px;background:#e53935;color:#fff" onclick="_stopInvQueue()">✕ עצור</button>
+        </div>
+      </div>
       <div id="pdf-inv-status" style="grid-column:1/-1;display:none;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:4px"></div>
 
       <div class="fg">
@@ -2451,6 +2467,10 @@ function saveInvoice(){
     }
     renderInvList();
     clearInvoice();
+    // קדם בתור אם פעיל
+    if (_invPdfQueue.length > 0 && _invPdfQueueIdx + 1 < _invPdfQueue.length) {
+      setTimeout(() => { _invPdfQueueIdx++; _loadInvPdfFromQueue(); }, 400);
+    } else if (_invPdfQueue.length > 0) { _stopInvQueue(); }
     return;
   }
 
@@ -5200,6 +5220,55 @@ function saveApiKey() {
     document.getElementById('inv-api-key').placeholder = '••••••• (שמור)';
   }
   toast(_apiKey ? '🔑 מפתח API נשמר בהצלחה' : '🔑 מפתח נמחק');
+}
+
+// ── תור ריבוי חשבוניות PDF ──
+let _invPdfQueue = [];
+let _invPdfQueueIdx = 0;
+
+function startMultiInvImport(files) {
+  if (!files || !files.length) return;
+  _invPdfQueue = Array.from(files);
+  _invPdfQueueIdx = 0;
+  _loadInvPdfFromQueue();
+}
+
+function _loadInvPdfFromQueue() {
+  if (_invPdfQueueIdx >= _invPdfQueue.length) {
+    _stopInvQueue();
+    return;
+  }
+  const file = _invPdfQueue[_invPdfQueueIdx];
+  const total = _invPdfQueue.length;
+  const current = _invPdfQueueIdx + 1;
+
+  // הצג מחוון תור
+  const bar = document.getElementById('pdf-inv-queue-bar');
+  if (bar) {
+    bar.style.display = 'flex';
+    document.getElementById('pdf-inv-queue-txt').textContent =
+      `📂 ${current} מתוך ${total}: ${file.name}`;
+    // הסתר "הבא" בקובץ האחרון
+    const nextBtn = document.getElementById('pdf-inv-queue-next');
+    if (nextBtn) nextBtn.style.display = current < total ? 'inline-block' : 'none';
+  }
+
+  // נקה טופס ועמוד
+  clearInvoice();
+  readInvPdf(file);
+}
+
+function _nextInvPdf() {
+  _invPdfQueueIdx++;
+  _loadInvPdfFromQueue();
+}
+
+function _stopInvQueue() {
+  _invPdfQueue = [];
+  _invPdfQueueIdx = 0;
+  const bar = document.getElementById('pdf-inv-queue-bar');
+  if (bar) bar.style.display = 'none';
+  document.getElementById('pdf-inv-multi-input').value = '';
 }
 
 function handleInvPdfDrop(e) {
