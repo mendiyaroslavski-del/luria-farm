@@ -245,7 +245,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="scard g"><div class="snum" id="db-spray-month">—</div><div class="slbl">עלות ריסוסים החודש</div></div>
     <div class="scard o"><div class="snum" id="db-spray-last">—</div><div class="slbl">ריסוס אחרון</div></div>
     <div class="scard r"><div class="snum" id="db-low-stock">—</div><div class="slbl">⚠️ מלאי נמוך</div></div>
-    <div class="scard r" style="cursor:pointer" onclick="showTab(document.querySelector('.navbtn[onclick*=invoice]'),'invoice')"><div class="snum" id="db-open-debt">—</div><div class="slbl">💳 חוב פתוח</div></div>
+    <div class="scard r" style="cursor:pointer" onclick="(function(){var b=document.querySelector('.navbtn[onclick*=invoice]');if(b)showTab(b,'invoice');})()"><div class="snum" id="db-open-debt">—</div><div class="slbl">💳 חוב פתוח</div></div>
   </div>
 
   <!-- חשבוניות שעבר מועד פירעון -->
@@ -489,7 +489,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </div>
 
       <!-- PDF STATUS -->
-      <div id="pdf-inv-queue-bar" style="grid-column:1/-1;display:none;background:#ede7f6;border:1px solid #9fa8da;border-radius:8px;padding:8px 14px;font-size:13px;color:#283593;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div id="pdf-inv-queue-bar" style="grid-column:1/-1;display:none;background:#ede7f6;border:1px solid #9fa8da;border-radius:8px;padding:8px 14px;font-size:13px;color:#283593;margin-bottom:4px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
         <span id="pdf-inv-queue-txt"></span>
         <div style="display:flex;gap:6px">
           <button id="pdf-inv-queue-next" class="btn btnP" style="font-size:12px;padding:3px 10px" onclick="_nextInvPdf()">⏭ הבא</button>
