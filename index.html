@@ -3266,6 +3266,14 @@ async function importAmirInvoice(file) {
         }
       ]
     }
+  ],
+  "icl_syncs": [
+    {
+      "icl_doc": "מספר תעודת ICL — הספרות לפני -1",
+      "amir_doc": "מספר תעודת עמיר SH...",
+      "amount_before_vat": סכום לפני מע"מ כמספר,
+      "qty_tons": כמות בטון כמספר
+    }
   ]
 }
 
@@ -3277,6 +3285,14 @@ async function importAmirInvoice(file) {
 - המחיר שיש לרשום הוא מחיר ליחידה לאחר הנחה
 - תאריכים: המר מ-DD.MM.YY או DD/MM/YY לפורמט YYYY-MM-DD. שנה דו-ספרתית: 22→2022, 23→2023, 24→2024, 25→2025, 26→2026
 - מספרי תעודה: כפי שמופיעים (עמיר: SH..., המשביר: מספר רגיל)
+
+🌿 זיהוי תעודות ICL דשנים (קריטי!):
+תעודת עמיר היא "תעודת ICL" אם בשדה "פרטים:" של כותרת התעודה מופיע מספר בפורמט XXXXX-1 (4-6 ספרות + מקף + 1), או שבעמודת "ת.מ דשנים" של שורת המוצר מופיע מספר כזה.
+דוגמאות לזיהוי: "דשנים ת.מ 19585-1", "לוריא נחום 32997-1", "ת.מ משלוח דשנים 18019-1", עמודת ת.מ: "24151-1"
+עבור תעודות כאלו:
+- אל תכלול אותן ב-deliveries
+- כלול אותן ב-icl_syncs עם icl_doc = הספרות לפני -1, amount_before_vat = סכום שורת הדשן (ללא הובלה), qty_tons = כמות בטון
+- אל תוסיף שורת שירות/הובלה לתעודות ICL
 
 ⚠️ הנחיה קריטית לשמות מוצרים בחשבוניות המשביר:
 הטקסט המחולץ מה-PDF מבולבל לחלוטין — לכן קרא שמות מוצרים ישירות מהתמונה הויזואלית.
@@ -3468,6 +3484,29 @@ function renderAmirImportPreview(data) {
   });
 
   document.getElementById('amir-import-preview').innerHTML = html;
+
+  // ── תצוגת סנכרון ICL ──
+  const iclSyncs = data.icl_syncs || [];
+  if (iclSyncs.length) {
+    let iclHtml = `<div style="background:#fff3e0;border:2px solid #ff9800;border-radius:8px;padding:10px 14px;margin-bottom:10px">
+      <div style="font-weight:700;font-size:13px;color:#e65100;margin-bottom:8px">🌿 סנכרון תעודות דשנים ICL (${iclSyncs.length})</div>`;
+    iclSyncs.forEach(sync => {
+      const iclDel = dels.find(d => d.sup === 'דשנים ICL' && String(d.doc) === String(sync.icl_doc));
+      const found = !!iclDel;
+      const amountV = +((sync.amount_before_vat||0) * 1.18).toFixed(2);
+      iclHtml += `<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px;padding:4px 6px;background:${found?'#e8f5e9':'#ffebee'};border-radius:5px">
+        <span>${found ? '✅' : '❌'}</span>
+        <span>ICL <strong>${sync.icl_doc}</strong></span>
+        <span style="color:#888">←</span>
+        <span>${sync.amir_doc}</span>
+        <span style="color:#1a6b3a;font-weight:700">₪${amountV.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+        ${sync.qty_tons ? `<span style="color:#666">(${sync.qty_tons} טון)</span>` : ''}
+        ${!found ? `<span style="color:#c00;font-size:11px">⚠️ תעודה ${sync.icl_doc} לא נמצאה</span>` : ''}
+      </div>`;
+    });
+    iclHtml += `</div>`;
+    document.getElementById('amir-import-preview').insertAdjacentHTML('afterbegin', iclHtml);
+  }
   const suppOK = supplier && supplier !== 'לא זוהה';
   document.getElementById('amir-import-status').innerHTML = suppOK
     ? `✅ זוהו ${dels_list.length} תעודות — ערוך לפי הצורך ואשר ייבוא`
@@ -3571,9 +3610,34 @@ function confirmAmirImport() {
 
   save(K.D, dels);
   renderDelList();
+
+  // ── עדכון תעודות ICL דשנים ──
+  const iclSyncs = _amirImportData.icl_syncs || [];
+  let iclUpdated = 0;
+  iclSyncs.forEach(sync => {
+    const iclDel = dels.find(d => d.sup === 'דשנים ICL' && String(d.doc) === String(sync.icl_doc));
+    if (!iclDel) return;
+    const amount = +(sync.amount_before_vat || 0);
+    if (!amount) return;
+    const vat = +(amount * 0.18).toFixed(2);
+    const amountV = +(amount + vat).toFixed(2);
+    if (!iclDel.items || !iclDel.items.length) {
+      iclDel.items = [{id:'icl-'+Date.now()+Math.random(), product:'שפר ICL', qty: sync.qty_tons||1, price:amount, total:amount, vat, totalV:amountV}];
+    } else {
+      iclDel.items[0].total = amount;
+      iclDel.items[0].price = amount;
+      iclDel.items[0].vat = vat;
+      iclDel.items[0].totalV = amountV;
+      if (sync.qty_tons) iclDel.items[0].qty = sync.qty_tons;
+    }
+    iclDel.crossDoc = sync.amir_doc;
+    iclUpdated++;
+  });
+  if (iclUpdated) save(K.D, dels);
   document.getElementById('modal-amir-import').style.display = 'none';
   const replacedMsg = skipped ? ` (${skipped} הוחלפו)` : '';
-  toast(`✅ יובאו ${added} תעודות חדשות${replacedMsg} + חשבונית ${invNum}`);
+  const iclMsg = iclUpdated ? ` + ${iclUpdated} תעודות ICL עודכנו` : '';
+  toast(`✅ יובאו ${added} תעודות חדשות${replacedMsg} + חשבונית ${invNum}${iclMsg}`);
   _amirImportData = null;
   // קדם לקובץ הבא בתור
   if (_pdfQueue.length > 1) _advanceQueue();
@@ -3726,42 +3790,16 @@ function showDocDetail(type, id) {
     title = `📄 חשבונית ${inv.num}`;
     sub = `${inv.sup} • ${inv.date||''}`;
     if (inv.direct && inv.directItems) {
-      // חשבונית ישירה — פריטים בפורמט {desc, amount}
-      items = inv.directItems.map(it => ({
-        product: it.desc || '—',
-        qty: '—',
-        price: '—',
-        totalV: it.amount || 0,
-        _direct: true
-      }));
+      items = inv.directItems;
     } else {
-      // חשבונית רגילה — קודם לפי docIds, אחר-כך חיפוש הפוך לפי invNum
-      let linkedDels = [];
-      const docIdSet = inv.docIds||[];
-      if (docIdSet.length) {
-        linkedDels = docIdSet.flatMap(did => {
-          const d = allDels.find(x => String(x.id) === String(did) || x.doc === did);
-          return d ? [d] : [];
-        });
-      }
-      // חיפוש הפוך — תעודות שמצביעות על חשבונית זו
-      const reverseLinked = allDels.filter(x =>
-        x.invNum && String(x.invNum) === String(inv.num) && x.sup === inv.sup &&
-        !linkedDels.some(ld => ld.id === x.id)
-      );
-      const allLinked = [...linkedDels, ...reverseLinked];
-      items = allLinked.flatMap(d =>
-        (d.items||[]).map(it => ({...it, _delDoc: d.doc, _delDate: d.date}))
-      );
-      // עדכן invLink
-      if (allLinked.length) {
-        const nums = allLinked.map(d => d.doc||d.id).slice(0,6);
-        invLink = `<span style="color:#888">${allLinked.length} תעודות משויכות: ${nums.join(', ')}${allLinked.length>6?'...':''}</span>`;
-      } else if (docIdSet.length) {
-        invLink = `<span style="color:#888">${docIdSet.length} תעודות משויכות (לא נמצאו): ${docIdSet.slice(0,5).join(', ')}</span>`;
-      }
+      // collect items from linked dels
+      const linked = (inv.docIds||[]).flatMap(did => {
+        const d = allDels.find(x => x.id === did || x.doc === did);
+        return d ? (d.items||[]).map(it => ({...it, _delDoc: d.doc, _delDate: d.date})) : [];
+      });
+      items = linked;
     }
-    if (!invLink && (inv.docIds||[]).length) {
+    if ((inv.docIds||[]).length) {
       invLink = `<span style="color:#888">${inv.docIds.length} תעודות משויכות: ${inv.docIds.slice(0,5).join(', ')}${inv.docIds.length>5?'...':''}</span>`;
     }
   }
@@ -3776,11 +3814,10 @@ function showDocDetail(type, id) {
   document.getElementById('ddoc-items').innerHTML = items.map(it => {
     const tv = it.totalV||0;
     const isNeg = tv < 0;
-    const priceStr = it._direct ? '—' : (it.price ? '₪'+(+it.price).toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—');
     return `<tr style="${isNeg?'color:#c00':''}">
       <td>${it.product||'—'}</td>
-      <td>${it._direct ? '—' : (it.qty||'—')}</td>
-      <td>${priceStr}</td>
+      <td>${it.qty||'—'}</td>
+      <td>${it.price?'₪'+(+it.price).toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
       <td><strong>${tv?'₪'+tv.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</strong></td>
     </tr>`;
   }).join('') || '<tr><td colspan="4" style="color:#aaa;text-align:center">אין פריטים</td></tr>';
@@ -5827,17 +5864,7 @@ async function readInvPdf(file) {
 
     if (fullText.trim().length < 20) {
       // Scanned PDF — no text layer
-      if (_apiKey) {
-        showPdfStatus('loading', '⏳ PDF סרוק — שולח ל-Claude לזיהוי חזותי...');
-        const base64 = await new Promise((res) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result.split(',')[1]);
-          r.readAsDataURL(file);
-        });
-        await analyzeWithClaude(null, base64);
-      } else {
-        showPdfStatus('error', '❌ הPDF סרוק ואין בו טקסט. נסה להעלות PDF דיגיטלי, או הכנס מפתח API לזיהוי מתמונה.');
-      }
+      showPdfStatus('error', '❌ הPDF סרוק ואין בו טקסט. נסה להעלות PDF דיגיטלי, או הכנס מפתח API לזיהוי מתמונה.');
       return;
     }
 
