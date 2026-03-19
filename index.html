@@ -3726,16 +3726,42 @@ function showDocDetail(type, id) {
     title = `📄 חשבונית ${inv.num}`;
     sub = `${inv.sup} • ${inv.date||''}`;
     if (inv.direct && inv.directItems) {
-      items = inv.directItems;
+      // חשבונית ישירה — פריטים בפורמט {desc, amount}
+      items = inv.directItems.map(it => ({
+        product: it.desc || '—',
+        qty: '—',
+        price: '—',
+        totalV: it.amount || 0,
+        _direct: true
+      }));
     } else {
-      // collect items from linked dels
-      const linked = (inv.docIds||[]).flatMap(did => {
-        const d = allDels.find(x => x.id === did || x.doc === did);
-        return d ? (d.items||[]).map(it => ({...it, _delDoc: d.doc, _delDate: d.date})) : [];
-      });
-      items = linked;
+      // חשבונית רגילה — קודם לפי docIds, אחר-כך חיפוש הפוך לפי invNum
+      let linkedDels = [];
+      const docIdSet = inv.docIds||[];
+      if (docIdSet.length) {
+        linkedDels = docIdSet.flatMap(did => {
+          const d = allDels.find(x => String(x.id) === String(did) || x.doc === did);
+          return d ? [d] : [];
+        });
+      }
+      // חיפוש הפוך — תעודות שמצביעות על חשבונית זו
+      const reverseLinked = allDels.filter(x =>
+        x.invNum && String(x.invNum) === String(inv.num) && x.sup === inv.sup &&
+        !linkedDels.some(ld => ld.id === x.id)
+      );
+      const allLinked = [...linkedDels, ...reverseLinked];
+      items = allLinked.flatMap(d =>
+        (d.items||[]).map(it => ({...it, _delDoc: d.doc, _delDate: d.date}))
+      );
+      // עדכן invLink
+      if (allLinked.length) {
+        const nums = allLinked.map(d => d.doc||d.id).slice(0,6);
+        invLink = `<span style="color:#888">${allLinked.length} תעודות משויכות: ${nums.join(', ')}${allLinked.length>6?'...':''}</span>`;
+      } else if (docIdSet.length) {
+        invLink = `<span style="color:#888">${docIdSet.length} תעודות משויכות (לא נמצאו): ${docIdSet.slice(0,5).join(', ')}</span>`;
+      }
     }
-    if ((inv.docIds||[]).length) {
+    if (!invLink && (inv.docIds||[]).length) {
       invLink = `<span style="color:#888">${inv.docIds.length} תעודות משויכות: ${inv.docIds.slice(0,5).join(', ')}${inv.docIds.length>5?'...':''}</span>`;
     }
   }
@@ -3750,10 +3776,11 @@ function showDocDetail(type, id) {
   document.getElementById('ddoc-items').innerHTML = items.map(it => {
     const tv = it.totalV||0;
     const isNeg = tv < 0;
+    const priceStr = it._direct ? '—' : (it.price ? '₪'+(+it.price).toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—');
     return `<tr style="${isNeg?'color:#c00':''}">
       <td>${it.product||'—'}</td>
-      <td>${it.qty||'—'}</td>
-      <td>${it.price?'₪'+(+it.price).toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+      <td>${it._direct ? '—' : (it.qty||'—')}</td>
+      <td>${priceStr}</td>
       <td><strong>${tv?'₪'+tv.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</strong></td>
     </tr>`;
   }).join('') || '<tr><td colspan="4" style="color:#aaa;text-align:center">אין פריטים</td></tr>';
