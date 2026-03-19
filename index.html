@@ -5827,7 +5827,17 @@ async function readInvPdf(file) {
 
     if (fullText.trim().length < 20) {
       // Scanned PDF — no text layer
-      showPdfStatus('error', '❌ הPDF סרוק ואין בו טקסט. נסה להעלות PDF דיגיטלי, או הכנס מפתח API לזיהוי מתמונה.');
+      if (_apiKey) {
+        showPdfStatus('loading', '⏳ PDF סרוק — שולח ל-Claude לזיהוי חזותי...');
+        const base64 = await new Promise((res) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(',')[1]);
+          r.readAsDataURL(file);
+        });
+        await analyzeWithClaude(null, base64);
+      } else {
+        showPdfStatus('error', '❌ הPDF סרוק ואין בו טקסט. נסה להעלות PDF דיגיטלי, או הכנס מפתח API לזיהוי מתמונה.');
+      }
       return;
     }
 
