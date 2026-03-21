@@ -3574,15 +3574,34 @@ function confirmAmirImport() {
   let added = 0, skipped = 0;
 
   dels_list.forEach(d => {
-    const normDoc = d.doc.replace(/^SH/i,'').replace(/SH$/i,'').trim();
-    const existIdx = dels.findIndex(x => x.sup === supplier &&
-      (x.doc === d.doc || x.doc.replace(/^SH/i,'').replace(/SH$/i,'').trim() === normDoc));
+    // נרמול: ספרות בלבד — עמיד ל-SH/SI מימין או משמאל (RTL/LTR)
+    const normDoc = (d.doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim();
+
+    // מחק כפילויות: אותן ספרות + אותו תאריך + אותו ספק
+    let deleted = 0;
+    for (let i = dels.length - 1; i >= 0; i--) {
+      const x = dels[i];
+      if (x.sup !== supplier) continue;
+      const xNorm = (x.doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim();
+      if (xNorm !== normDoc) continue;
+      if (d.date && x.date && d.date !== x.date) continue; // תאריך שונה — לא כפילות
+      // נקה קישור מחשבוניות (docIds)
+      const xId = String(x.id);
+      invs.forEach(inv => {
+        if (!inv.docIds) return;
+        const before = inv.docIds.length;
+        inv.docIds = inv.docIds.filter(did => String(did) !== xId);
+      });
+      dels.splice(i, 1);
+      deleted++;
+    }
+    if (deleted > 0) { skipped += deleted; save(K.I, invs); }
+
     const items = d.items.map(it => {
       const qty = it.qty || 0;
       const price = it.price || 0;
       const disc = it.discount || 0;
-      const priceAfter = disc > 0 ? price : price;
-      const total = it.total || +(qty * priceAfter).toFixed(2);
+      const total = it.total || +(qty * price).toFixed(2);
       const vat = +(total * VAT).toFixed(2);
       return {
         id: 'it' + Date.now() + Math.random(),
@@ -3601,13 +3620,9 @@ function confirmAmirImport() {
       sup: supplier, date: d.date, doc: d.doc, year,
       items, invNum: '', ts: Date.now()
     };
-    if (existIdx >= 0) {
-      dels[existIdx] = { ...dels[existIdx], ...newDel };
-      skipped++; // החלפה
-    } else {
-      dels.push(newDel);
-      added++;
-    }
+    // תמיד הוסף כחדש (הכפילויות כבר נמחקו למעלה)
+    dels.push(newDel);
+    added++;
   });
 
   // שמור חשבונית אם לא קיימת
