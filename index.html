@@ -5923,8 +5923,19 @@ async function readInvPdf(file) {
     }
 
     if (fullText.trim().length < 20) {
-      // Scanned PDF — no text layer
-      showPdfStatus('error', '❌ הPDF סרוק ואין בו טקסט. נסה להעלות PDF דיגיטלי, או הכנס מפתח API לזיהוי מתמונה.');
+      // PDF סרוק — אין שכבת טקסט
+      if (_apiKey) {
+        // יש מפתח API — שלח לClaude לזיהוי ויזואלי
+        showPdfStatus('loading', '⏳ PDF סרוק — שולח ל-Claude לזיהוי ויזואלי...');
+        const base64scan = await new Promise((res) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(',')[1]);
+          r.readAsDataURL(file);
+        });
+        await analyzeWithClaude(null, base64scan);
+      } else {
+        showPdfStatus('error', '❌ הPDF סרוק ואין בו טקסט. נסה להעלות PDF דיגיטלי, או הכנס מפתח API לזיהוי מתמונה.');
+      }
       return;
     }
 
