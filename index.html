@@ -418,6 +418,9 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </select>
       <button onclick="retroLinkAllIcl()" title="סנכרן תעודות ICL עם תעודות עמיר אוטומטית"
         style="padding:6px 10px;background:#e0f7fa;border:1px solid #81d4fa;border-radius:6px;cursor:pointer;font-size:12px;color:#0277bd;white-space:nowrap">🔀 סנכרן ICL</button>
+      <button onclick="fixIclNow()" title="תקן ערכי ICL ב-localStorage"
+        style="background:#fff3e0;border:1px solid #ff9800;border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;line-height:1" 
+        title="תיקון ICL">🔧</button>
     </div>
     <div class="tblw">
       <table class="dtbl">
@@ -1612,7 +1615,8 @@ function initData() {
   });
   if(fixed) { save(K.D, dels); console.log('[migrate] תוקנו ID כפולים בתעודות'); }
 
-  // מיגרציה: תיקון ערכי ICL שגויים שנשמרו מ-retroLinkAllIcl
+  // מיגרציה v2: תיקון ערכי ICL — רץ פעם אחת לפי דגל גרסה
+  const ICL_FIX_VERSION = 'v2_20260321';
   const iclFix = {
     'h960': {doc:'14505', product:'שפר 7-3-7 +6+Mg0.5', qty:1.749, price:2169.7,  total:3794.81, vat:683.07, totalV:4477.88},
     'h961': {doc:'18019', product:'שפר 7-3-7 +6+Mg0.5', qty:1.744, price:2170.0,  total:3784.48, vat:681.21, totalV:4465.69},
@@ -1636,15 +1640,17 @@ function initData() {
   const iclFixByDoc = {};
   Object.values(iclFix).forEach(v => { iclFixByDoc[v.doc] = v; });
 
-  let iclFixed = false;
-  dels.forEach(d => {
-    if (d.sup !== 'דשנים ICL') return;
-    const fix = iclFixByDoc[String(d.doc)];
-    if (!fix) return;
-    const it = d.items && d.items[0];
-    if (!it) return;
-    // תקן אם הסכום שגוי (הפרש > 2 ש"ח מהערך הנכון)
-    if (Math.abs((it.totalV || 0) - fix.totalV) > 2) {
+  let iclFixed = false, iclFixed_count = 0;
+  // רץ רק אם גרסת התיקון שונה
+  const alreadyFixed = localStorage.getItem('luria_icl_fix_ver') === ICL_FIX_VERSION;
+  if (!alreadyFixed) {
+    dels.forEach(d => {
+      if (d.sup !== 'דשנים ICL') return;
+      const fix = iclFixByDoc[String(d.doc)];
+      if (!fix) return;
+      const it = d.items && d.items[0];
+      if (!it) return;
+      // תקן תמיד — ללא קשר לערך הנוכחי
       it.product = fix.product;
       it.qty     = fix.qty;
       it.price   = fix.price;
@@ -1652,10 +1658,15 @@ function initData() {
       it.vat     = fix.vat;
       it.totalV  = fix.totalV;
       iclFixed = true;
-      console.log('[migrate-icl] תוקן ICL doc=' + d.doc + ' → ₪' + fix.totalV);
-    }
-  });
-  if (iclFixed) { save(K.D, dels); console.log('[migrate-icl] תעודות ICL תוקנו ב-localStorage'); }
+      iclFixed_count++;
+      console.log('[migrate-icl] תוקן doc=' + d.doc + ' → ₪' + fix.totalV);
+    });
+  }
+  if (iclFixed) {
+    save(K.D, dels);
+    localStorage.setItem('luria_icl_fix_ver', ICL_FIX_VERSION);
+    console.log('[migrate-icl] ✅ ' + iclFixed_count + ' תעודות ICL תוקנו');
+  }
 
   return dels;
 }
@@ -8689,6 +8700,47 @@ function renderAnnual() {
 
   wrap.innerHTML = html || '<div style="color:#aaa;text-align:center;padding:20px">אין נתונים</div>';
 }
+
+function fixIclNow() {
+  const iclFixData = {
+    '14505': {product:'שפר 7-3-7 +6+Mg0.5', qty:1.749, price:2169.7,  total:3794.81, vat:683.07, totalV:4477.88},
+    '18019': {product:'שפר 7-3-7 +6+Mg0.5', qty:1.744, price:2170.0,  total:3784.48, vat:681.21, totalV:4465.69},
+    '19585': {product:'שפר 7-3-7 +6+Mg0.5', qty:1.726, price:2168.7,  total:3743.18, vat:673.77, totalV:4416.95},
+    '21000': {product:'שפר 7-3-7 +6+Mg0.5', qty:1.717, price:2169.55, total:3725.11, vat:670.52, totalV:4395.63},
+    '22781': {product:'שפר 7-3-7 +6+Mg0.5', qty:1.753, price:2169.33, total:3802.84, vat:684.51, totalV:4487.35},
+    '24151': {product:'שפר 5-3-8 +6+Mg0.5', qty:1.736, price:2064.81, total:3584.51, vat:645.21, totalV:4229.72},
+    '24584': {product:'שפר 5-3-8 +6+Mg0.5', qty:1.68,  price:2064.81, total:3468.88, vat:624.4,  totalV:4093.28},
+    '25644': {product:'שפר 5-3-8 +6+Mg0.5', qty:1.812, price:2064.81, total:3741.44, vat:673.46, totalV:4414.9},
+    '26818': {product:'שפר 5-3-8 +6+Mg0.5', qty:1.813, price:2064.81, total:3743.5,  vat:673.83, totalV:4417.33},
+    '27664': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.731, price:1718.67, total:2975.02, vat:535.5,  totalV:3510.52},
+    '28557': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.276, price:1718.67, total:2193.02, vat:394.74, totalV:2587.76},
+    '29263': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.748, price:1718.67, total:3004.24, vat:540.76, totalV:3545.0},
+    '30017': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.728, price:1718.67, total:2969.86, vat:534.57, totalV:3504.43},
+    '31020': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.566, price:1718.67, total:2691.44, vat:484.46, totalV:3175.9},
+    '31743': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.75,  price:1718.67, total:3007.67, vat:541.38, totalV:3549.05},
+    '32243': {product:'אגח 12%',              qty:1.241, price:1199.98, total:1489.17, vat:268.05, totalV:1757.22},
+    '32997': {product:'שפר 3-2-7 +6+Mg0.5', qty:1.737, price:1718.67, total:2985.33, vat:537.36, totalV:3522.69},
+  };
+  let count = 0;
+  dels.forEach(d => {
+    if (d.sup !== 'דשנים ICL') return;
+    const fix = iclFixData[String(d.doc)];
+    if (!fix || !d.items || !d.items[0]) return;
+    const it = d.items[0];
+    it.product = fix.product; it.qty = fix.qty; it.price = fix.price;
+    it.total = fix.total; it.vat = fix.vat; it.totalV = fix.totalV;
+    count++;
+  });
+  if (count > 0) {
+    save(K.D, dels);
+    localStorage.setItem('luria_icl_fix_ver', 'v2_20260321');
+    renderDelList();
+    toast('✅ תוקנו ' + count + ' תעודות ICL — סה"כ ₪64,551');
+  } else {
+    toast('ℹ️ לא נמצאו תעודות ICL לתיקון');
+  }
+}
+
 </script>
 </body>
 </html>
