@@ -3992,7 +3992,8 @@ function initDashboard(){
     const dt = new Date(d.date);
     return dt.getMonth()+1===curM && dt.getFullYear()===curY;
   });
-  const monthTotal = monthDels.reduce((s,d)=>s+d.items.reduce((ss,i)=>ss+(i.totalV||0),0),0);
+  // ICL מוחרג מסיכום — כלול כבר בעמיר
+  const monthTotal = monthDels.filter(d=>d.sup!=='דשנים ICL').reduce((s,d)=>s+d.items.filter(it=>!it.iclExclude).reduce((ss,i)=>ss+(i.totalV||0),0),0);
 
   // עדכן כרטיסיות
   document.getElementById('db-month-total').textContent = '₪'+Math.round(monthTotal).toLocaleString();
@@ -4044,21 +4045,11 @@ function initDashboard(){
 
   // רכישות החודש לפי ספק (עם תיקון שיוך מוצלב ICL)
   const bySup={};
-  monthDels.forEach(d=>{
-    const t=d.items.reduce((s,i)=>s+(i.totalV||0),0);
+  // ICL מוחרג — סכומיו כלולים בעמיר
+  monthDels.filter(d=>d.sup!=='דשנים ICL').forEach(d=>{
+    const t=d.items.filter(it=>!it.iclExclude).reduce((s,i)=>s+(i.totalV||0),0);
     if(!bySup[d.sup])bySup[d.sup]=0;
     bySup[d.sup]+=t;
-  });
-  // תיקון: העבר סכומי ICL מוצלב מעמיר לדשנים ICL
-  const crossAttrs = buildCrossAttributions();
-  crossAttrs.forEach(a=>{
-    const dt = a.iclDel.date ? new Date(a.iclDel.date) : null;
-    if(!dt) return;
-    const am=dt.getMonth()+1, ay=dt.getFullYear();
-    if(am===curM && ay===curY){
-      bySup["עמיר"]=(bySup["עמיר"]||0)-a.amount;
-      bySup["דשנים ICL"]=(bySup["דשנים ICL"]||0)+a.amount;
-    }
   });
   const supEntries=Object.entries(bySup).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   document.getElementById("db-month-by-sup").innerHTML = supEntries.length ?
@@ -4127,7 +4118,8 @@ function getDirectInvAsDels(){
 function initStats(){
   const itemsSum=items=>items.filter(it=>!it.iclExclude).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
   const allDels = [...dels, ...getDirectInvAsDels()];
-  const filtDels=statSupFilter==='all'?allDels:allDels.filter(d=>d.sup===statSupFilter);
+  // ICL מוחרג מסיכום כללי — סכומיו כלולים כבר בחשבוניות עמיר
+  const filtDels=statSupFilter==='all'?allDels.filter(d=>d.sup!=='דשנים ICL'):allDels.filter(d=>d.sup===statSupFilter);
   const sum=yr=>filtDels.reduce((acc,d)=>parseInt(d.year)===yr?acc+itemsSum(d.items):acc,0);
   document.getElementById('s2026').textContent='₪'+Math.round(sum(2026)).toLocaleString();
   document.getElementById('s2025').textContent='₪'+Math.round(sum(2025)).toLocaleString();
@@ -4165,7 +4157,7 @@ function drawChart(yf){
   const cols={2022:'#9c27b0',2023:'#4caf50',2024:'#2196f3',2025:'#ff9800',2026:'#e91e63'};
   const itemsSum=items=>items.filter(it=>!it.iclExclude).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
   const allDelsChart = [...dels, ...getDirectInvAsDels()];
-  const filtDels=statSupFilter==='all'?allDelsChart:allDelsChart.filter(d=>d.sup===statSupFilter);
+  const filtDels=statSupFilter==='all'?allDelsChart.filter(d=>d.sup!=='דשנים ICL'):allDelsChart.filter(d=>d.sup===statSupFilter);
   const getMonthSum=(yr,mo)=>filtDels.reduce((acc,d)=>{
     if(parseInt(d.year)!==yr)return acc;
     const dt=new Date(d.date);if(isNaN(dt))return acc;
@@ -4189,7 +4181,7 @@ function updateCmp(){
   const py=by-1;
   const itemsSum=items=>items.filter(it=>!it.iclExclude).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
   const allDelsCmp = [...dels, ...getDirectInvAsDels()];
-  const filtDels=statSupFilter==='all'?allDelsCmp:allDelsCmp.filter(d=>d.sup===statSupFilter);
+  const filtDels=statSupFilter==='all'?allDelsCmp.filter(d=>d.sup!=='דשנים ICL'):allDelsCmp.filter(d=>d.sup===statSupFilter);
   const get=(yr,mo)=>filtDels.reduce((acc,d)=>{
     if(parseInt(d.year)!==yr)return acc;
     const dt=new Date(d.date);if(isNaN(dt))return acc;
@@ -8560,7 +8552,8 @@ function changeAnnualPin() {
 function renderAnnual() {
   const supFilter = document.getElementById('annual-sup-filter')?.value || 'all';
   const allDelsAnnual = [...dels, ...getDirectInvAsDels()];
-  const filtDels = supFilter === 'all' ? allDelsAnnual : allDelsAnnual.filter(d => d.sup === supFilter);
+  // ICL מוחרג מסיכום כללי — סכומיו כלולים כבר בחשבוניות עמיר
+  const filtDels = supFilter === 'all' ? allDelsAnnual.filter(d => d.sup !== 'דשנים ICL') : allDelsAnnual.filter(d => d.sup === supFilter);
 
   const MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const years = [...new Set(filtDels.map(d => parseInt(d.year)))].filter(Boolean).sort();
