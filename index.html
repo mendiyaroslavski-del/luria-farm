@@ -283,6 +283,15 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div id="db-unmatched-list"></div>
   </div>
 
+  <!-- כפילויות -->
+  <div id="db-dup-card" style="display:none" class="card">
+    <div class="ctitle" style="display:flex;align-items:center;justify-content:space-between">
+      <span>🔴 כפילויות שזוהו</span>
+      <button onclick="showDupModal()" style="background:#c62828;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit">פירוט ותיקון</button>
+    </div>
+    <div id="db-dup-summary" style="font-size:13px;padding:4px 0"></div>
+  </div>
+
   <!-- רכישות החודש לפי ספק -->
   <div class="card">
     <div class="ctitle">📅 רכישות <span id="db-month-label"></span> לפי ספק</div>
@@ -421,6 +430,8 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <button onclick="fixIclNow()" title="תקן ערכי ICL ב-localStorage"
         style="background:#fff3e0;border:1px solid #ff9800;border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;line-height:1" 
         title="תיקון ICL">🔧</button>
+      <button onclick="showDupModal()" title="בדיקת כפילויות"
+        style="background:#ffebee;border:1px solid #ef9a9a;border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;line-height:1">🔍</button>
     </div>
     <div class="tblw">
       <table class="dtbl">
@@ -4107,6 +4118,25 @@ function initDashboard(){
 
   // גיבוי: הסתר אם גובה עכשיו
   checkBackupReminder();
+
+  // בדיקת כפילויות — עדכן כרטיס בדשבורד
+  (function(){
+    const {identical, partial, dupInvs} = findDuplicates();
+    const total = identical.length + partial.length + dupInvs.length;
+    const card = document.getElementById('db-dup-card');
+    const summary = document.getElementById('db-dup-summary');
+    if (!card || !summary) return;
+    if (total === 0) {
+      card.style.display = 'none';
+    } else {
+      card.style.display = '';
+      const parts = [];
+      if (identical.length) parts.push('🔴 ' + identical.length + ' תעודות זהות');
+      if (partial.length)   parts.push('🟡 ' + partial.length + ' חפיפות חלקיות');
+      if (dupInvs.length)   parts.push('🔴 ' + dupInvs.length + ' חשבוניות כפולות');
+      summary.textContent = parts.join(' · ');
+    }
+  })();
 
   // פעילות אחרונה
   const activity = buildRecentActivity();
@@ -8716,6 +8746,126 @@ function renderAnnual() {
   wrap.innerHTML = html || '<div style="color:#aaa;text-align:center;padding:20px">אין נתונים</div>';
 }
 
+// ═══ בדיקת כפילויות ═══
+function findDuplicates() {
+  const normDoc = doc => (doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim();
+
+  // 1. תעודות זהות — אותן ספרות + אותו ספק + אותו תאריך
+  const identical = [];
+  const seen = {};
+  dels.forEach((d, i) => {
+    const key = d.sup + '|' + normDoc(d.doc) + '|' + (d.date || '');
+    if (!seen[key]) { seen[key] = []; }
+    seen[key].push({d, i});
+  });
+  Object.values(seen).forEach(group => {
+    if (group.length > 1) identical.push(group);
+  });
+
+  // 2. חפיפה חלקית — אותן ספרות + אותו ספק + תאריך שונה ±7 ימים
+  const partial = [];
+  const allNorm = dels.map((d,i) => ({d, i, n: normDoc(d.doc)}));
+  for (let a = 0; a < allNorm.length; a++) {
+    for (let b = a+1; b < allNorm.length; b++) {
+      if (allNorm[a].n !== allNorm[b].n) continue;
+      if (allNorm[a].d.sup !== allNorm[b].d.sup) continue;
+      if (allNorm[a].d.date === allNorm[b].d.date) continue; // אלו זהות, כבר נתפסו
+      if (!allNorm[a].d.date || !allNorm[b].d.date) continue;
+      const diff = Math.abs(new Date(allNorm[a].d.date) - new Date(allNorm[b].d.date)) / 86400000;
+      if (diff <= 7) partial.push([allNorm[a], allNorm[b]]);
+    }
+  }
+
+  // 3. חשבוניות כפולות — אותו מספר + אותו ספק
+  const dupInvs = [];
+  const seenInv = {};
+  invs.forEach((inv, i) => {
+    const key = (inv.sup||'') + '|' + (inv.num||'');
+    if (!seenInv[key]) seenInv[key] = [];
+    seenInv[key].push({inv, i});
+  });
+  Object.values(seenInv).forEach(group => {
+    if (group.length > 1) dupInvs.push(group);
+  });
+
+  return { identical, partial, dupInvs };
+}
+
+function showDupModal() {
+  document.getElementById('modal-dup').style.display = 'block';
+  const {identical, partial, dupInvs} = findDuplicates();
+  const total = identical.length + partial.length + dupInvs.length;
+
+  let html = '';
+  if (total === 0) {
+    html = '<div style="text-align:center;padding:20px;color:#2e7d32;font-size:15px">✅ לא נמצאו כפילויות!<br><span style="font-size:12px;color:#666;display:block;margin-top:4px">' + dels.length + ' תעודות + ' + invs.length + ' חשבוניות — הכל תקין</span></div>';
+  } else {
+    // זהות
+    if (identical.length) {
+      html += '<div style="font-weight:700;color:#c62828;margin-bottom:8px">🔴 תעודות זהות (' + identical.length + ' זוגות)</div>';
+      identical.forEach(group => {
+        const d = group[0].d;
+        const ids = group.map(g => g.i);
+        html += '<div style="background:#ffebee;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">';
+        html += '<div><strong>' + d.doc + '</strong> · ' + d.sup + ' · ' + (d.date||'') + '<br><span style="color:#999;font-size:11px">' + group.length + ' עותקים</span></div>';
+        html += '<button onclick="deleteDupGroup([' + ids.join(',') + '])" style="background:#c62828;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit">🗑️ מחק כפילויות</button>';
+        html += '</div>';
+      });
+    }
+
+    // חלקיות
+    if (partial.length) {
+      html += '<div style="font-weight:700;color:#e65100;margin:10px 0 8px">🟡 חפיפה חלקית — אותו מספר, תאריך שונה (' + partial.length + ')</div>';
+      partial.forEach(([a, b]) => {
+        html += '<div style="background:#fff3e0;border-radius:6px;padding:8px 10px;margin-bottom:6px">';
+        html += '<strong>' + a.d.doc + '</strong> · ' + a.d.sup + '<br>';
+        html += '<span style="font-size:12px">📅 ' + (a.d.date||'') + ' ↔ ' + (b.d.date||'') + ' — בדוק ידנית</span>';
+        html += '</div>';
+      });
+    }
+
+    // חשבוניות כפולות
+    if (dupInvs.length) {
+      html += '<div style="font-weight:700;color:#c62828;margin:10px 0 8px">🔴 חשבוניות כפולות (' + dupInvs.length + ')</div>';
+      dupInvs.forEach(group => {
+        const inv = group[0].inv;
+        const idxs = group.map(g => g.i);
+        html += '<div style="background:#ffebee;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">';
+        html += '<div><strong>' + inv.num + '</strong> · ' + inv.sup + ' · ₪' + Math.round(inv.total||0).toLocaleString() + '</div>';
+        html += '<button onclick="deleteDupInvGroup([' + idxs.join(',') + '])" style="background:#c62828;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit">🗑️ מחק כפילויות</button>';
+        html += '</div>';
+      });
+    }
+  }
+
+  document.getElementById('dup-modal-content').innerHTML = html;
+}
+
+function deleteDupGroup(idxs) {
+  // שמור את הראשון, מחק את השאר
+  const toDelete = idxs.slice(1).sort((a,b)=>b-a);
+  toDelete.forEach(i => {
+    const xId = String(dels[i].id);
+    invs.forEach(inv => {
+      if (inv.docIds) inv.docIds = inv.docIds.filter(d => String(d) !== xId);
+    });
+    dels.splice(i, 1);
+  });
+  save(K.D, dels);
+  save(K.I, invs);
+  renderDelList();
+  showDupModal(); // רענן
+  toast('✅ נמחקו ' + toDelete.length + ' כפילויות');
+}
+
+function deleteDupInvGroup(idxs) {
+  const toDelete = idxs.slice(1).sort((a,b)=>b-a);
+  toDelete.forEach(i => invs.splice(i, 1));
+  save(K.I, invs);
+  showDupModal();
+  toast('✅ נמחקו ' + toDelete.length + ' חשבוניות כפולות');
+}
+
 function fixIclNow() {
   const iclFixData = {
     '14505': {product:'שפר 7-3-7 +6+Mg0.5', qty:1.749, price:2169.7,  total:3794.81, vat:683.07, totalV:4477.88},
@@ -8757,5 +8907,16 @@ function fixIclNow() {
 }
 
 </script>
+
+<!-- מודל בדיקת כפילויות -->
+<div id="modal-dup" style="display:none;position:fixed;inset:0;background:#0009;z-index:9999;overflow-y:auto;padding:16px">
+  <div style="background:#fff;border-radius:12px;max-width:520px;margin:0 auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <strong style="font-size:16px">🔍 בדיקת כפילויות</strong>
+      <button onclick="document.getElementById('modal-dup').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="dup-modal-content" style="font-size:13px"></div>
+  </div>
+</div>
 </body>
 </html>
