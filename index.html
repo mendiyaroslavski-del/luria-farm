@@ -1611,6 +1611,48 @@ function initData() {
     }
   });
   if(fixed) { save(K.D, dels); console.log('[migrate] תוקנו ID כפולים בתעודות'); }
+
+  // מיגרציה: תיקון ערכי ICL שגויים שנשמרו מ-retroLinkAllIcl
+  const iclFix = {
+    'h960': {doc:'14505', product:'שפר 7-3-7 +6+Mg0.5', qty:1.749, price:2169.7,  total:3794.81, vat:683.07, totalV:4477.88},
+    'h961': {doc:'18019', product:'שפר 7-3-7 +6+Mg0.5', qty:1.744, price:2170.0,  total:3784.48, vat:681.21, totalV:4465.69},
+    'h962': {doc:'19585', product:'שפר 7-3-7 +6+Mg0.5', qty:1.726, price:2168.7,  total:3743.18, vat:673.77, totalV:4416.95},
+    'h963': {doc:'21000', product:'שפר 7-3-7 +6+Mg0.5', qty:1.717, price:2169.55, total:3725.11, vat:670.52, totalV:4395.63},
+    'h964': {doc:'22781', product:'שפר 7-3-7 +6+Mg0.5', qty:1.753, price:2169.33, total:3802.84, vat:684.51, totalV:4487.35},
+    'h965': {doc:'24151', product:'שפר 5-3-8 +6+Mg0.5', qty:1.736, price:2064.81, total:3584.51, vat:645.21, totalV:4229.72},
+    'h966': {doc:'24584', product:'שפר 5-3-8 +6+Mg0.5', qty:1.68,  price:2064.81, total:3468.88, vat:624.4,  totalV:4093.28},
+    'h967': {doc:'25644', product:'שפר 5-3-8 +6+Mg0.5', qty:1.812, price:2064.81, total:3741.44, vat:673.46, totalV:4414.9},
+    'h968': {doc:'26818', product:'שפר 5-3-8 +6+Mg0.5', qty:1.813, price:2064.81, total:3743.5,  vat:673.83, totalV:4417.33},
+    'h969': {doc:'27664', product:'שפר 3-2-7 +6+Mg0.5', qty:1.731, price:1718.67, total:2975.02, vat:535.5,  totalV:3510.52},
+    'h970': {doc:'28557', product:'שפר 3-2-7 +6+Mg0.5', qty:1.276, price:1718.67, total:2193.02, vat:394.74, totalV:2587.76},
+    'h971': {doc:'29263', product:'שפר 3-2-7 +6+Mg0.5', qty:1.748, price:1718.67, total:3004.24, vat:540.76, totalV:3545.0},
+    'h972': {doc:'30017', product:'שפר 3-2-7 +6+Mg0.5', qty:1.728, price:1718.67, total:2969.86, vat:534.57, totalV:3504.43},
+    'h973': {doc:'31020', product:'שפר 3-2-7 +6+Mg0.5', qty:1.566, price:1718.67, total:2691.44, vat:484.46, totalV:3175.9},
+    'h974': {doc:'31743', product:'שפר 3-2-7 +6+Mg0.5', qty:1.75,  price:1718.67, total:3007.67, vat:541.38, totalV:3549.05},
+    'h975': {doc:'32243', product:'אגח 12% ילזונ יתרפג', qty:1.241, price:1199.98, total:1489.17, vat:268.05, totalV:1757.22},
+    'h976': {doc:'32997', product:'שפר 3-2-7 +6+Mg0.5', qty:1.737, price:1718.67, total:2985.33, vat:537.36, totalV:3522.69},
+  };
+  let iclFixed = false;
+  dels.forEach(d => {
+    if (d.sup !== 'דשנים ICL') return;
+    const fix = iclFix[String(d.id)];
+    if (!fix) return;
+    const it = d.items && d.items[0];
+    if (!it) return;
+    // תקן רק אם הסכום שגוי (לא תואם לערך הנכון ± 5 ש"ח)
+    if (Math.abs((it.totalV || 0) - fix.totalV) > 5) {
+      it.product = fix.product;
+      it.qty     = fix.qty;
+      it.price   = fix.price;
+      it.total   = fix.total;
+      it.vat     = fix.vat;
+      it.totalV  = fix.totalV;
+      iclFixed = true;
+      console.log('[migrate-icl] תוקן ICL doc=' + d.doc + ' → ₪' + fix.totalV);
+    }
+  });
+  if (iclFixed) { save(K.D, dels); console.log('[migrate-icl] תעודות ICL תוקנו ב-localStorage'); }
+
   return dels;
 }
 
