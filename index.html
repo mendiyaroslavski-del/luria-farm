@@ -1632,15 +1632,19 @@ function initData() {
     'h975': {doc:'32243', product:'אגח 12% ילזונ יתרפג', qty:1.241, price:1199.98, total:1489.17, vat:268.05, totalV:1757.22},
     'h976': {doc:'32997', product:'שפר 3-2-7 +6+Mg0.5', qty:1.737, price:1718.67, total:2985.33, vat:537.36, totalV:3522.69},
   };
+  // בנה map לפי doc number (לא id — כי id ב-localStorage שונה מ-HIST)
+  const iclFixByDoc = {};
+  Object.values(iclFix).forEach(v => { iclFixByDoc[v.doc] = v; });
+
   let iclFixed = false;
   dels.forEach(d => {
     if (d.sup !== 'דשנים ICL') return;
-    const fix = iclFix[String(d.id)];
+    const fix = iclFixByDoc[String(d.doc)];
     if (!fix) return;
     const it = d.items && d.items[0];
     if (!it) return;
-    // תקן רק אם הסכום שגוי (לא תואם לערך הנכון ± 5 ש"ח)
-    if (Math.abs((it.totalV || 0) - fix.totalV) > 5) {
+    // תקן אם הסכום שגוי (הפרש > 2 ש"ח מהערך הנכון)
+    if (Math.abs((it.totalV || 0) - fix.totalV) > 2) {
       it.product = fix.product;
       it.qty     = fix.qty;
       it.price   = fix.price;
