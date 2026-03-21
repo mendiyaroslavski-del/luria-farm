@@ -3636,19 +3636,41 @@ function confirmAmirImport() {
     added++;
   });
 
-  // שמור חשבונית אם לא קיימת
+  // קשר תעודות לחשבונית — תמיד, גם אם החשבונית קיימת
   const invNum = inv.num;
-  if (invNum && !invs.find(x => x.num === invNum)) {
-    const invDate = inv.date || '';
-    const month = invDate ? +invDate.substring(5,7) : 0;
-    const year = invDate ? invDate.substring(0,4) : '2026';
-    const docIds = dels.filter(d => dels_list.some(x => x.doc === d.doc)).map(d => String(d.id));
-    invs.push({
-      id: Date.now()+Math.random(), num: invNum, sup: supplier,
-      date: invDate, month, year,
-      total: inv.total_with_vat || 0,
-      docIds, paid: false, paidDate: ''
+  if (invNum) {
+    // מצא את ה-IDs של התעודות שזה עתה נוספו
+    const normDocSet = new Set(dels_list.map(d => (d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim()));
+    const newDocIds = dels
+      .filter(d => d.sup === supplier && normDocSet.has((d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim()))
+      .map(d => String(d.id));
+
+    // עדכן invNum על כל תעודה
+    newDocIds.forEach(did => {
+      const del = dels.find(d => String(d.id) === did);
+      if (del) del.invNum = invNum;
     });
+
+    // חפש חשבונית קיימת
+    const existInv = invs.find(x => x.num === invNum && x.sup === supplier);
+    if (existInv) {
+      // עדכן docIds — הוסף חדשים, שמור ישנים שעדיין קיימים
+      const existingValidIds = (existInv.docIds || []).filter(did =>
+        dels.some(d => String(d.id) === String(did))
+      );
+      existInv.docIds = [...new Set([...existingValidIds, ...newDocIds])];
+      existInv.total = inv.total_with_vat || existInv.total;
+    } else {
+      const invDate = inv.date || '';
+      const month = invDate ? +invDate.substring(5,7) : 0;
+      const year = invDate ? invDate.substring(0,4) : '2026';
+      invs.push({
+        id: Date.now()+Math.random(), num: invNum, sup: supplier,
+        date: invDate, month, year,
+        total: inv.total_with_vat || 0,
+        docIds: newDocIds, paid: false, paidDate: ''
+      });
+    }
     save(K.I, invs);
   }
 
@@ -4019,7 +4041,15 @@ function initDashboard(){
   // בנה סט של כל IDs תעודות שמשויכות לחשבונית דרך docIds
   const linkedByDocIds = new Set();
   invs.forEach(inv=>{(inv.docIds||[]).forEach(id=>linkedByDocIds.add(String(id)));});
-  const unmatched = dels.filter(d=>!d.invNum && !d.crossInv && !d.crossDoc && !linkedByDocIds.has(String(d.id)));
+  const unmatched = dels.filter(d=>{
+    if (d.invNum || d.crossInv || d.crossDoc) return false;
+    if (linkedByDocIds.has(String(d.id))) return false;
+    // דלג על תעודות ICL — הן מנוהלות דרך עמיר
+    if (d.sup === 'דשנים ICL') return false;
+    // דלג על תעודות שכל פריטיהן מסומנים iclExclude (סיכומי חשבוניות דישון)
+    if (d.items && d.items.length > 0 && d.items.every(it => it.iclExclude)) return false;
+    return true;
+  });
 
   // רכישות החודש
   const now = new Date();
@@ -7468,8 +7498,12 @@ function runQualityChecks() {
     allDels.forEach(d => {
       // דלג על תעודות ICL משויכות (crossDoc = תעודת עמיר, crossInv = חשבונית)
       if (d.crossDoc || d.crossInv) return;
-      // דלג על תעודות ICL ממתינות (סכום 0 — מחכות לחשבונית)
+      // דלג על תעודות ICL — מנוהלות דרך עמיר
       if (d.sup === 'דשנים ICL') return;
+      // דלג על סיכומי חשבוניות דישון (SI...) — כל פריטיהן iclExclude
+      if (d.items && d.items.length > 0 && d.items.every(it => it.iclExclude)) return;
+      // דלג אם משויך דרך docIds של חשבונית
+      if (invs.some(inv => (inv.docIds||[]).includes(String(d.id)))) return;
       if (!d._hist && !d.invNum) { // רק תעודות שהוזנו ידנית
         const tot = (d.items||[]).reduce((s,i)=>s+(i.totalV||0),0);
         if (tot > 100) {
