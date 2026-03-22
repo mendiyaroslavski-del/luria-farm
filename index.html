@@ -6985,7 +6985,7 @@ const LOGO_DATA_URI = 'data:image/jpeg;base64,/9j/4QGvRXhpZgAATU0AKgAAAAgABgEAAA
 
 function pdfLetterhead() {
   return `
-  <div class="letterhead">
+  <div class="page-header">
     <img src="${LOGO_DATA_URI}" class="lh-logo" alt="אתרוגי לוריא">
     <div class="lh-line"></div>
   </div>`;
@@ -6997,6 +6997,7 @@ function pdfFooter() {
   const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   return `<div class="pdf-footer">
     <span>הופק ע"י <strong>Wisdom, intelligence, knowledge</strong> תוכנות</span>
+    <span class="pdf-page-counter"></span>
     <span>${dateStr} ${timeStr}</span>
   </div>`;
 }
@@ -7009,7 +7010,7 @@ function pdfStyles() {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Heebo', Arial, sans-serif; direction: rtl; background: #fff; color: #222; font-size: 12px; }
     .page { max-width: 210mm; margin: 0 auto; padding: 10mm 14mm 28mm; min-height: 297mm; position: relative; }
-    .letterhead { margin-bottom: 10px; }
+    .page-header { margin-bottom: 10px; }
     .lh-logo { width: 100%; display: block; }
     .lh-line { border-top: 2px solid #2d5a27; margin-top: 6px; }
     .report-title { font-family: 'Frank Ruhl Libre', serif; font-size: 18px; font-weight: 900; color: #2d5a27; text-align: center; margin: 12px 0 4px; }
@@ -7031,11 +7032,32 @@ function pdfStyles() {
     .badge-b { background: #e3f2fd; color: #1565c0; }
     @media print {
       body { font-size: 11px; }
+      .page-header {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        padding: 6mm 14mm 0;
+        background: #fff;
+        z-index: 100;
+      }
       .pdf-footer { position: fixed; bottom: 0; }
       thead { display: table-header-group; }
-      .page { padding: 8mm 12mm 28mm; }
+      .page { padding: 52mm 12mm 28mm; }
     }
     @page { margin: 0; size: A4; }
+    /* מספור עמודים */
+    .pdf-page-counter {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: #444;
+    }
+    @media print {
+      .pdf-page-counter::before {
+        content: "עמוד " counter(page) " / " counter(pages);
+      }
+    }
   </style>`;
 }
 
