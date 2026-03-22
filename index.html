@@ -8969,25 +8969,16 @@ function _openReport(title, body, subtitle) {
   const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   const win = window.open('','_blank');
   if (!win) { toast('⚠️ אפשר פתיחת חלונות בדפדפן'); return; }
-  var pageJs = '<scri' + 'pt>' +
-    'function _doPrint(){' +
-    '  var h=1122;var tot=Math.max(1,Math.ceil(document.body.scrollHeight/h));' +
-    '  document.querySelectorAll(".pdf-page-counter").forEach(function(el,i){' +
-    '    el.textContent="עמוד "+(i+1)+" / "+tot;' +
-    '  });' +
-    '  setTimeout(function(){window.print();},600);' +
-    '}' +
-    'if(document.readyState==="complete"){_doPrint();}' +
-    'else{window.addEventListener("load",_doPrint);}' +
-    '<\/scri' + 'pt>';
-  win.document.write('<!DOCTYPE html><html lang="he" dir="rtl"><head>' + pdfStyles() +
-    '<style>.pdf-tab{display:none}.pdf-report-row{display:none}.prr-btn{display:none}</style>' +
-    '<title>' + title + ' — אתרוגי לוריא</title></head>' +
-    '<body><div class="page">' + pdfLetterhead() +
-    '<div class="report-title">' + title + '</div>' +
-    '<div class="report-subtitle">' + (subtitle || 'אתרוגי לוריא בע"מ | ח.פ. 516151610') + ' | הופק: ' + dateStr + ' ' + timeStr + '</div>' +
-    body +
-    '</div>' + pdfFooter() + pageJs + '</body></html>');
+  win.document.write(`<!DOCTYPE html><html lang="he" dir="rtl"><head>${pdfStyles()}
+  <style>.pdf-tab{display:none}.pdf-report-row{display:none}.prr-btn{display:none}</style>
+  <title>${title} — אתרוגי לוריא</title></head>
+  <body onload="(function(){var h=1122,tot=Math.max(1,Math.ceil(document.body.scrollHeight/h));document.querySelectorAll('.pdf-page-counter').forEach(function(el,i){el.textContent='עמוד '+(i+1)+' / '+tot;});setTimeout(function(){window.print();},1200);})()">
+  <div class="page">
+    ${pdfLetterhead()}
+    <div class="report-title">${title}</div>
+    <div class="report-subtitle">${subtitle || 'אתרוגי לוריא בע"מ | ח.פ. 516151610'} | הופק: ${dateStr} ${timeStr}</div>
+    ${body}
+  </div>${pdfFooter()}</body></html>`);
   win.document.close();
 }
 
