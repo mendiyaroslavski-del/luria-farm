@@ -6986,7 +6986,15 @@ const LOGO_DATA_URI = 'data:image/jpeg;base64,/9j/4QGvRXhpZgAATU0AKgAAAAgABgEAAA
 function pdfLetterhead() {
   return `
   <div class="letterhead">
-    <img src="${LOGO_DATA_URI}" class="lh-logo" alt="אתרוגי לוריא">
+    <div class="lh-top">
+      <div class="lh-info">
+        <div class="lh-company">אתרוגי לוריא בע"מ</div>
+        <div class="lh-details">ח.פ. 516151610</div>
+        <div class="lh-details">רח' הרב מרדכי ש. אשכנזי 10, כפר חב"ד | ת.ד. 1031 | מיקוד: 6084000</div>
+        <div class="lh-details">טל. 03-9606741 | פקס. 03-9606705 | דוא"ל: lurietorgim@gmail.com</div>
+      </div>
+      <img src="${LOGO_DATA_URI}" class="lh-logo" alt="אתרוגי לוריא">
+    </div>
     <div class="lh-line"></div>
   </div>`;
 }
@@ -7008,10 +7016,14 @@ function pdfStyles() {
     @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&family=Frank+Ruhl+Libre:wght@700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Heebo', Arial, sans-serif; direction: rtl; background: #fff; color: #222; font-size: 12px; }
-    .page { max-width: 210mm; margin: 0 auto; padding: 14mm 14mm 28mm; min-height: 297mm; position: relative; }
+    .page { max-width: 210mm; margin: 0 auto; padding: 10mm 14mm 28mm; min-height: 297mm; position: relative; }
     .letterhead { margin-bottom: 10px; }
-    .lh-logo { width: 100%; max-height: 90px; object-fit: contain; object-position: center; display: block; }
-    .lh-line { border-top: 2px solid #2d5a27; margin-top: 6px; }
+    .lh-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .lh-info { flex: 1; direction: rtl; text-align: right; }
+    .lh-company { font-family: 'Frank Ruhl Libre', serif; font-size: 22px; font-weight: 900; color: #1a3a1a; margin-bottom: 4px; }
+    .lh-details { font-size: 10px; color: #444; line-height: 1.6; }
+    .lh-logo { width: 110px; max-height: 100px; object-fit: contain; object-position: center; flex-shrink: 0; margin-right: 16px; }
+    .lh-line { border-top: 3px solid #2d5a27; margin-top: 8px; }
     .report-title { font-family: 'Frank Ruhl Libre', serif; font-size: 18px; font-weight: 900; color: #2d5a27; text-align: center; margin: 12px 0 4px; }
     .report-subtitle { font-size: 11px; color: #666; text-align: center; margin-bottom: 14px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10.5px; }
