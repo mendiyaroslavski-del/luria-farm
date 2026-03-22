@@ -1311,56 +1311,230 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 <!-- MODAL: דוח PDF -->
 <div class="mbg" id="modal-pdf">
-  <div class="modal" style="max-width:600px;padding:0;overflow:hidden">
+  <div class="modal" style="max-width:520px;padding:0;overflow:hidden">
     <div style="background:#2d5a27;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:16px;font-weight:700">📄 מרכז דוחות PDF — אתרוגי לוריא</div>
-      <button onclick="closeMod('modal-pdf')" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1">×</button>
+      <div style="font-size:16px;font-weight:700">📄 יצוא דוח PDF</div>
+      <button onclick="closeMod('modal-pdf')" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">×</button>
     </div>
-    <div style="display:flex;flex-wrap:wrap;border-bottom:2px solid #e8f5e9;background:#f9fffe">
-      <button class="pdf-tab active" onclick="switchPdfTab('pcat-purchases')" id="pctab-purchases">📦 רכישות</button>
-      <button class="pdf-tab" onclick="switchPdfTab('pcat-invoices')" id="pctab-invoices">📄 חשבוניות</button>
-      <button class="pdf-tab" onclick="switchPdfTab('pcat-sprays')" id="pctab-sprays">🌿 ריסוסים</button>
-      <button class="pdf-tab" onclick="switchPdfTab('pcat-inventory')" id="pctab-inventory">📊 מלאי</button>
-      <button class="pdf-tab" onclick="switchPdfTab('pcat-financial')" id="pctab-financial">💰 כספי</button>
-      <button class="pdf-tab" onclick="switchPdfTab('pcat-debt')" id="pctab-debt">🔴 חוב</button>
+    <div style="display:flex;border-bottom:2px solid #e8f5e9">
+      <button class="pdf-tab active" onclick="switchPdfTab('tab-purchases')" id="ptab-purchases">📦 רכישות</button>
+      <button class="pdf-tab" onclick="switchPdfTab('tab-sprays')" id="ptab-sprays">🌿 ריסוסים</button>
+      <button class="pdf-tab" onclick="switchPdfTab('tab-compare')" id="ptab-compare">📊 השוואות</button>
+      <button class="pdf-tab" onclick="switchPdfTab('tab-account')" id="ptab-account">💳 כרטיס חשבון</button>
+      <button class="pdf-tab" onclick="switchPdfTab('tab-debt')" id="ptab-debt">🔴 דוח חוב</button>
+      <button class="pdf-tab" onclick="switchPdfTab('tab-other')" id="ptab-other">📋 אחר</button>
     </div>
-    <div style="padding:18px 20px;max-height:72vh;overflow-y:auto">
-      <div id="pdf-common-filters" style="background:#f4fbf2;border:1px solid #c5e1c5;border-radius:8px;padding:12px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:#2d5a27;margin-bottom:8px">🔽 סינון</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">ספק</label><select id="rpdf-sup" class="fsel" style="width:100%;font-size:12px"><option value="">כל הספקים</option><option>עמיר</option><option>המשביר</option><option>דשנים ICL</option></select></div>
-          <div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">שנה</label><select id="rpdf-year" class="fsel" style="width:100%;font-size:12px"><option value="">כל השנים</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select></div>
-          <div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">חודש</label><select id="rpdf-month" class="fsel" style="width:100%;font-size:12px"><option value="">כל השנה</option><option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option><option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option><option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option><option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option></select></div>
+    <div style="padding:18px 20px;max-height:70vh;overflow-y:auto">
+
+      <!-- TAB: PURCHASES -->
+      <div id="tab-purchases">
+        <div style="font-size:12px;color:#777;margin-bottom:12px">סנן את דוח הרכישות לפי תקופה, ספק או שנה</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">ספק</label>
+            <select id="pdf-sup" class="fsel" style="width:100%">
+              <option value="">כל הספקים</option>
+              <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option>
+              <optgroup id="pdf-sup-custom-group" label="ספקים מזדמנים"></optgroup>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">שנה</label>
+            <select id="pdf-year" class="fsel" style="width:100%">
+              <option value="">כל השנים</option>
+              <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">חודש התחלה</label>
+            <select id="pdf-month-from" class="fsel" style="width:100%">
+              <option value="">ללא סינון</option>
+              <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+              <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+              <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+              <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">חודש סיום</label>
+            <select id="pdf-month-to" class="fsel" style="width:100%">
+              <option value="">ללא סינון</option>
+              <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+              <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+              <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+              <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('deliveries')">📦 דוח תעודות משלוח</button>
+          <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('invoices')">📄 דוח חשבוניות</button>
+          <button class="btn btnP" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('summary')">📈 סיכום כספי לפי ספקים</button>
         </div>
       </div>
-      <div id="pcat-purchases">
-        <div class="pdf-report-row" onclick="generateReport('deliveries','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — תעודות</div><div class="prr-sub">סכומים לפי ספק ושנה</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('deliveries','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — תעודות</div><div class="prr-sub">כל תעודה עם כל פריטיה</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('deliveries','bycat')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">דוח לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ריסוסים</div></div><div class="prr-btn">הפק</div></div>
+
+      <!-- TAB: SPRAYS -->
+      <div id="tab-sprays" style="display:none">
+        <div style="font-size:12px;color:#777;margin-bottom:12px">דוח ריסוסים לפי תקופה</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">סוג תקופה</label>
+            <select id="spr-period" class="fsel" style="width:100%" onchange="toggleSprayPeriod()">
+              <option value="all">כל הנתונים</option>
+              <option value="weekly">שבועי</option>
+              <option value="monthly">חודשי</option>
+              <option value="annual">שנתי</option>
+            </select>
+          </div>
+          <div id="spr-year-wrap">
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">שנה</label>
+            <select id="spr-pdf-year" class="fsel" style="width:100%">
+              <option value="">כל השנים</option>
+              <option>2026</option><option>2025</option><option>2024</option><option>2023</option>
+            </select>
+          </div>
+          <div id="spr-month-wrap">
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">חודש</label>
+            <select id="spr-pdf-month" class="fsel" style="width:100%">
+              <option value="">כל החודשים</option>
+              <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+              <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+              <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+              <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+            </select>
+          </div>
+          <div id="spr-week-wrap" style="display:none">
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">תאריך התחלה (שבוע)</label>
+            <input type="date" id="spr-pdf-week-start" class="finput" style="width:100%">
+          </div>
+        </div>
+        <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('sprays')">🌿 הפק דוח ריסוסים</button>
       </div>
-      <div id="pcat-invoices" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('invoices','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — חשבוניות</div><div class="prr-sub">רשימה עם סכומים ומועדי פירעון</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('invoices','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — חשבוניות</div><div class="prr-sub">עם כל התעודות המשויכות</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('invoices','unpaid')"><div class="prr-icon">⏳</div><div class="prr-body"><div class="prr-title">חשבוניות שלא שולמו</div><div class="prr-sub">פתוחות עם גיל חוב</div></div><div class="prr-btn">הפק</div></div>
+
+      <!-- TAB: COMPARE -->
+      <div id="tab-compare" style="display:none">
+        <div style="font-size:12px;color:#777;margin-bottom:12px">השווה תקופות שונות זו מול זו</div>
+        <div style="background:#f1f8e9;border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:#2d5a27;margin-bottom:8px">📅 תקופה א׳</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">חודש</label>
+              <select id="cmp-m1" class="fsel" style="width:100%">
+                <option value="">שנה שלמה</option>
+                <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+                <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+                <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+                <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">שנה</label>
+              <select id="cmp-y1" class="fsel" style="width:100%">
+                <option>2026</option><option selected>2025</option><option>2024</option><option>2023</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="background:#fff8e1;border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:#e65100;margin-bottom:8px">📅 תקופה ב׳</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">חודש</label>
+              <select id="cmp-m2" class="fsel" style="width:100%">
+                <option value="">שנה שלמה</option>
+                <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
+                <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
+                <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
+                <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">שנה</label>
+              <select id="cmp-y2" class="fsel" style="width:100%">
+                <option>2026</option><option>2025</option><option selected>2024</option><option>2023</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">ספק (אופציונלי)</label>
+          <select id="cmp-sup" class="fsel" style="width:100%">
+            <option value="">כל הספקים</option>
+            <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option>
+          </select>
+        </div>
+        <button class="btn btnP" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('compare')">📊 הפק דוח השוואתי</button>
       </div>
-      <div id="pcat-sprays" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('sprays','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — ריסוסים</div><div class="prr-sub">לפי חודש — יישומים ושטח</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('sprays','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — ריסוסים</div><div class="prr-sub">כל יישום עם חומרים וכמויות</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('sprays','materials')"><div class="prr-icon">🧪</div><div class="prr-body"><div class="prr-title">ריסוסים לפי חומר</div><div class="prr-sub">סיכום כמויות לכל חומר</div></div><div class="prr-btn">הפק</div></div>
+
+      <!-- TAB: ACCOUNT CARD -->
+      <div id="tab-account" style="display:none">
+        <div style="font-size:12px;color:#777;margin-bottom:12px">כרטיס חשבון מפורט לפי ספק — תעודות, חשבוניות ויתרה</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">ספק</label>
+            <select id="acc-sup" class="fsel" style="width:100%">
+              <option value="">כל הספקים</option>
+              <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">שנה</label>
+            <select id="acc-year" class="fsel" style="width:100%">
+              <option value="">כל השנים</option>
+              <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btnP" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('account')">💳 הפק כרטיס חשבון</button>
       </div>
-      <div id="pcat-inventory" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('inventory','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — מלאי</div><div class="prr-sub">נרכש / נוצל / יתרה</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('inventory','low')"><div class="prr-icon">⚠️</div><div class="prr-body"><div class="prr-title">חומרים במלאי נמוך</div><div class="prr-sub">מתחת לסף המינימום</div></div><div class="prr-btn">הפק</div></div>
+
+      <!-- TAB: DEBT REPORT -->
+      <div id="tab-debt" style="display:none">
+        <div style="font-size:12px;color:#777;margin-bottom:12px">דוח חשבוניות פתוחות ומועדי פירעון (שוטף+90)</div>
+        <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:7px;padding:10px;font-size:12px;color:#e65100;margin-bottom:12px">
+          💡 הדוח כולל חשבוניות שעדיין לא שולמו לפי תנאי שוטף+90
+        </div>
+        <button class="btn" style="width:100%;background:#c62828;color:#fff;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('debt')">🔴 הפק דוח חוב וגיל חוב</button>
       </div>
-      <div id="pcat-financial" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('financial','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">סיכום כספי שנתי</div><div class="prr-sub">לפי ספק ושנה עם אחוזים</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('financial','monthly')"><div class="prr-icon">📅</div><div class="prr-body"><div class="prr-title">פירוט חודשי</div><div class="prr-sub">כל חודש לפי ספקים</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('financial','category')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">פירוט לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ציוד + גרף</div></div><div class="prr-btn">הפק</div></div>
+
+      <!-- TAB: OTHER -->
+      <div id="tab-other" style="display:none">
+        <div style="font-size:12px;color:#777;margin-bottom:12px">דוחות נוספים</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDF('inventory')">📊 דוח מלאי חומרים</button>
+        </div>
       </div>
-      <div id="pcat-debt" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('debt','overdue')"><div class="prr-icon">🔴</div><div class="prr-body"><div class="prr-title">חשבוניות שעבר מועדן</div><div class="prr-sub">חרגו מ-שוטף+90</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('debt','aging')"><div class="prr-icon">📆</div><div class="prr-body"><div class="prr-title">גיל חוב מלא</div><div class="prr-sub">כל הפתוחות מדורגות לפי ותק</div></div><div class="prr-btn">הפק</div></div>
-      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: הוסף מלאי -->
+<div class="mbg" id="modal-inv">
+  <div class="modal">
+    <div class="mtitle">➕ הוספת פריט למלאי</div>
+    <div class="fg" style="margin-bottom:9px"><label class="flabel">שם חומר</label><input class="finput" id="mi-name" placeholder="שם החומר"></div>
+    <div class="fg" style="margin-bottom:9px"><label class="flabel">יחידה</label><input class="finput" id="mi-unit" placeholder="שקית/יחידה/ליטר"></div>
+    <div class="fg" style="margin-bottom:9px"><label class="flabel">כמות</label><input class="finput" type="number" id="mi-qty" placeholder="0"></div>
+    <div class="fg" style="margin-bottom:9px"><label class="flabel">יחידות לריסוס</label><input class="finput" type="number" id="mi-ups" value="1"></div>
+    <div class="fg" style="margin-bottom:13px"><label class="flabel">⚠️ סף התראת מלאי נמוך (0 = ללא התראה)</label><input class="finput" type="number" id="mi-threshold" value="0" min="0" step="0.1" placeholder="0"></div>
+    <div class="btnrow">
+      <button class="btn btnP" onclick="saveInvItem()">שמור</button>
+      <button class="btn btnS" onclick="closeMod('modal-inv')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div class="mbg" id="modal-custom-sups">
+  <div class="modal">
+    <div class="mtitle">⚙️ ניהול ספקים מזדמנים</div>
+    <div id="custom-sups-list" style="margin-bottom:16px"></div>
+    <div style="border-top:1px solid #eee;padding-top:12px;display:flex;gap:8px">
+      <input type="text" class="finput" id="new-custom-sup-modal" placeholder="שם ספק חדש..." style="flex:1">
+      <button class="btn btnG" onclick="addCustomSupModal()">➕ הוסף</button>
+    </div>
+    <div class="btnrow" style="margin-top:12px">
+      <button class="btn btnS" onclick="closeMod('modal-custom-sups')">סגור</button>
     </div>
   </div>
 </div>
@@ -7004,7 +7178,7 @@ function pdfStyles() {
     @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&family=Frank+Ruhl+Libre:wght@700;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Heebo', Arial, sans-serif; direction: rtl; background: #fff; color: #222; font-size: 12px; }
-    .page { max-width: 210mm; margin: 0 auto; padding: 14mm 14mm 20mm; min-height: 297mm; position: relative; }
+    .page { max-width: 210mm; margin: 0 auto; padding: 14mm 14mm 28mm; min-height: 297mm; position: relative; }
     .letterhead { margin-bottom: 10px; }
     .lh-logo { width: 100%; max-height: 90px; object-fit: contain; object-position: center; display: block; }
     .lh-line { border-top: 2px solid #2d5a27; margin-top: 6px; }
@@ -7020,25 +7194,16 @@ function pdfStyles() {
     .sbox { flex: 1; min-width: 100px; background: #f4fbf2; border: 1px solid #c5e1c5; border-radius: 8px; padding: 8px 10px; text-align: center; }
     .sbox-num { font-size: 16px; font-weight: 700; color: #2d5a27; }
     .sbox-lbl { font-size: 10px; color: #666; margin-top: 2px; }
-    .pdf-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 8px 14mm 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #777; background: #fff; direction: rtl; }
+    .pdf-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 14mm 12px; border-top: 2px solid #2d5a27; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #444; background: #fff; direction: rtl; }
     .amnt { text-align: left; direction: ltr; }
     .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 600; }
     .badge-g { background: #e8f5e3; color: #2d5a27; }
     .badge-b { background: #e3f2fd; color: #1565c0; }
-    .pdf-tab { background:none;border:none;padding:9px 13px;font-size:12px;cursor:pointer;color:#555;border-bottom:3px solid transparent;font-family:inherit;white-space:nowrap }
-    .pdf-tab.active { color:#2d5a27;border-bottom-color:#2d5a27;font-weight:700 }
-    .pdf-report-row { display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:10px;cursor:pointer;transition:background .15s }
-    .pdf-report-row:hover { background:#f4fbf2;border-color:#a5d6a7 }
-    .prr-icon { font-size:22px;min-width:30px;text-align:center }
-    .prr-body { flex:1 }
-    .prr-title { font-size:13px;font-weight:700;color:#222;margin-bottom:2px }
-    .prr-sub { font-size:11px;color:#777 }
-    .prr-btn { background:#2d5a27;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap }
     @media print {
       body { font-size: 11px; }
       .pdf-footer { position: fixed; bottom: 0; }
       thead { display: table-header-group; }
-      .page { padding: 8mm 12mm 16mm; }
+      .page { padding: 8mm 12mm 28mm; }
     }
     @page { margin: 0; size: A4; }
   </style>`;
