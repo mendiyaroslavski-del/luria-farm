@@ -8971,12 +8971,12 @@ function _openReport(title, body, subtitle) {
   if (!win) { toast('⚠️ אפשר פתיחת חלונות בדפדפן'); return; }
   win.document.write(`<!DOCTYPE html><html lang="he" dir="rtl"><head>${pdfStyles()}
   <style>.pdf-tab{display:none}.pdf-report-row{display:none}.prr-btn{display:none}</style>
-  <title>${title} — אתרוגי לוריא</title></head>
-  <body onload="(function(){var h=1122,tot=Math.max(1,Math.ceil(document.body.scrollHeight/h));document.querySelectorAll('.pdf-page-counter').forEach(function(el,i){el.textContent='עמוד '+(i+1)+' / '+tot;});setTimeout(function(){window.print();},1200);})()">
+  <title>${title}</title></head>
+  <body onload="setTimeout(function(){window.print();},1200)">
   <div class="page">
     ${pdfLetterhead()}
     <div class="report-title">${title}</div>
-    <div class="report-subtitle">${subtitle || 'אתרוגי לוריא בע"מ | ח.פ. 516151610'} | הופק: ${dateStr} ${timeStr}</div>
+    <div class="report-subtitle">${subtitle || ''} | ${dateStr} ${timeStr}</div>
     ${body}
   </div>${pdfFooter()}</body></html>`);
   win.document.close();
