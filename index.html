@@ -7032,7 +7032,6 @@ function pdfStyles() {
     .badge-b { background: #e3f2fd; color: #1565c0; }
     @media print {
       body { font-size: 11px; }
-      /* כותרת עליונה קבועה בכל עמוד */
       .page-header {
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -7040,26 +7039,19 @@ function pdfStyles() {
         background: #fff;
         z-index: 100;
       }
-      /* כותרת תחתונה קבועה */
       .pdf-footer { position: fixed; bottom: 0; }
       thead { display: table-header-group; }
-      /* ריווח: למעלה לפי גובה הלוגו + קצת, למטה לפי גובה הfooter */
-      .page { padding: 70mm 12mm 22mm; }
+      .page { padding: 70mm 12mm 26mm; }
     }
     @page { margin: 0; size: A4; }
-    /* מספור עמודים */
     .pdf-page-counter {
       position: fixed;
-      bottom: 14px;
+      bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
       font-size: 12px;
       color: #444;
-    }
-    @media print {
-      .pdf-page-counter::before {
-        content: "עמוד " counter(page) " / " counter(pages);
-      }
+      font-family: Heebo, Arial, sans-serif;
     }
   </style>`;
 }
@@ -8977,20 +8969,19 @@ function _openReport(title, body, subtitle) {
   const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   const win = window.open('','_blank');
   if (!win) { toast('⚠️ אפשר פתיחת חלונות בדפדפן'); return; }
-  win.document.write(`<!DOCTYPE html><html lang="he" dir="rtl"><head>${pdfStyles()}
-  <style>
-    .pdf-tab{display:none}
-    .pdf-report-row{display:none}
-    .prr-btn{display:none}
-  </style>
-  <title>${title} — אתרוגי לוריא</title></head>
-  <body onload="setTimeout(function(){window.print();},1200)">
-  <div class="page">
-    ${pdfLetterhead()}
-    <div class="report-title">${title}</div>
-    <div class="report-subtitle">${subtitle || 'אתרוגי לוריא בע"מ | ח.פ. 516151610'} | הופק: ${dateStr} ${timeStr}</div>
-    ${body}
-  </div>${pdfFooter()}</body></html>`);
+  var pageJs = '<scri' + 'pt>window.addEventListener("load",function(){' +
+    'var h=1122;var tot=Math.max(1,Math.ceil(document.body.scrollHeight/h));' +
+    'document.querySelectorAll(".pdf-page-counter").forEach(function(el,i){' +
+    'el.textContent="עמוד "+(i+1)+" / "+tot;});' +
+    'setTimeout(function(){window.print();},900);});<\/scri' + 'pt>';
+  win.document.write('<!DOCTYPE html><html lang="he" dir="rtl"><head>' + pdfStyles() +
+    '<style>.pdf-tab{display:none}.pdf-report-row{display:none}.prr-btn{display:none}</style>' +
+    '<title>' + title + ' — אתרוגי לוריא</title></head>' +
+    '<body><div class="page">' + pdfLetterhead() +
+    '<div class="report-title">' + title + '</div>' +
+    '<div class="report-subtitle">' + (subtitle || 'אתרוגי לוריא בע"מ | ח.פ. 516151610') + ' | הופק: ' + dateStr + ' ' + timeStr + '</div>' +
+    body +
+    '</div>' + pdfFooter() + pageJs + '</body></html>');
   win.document.close();
 }
 
