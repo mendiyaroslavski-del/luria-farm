@@ -7032,16 +7032,19 @@ function pdfStyles() {
     .badge-b { background: #e3f2fd; color: #1565c0; }
     @media print {
       body { font-size: 11px; }
+      /* כותרת עליונה קבועה בכל עמוד */
       .page-header {
         position: fixed;
         top: 0; left: 0; right: 0;
-        padding: 6mm 14mm 0;
+        padding: 5mm 12mm 2mm;
         background: #fff;
         z-index: 100;
       }
+      /* כותרת תחתונה קבועה */
       .pdf-footer { position: fixed; bottom: 0; }
       thead { display: table-header-group; }
-      .page { padding: 52mm 12mm 28mm; }
+      /* ריווח: למעלה לפי גובה הלוגו + קצת, למטה לפי גובה הfooter */
+      .page { padding: 70mm 12mm 22mm; }
     }
     @page { margin: 0; size: A4; }
     /* מספור עמודים */
