@@ -1311,230 +1311,56 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 <!-- MODAL: דוח PDF -->
 <div class="mbg" id="modal-pdf">
-  <div class="modal" style="max-width:520px;padding:0;overflow:hidden">
+  <div class="modal" style="max-width:600px;padding:0;overflow:hidden">
     <div style="background:#2d5a27;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:16px;font-weight:700">📄 יצוא דוח PDF</div>
-      <button onclick="closeMod('modal-pdf')" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">×</button>
+      <div style="font-size:16px;font-weight:700">📄 מרכז דוחות PDF — אתרוגי לוריא</div>
+      <button onclick="closeMod('modal-pdf')" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1">×</button>
     </div>
-    <div style="display:flex;border-bottom:2px solid #e8f5e9">
-      <button class="pdf-tab active" onclick="switchPdfTab('tab-purchases')" id="ptab-purchases">📦 רכישות</button>
-      <button class="pdf-tab" onclick="switchPdfTab('tab-sprays')" id="ptab-sprays">🌿 ריסוסים</button>
-      <button class="pdf-tab" onclick="switchPdfTab('tab-compare')" id="ptab-compare">📊 השוואות</button>
-      <button class="pdf-tab" onclick="switchPdfTab('tab-account')" id="ptab-account">💳 כרטיס חשבון</button>
-      <button class="pdf-tab" onclick="switchPdfTab('tab-debt')" id="ptab-debt">🔴 דוח חוב</button>
-      <button class="pdf-tab" onclick="switchPdfTab('tab-other')" id="ptab-other">📋 אחר</button>
+    <div style="display:flex;flex-wrap:wrap;border-bottom:2px solid #e8f5e9;background:#f9fffe">
+      <button class="pdf-tab active" onclick="switchPdfTab('pcat-purchases')" id="pctab-purchases">📦 רכישות</button>
+      <button class="pdf-tab" onclick="switchPdfTab('pcat-invoices')" id="pctab-invoices">📄 חשבוניות</button>
+      <button class="pdf-tab" onclick="switchPdfTab('pcat-sprays')" id="pctab-sprays">🌿 ריסוסים</button>
+      <button class="pdf-tab" onclick="switchPdfTab('pcat-inventory')" id="pctab-inventory">📊 מלאי</button>
+      <button class="pdf-tab" onclick="switchPdfTab('pcat-financial')" id="pctab-financial">💰 כספי</button>
+      <button class="pdf-tab" onclick="switchPdfTab('pcat-debt')" id="pctab-debt">🔴 חוב</button>
     </div>
-    <div style="padding:18px 20px;max-height:70vh;overflow-y:auto">
-
-      <!-- TAB: PURCHASES -->
-      <div id="tab-purchases">
-        <div style="font-size:12px;color:#777;margin-bottom:12px">סנן את דוח הרכישות לפי תקופה, ספק או שנה</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">ספק</label>
-            <select id="pdf-sup" class="fsel" style="width:100%">
-              <option value="">כל הספקים</option>
-              <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option>
-              <optgroup id="pdf-sup-custom-group" label="ספקים מזדמנים"></optgroup>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">שנה</label>
-            <select id="pdf-year" class="fsel" style="width:100%">
-              <option value="">כל השנים</option>
-              <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">חודש התחלה</label>
-            <select id="pdf-month-from" class="fsel" style="width:100%">
-              <option value="">ללא סינון</option>
-              <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
-              <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
-              <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
-              <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">חודש סיום</label>
-            <select id="pdf-month-to" class="fsel" style="width:100%">
-              <option value="">ללא סינון</option>
-              <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
-              <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
-              <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
-              <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('deliveries')">📦 דוח תעודות משלוח</button>
-          <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('invoices')">📄 דוח חשבוניות</button>
-          <button class="btn btnP" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('summary')">📈 סיכום כספי לפי ספקים</button>
+    <div style="padding:18px 20px;max-height:72vh;overflow-y:auto">
+      <div id="pdf-common-filters" style="background:#f4fbf2;border:1px solid #c5e1c5;border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#2d5a27;margin-bottom:8px">🔽 סינון</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">ספק</label><select id="rpdf-sup" class="fsel" style="width:100%;font-size:12px"><option value="">כל הספקים</option><option>עמיר</option><option>המשביר</option><option>דשנים ICL</option></select></div>
+          <div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">שנה</label><select id="rpdf-year" class="fsel" style="width:100%;font-size:12px"><option value="">כל השנים</option><option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select></div>
+          <div><label style="font-size:11px;color:#555;display:block;margin-bottom:3px">חודש</label><select id="rpdf-month" class="fsel" style="width:100%;font-size:12px"><option value="">כל השנה</option><option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option><option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option><option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option><option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option></select></div>
         </div>
       </div>
-
-      <!-- TAB: SPRAYS -->
-      <div id="tab-sprays" style="display:none">
-        <div style="font-size:12px;color:#777;margin-bottom:12px">דוח ריסוסים לפי תקופה</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">סוג תקופה</label>
-            <select id="spr-period" class="fsel" style="width:100%" onchange="toggleSprayPeriod()">
-              <option value="all">כל הנתונים</option>
-              <option value="weekly">שבועי</option>
-              <option value="monthly">חודשי</option>
-              <option value="annual">שנתי</option>
-            </select>
-          </div>
-          <div id="spr-year-wrap">
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">שנה</label>
-            <select id="spr-pdf-year" class="fsel" style="width:100%">
-              <option value="">כל השנים</option>
-              <option>2026</option><option>2025</option><option>2024</option><option>2023</option>
-            </select>
-          </div>
-          <div id="spr-month-wrap">
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">חודש</label>
-            <select id="spr-pdf-month" class="fsel" style="width:100%">
-              <option value="">כל החודשים</option>
-              <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
-              <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
-              <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
-              <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
-            </select>
-          </div>
-          <div id="spr-week-wrap" style="display:none">
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">תאריך התחלה (שבוע)</label>
-            <input type="date" id="spr-pdf-week-start" class="finput" style="width:100%">
-          </div>
-        </div>
-        <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('sprays')">🌿 הפק דוח ריסוסים</button>
+      <div id="pcat-purchases">
+        <div class="pdf-report-row" onclick="generateReport('deliveries','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — תעודות</div><div class="prr-sub">סכומים לפי ספק ושנה</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('deliveries','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — תעודות</div><div class="prr-sub">כל תעודה עם כל פריטיה</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('deliveries','bycat')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">דוח לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ריסוסים</div></div><div class="prr-btn">הפק</div></div>
       </div>
-
-      <!-- TAB: COMPARE -->
-      <div id="tab-compare" style="display:none">
-        <div style="font-size:12px;color:#777;margin-bottom:12px">השווה תקופות שונות זו מול זו</div>
-        <div style="background:#f1f8e9;border-radius:8px;padding:12px;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:600;color:#2d5a27;margin-bottom:8px">📅 תקופה א׳</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>
-              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">חודש</label>
-              <select id="cmp-m1" class="fsel" style="width:100%">
-                <option value="">שנה שלמה</option>
-                <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
-                <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
-                <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
-                <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">שנה</label>
-              <select id="cmp-y1" class="fsel" style="width:100%">
-                <option>2026</option><option selected>2025</option><option>2024</option><option>2023</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div style="background:#fff8e1;border-radius:8px;padding:12px;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:600;color:#e65100;margin-bottom:8px">📅 תקופה ב׳</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>
-              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">חודש</label>
-              <select id="cmp-m2" class="fsel" style="width:100%">
-                <option value="">שנה שלמה</option>
-                <option value="1">ינואר</option><option value="2">פברואר</option><option value="3">מרץ</option>
-                <option value="4">אפריל</option><option value="5">מאי</option><option value="6">יוני</option>
-                <option value="7">יולי</option><option value="8">אוגוסט</option><option value="9">ספטמבר</option>
-                <option value="10">אוקטובר</option><option value="11">נובמבר</option><option value="12">דצמבר</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">שנה</label>
-              <select id="cmp-y2" class="fsel" style="width:100%">
-                <option>2026</option><option>2025</option><option selected>2024</option><option>2023</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div style="margin-bottom:12px">
-          <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">ספק (אופציונלי)</label>
-          <select id="cmp-sup" class="fsel" style="width:100%">
-            <option value="">כל הספקים</option>
-            <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option>
-          </select>
-        </div>
-        <button class="btn btnP" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('compare')">📊 הפק דוח השוואתי</button>
+      <div id="pcat-invoices" style="display:none">
+        <div class="pdf-report-row" onclick="generateReport('invoices','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — חשבוניות</div><div class="prr-sub">רשימה עם סכומים ומועדי פירעון</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('invoices','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — חשבוניות</div><div class="prr-sub">עם כל התעודות המשויכות</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('invoices','unpaid')"><div class="prr-icon">⏳</div><div class="prr-body"><div class="prr-title">חשבוניות שלא שולמו</div><div class="prr-sub">פתוחות עם גיל חוב</div></div><div class="prr-btn">הפק</div></div>
       </div>
-
-      <!-- TAB: ACCOUNT CARD -->
-      <div id="tab-account" style="display:none">
-        <div style="font-size:12px;color:#777;margin-bottom:12px">כרטיס חשבון מפורט לפי ספק — תעודות, חשבוניות ויתרה</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">ספק</label>
-            <select id="acc-sup" class="fsel" style="width:100%">
-              <option value="">כל הספקים</option>
-              <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">שנה</label>
-            <select id="acc-year" class="fsel" style="width:100%">
-              <option value="">כל השנים</option>
-              <option>2026</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option>
-            </select>
-          </div>
-        </div>
-        <button class="btn btnP" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('account')">💳 הפק כרטיס חשבון</button>
+      <div id="pcat-sprays" style="display:none">
+        <div class="pdf-report-row" onclick="generateReport('sprays','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — ריסוסים</div><div class="prr-sub">לפי חודש — יישומים ושטח</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('sprays','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — ריסוסים</div><div class="prr-sub">כל יישום עם חומרים וכמויות</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('sprays','materials')"><div class="prr-icon">🧪</div><div class="prr-body"><div class="prr-title">ריסוסים לפי חומר</div><div class="prr-sub">סיכום כמויות לכל חומר</div></div><div class="prr-btn">הפק</div></div>
       </div>
-
-      <!-- TAB: DEBT REPORT -->
-      <div id="tab-debt" style="display:none">
-        <div style="font-size:12px;color:#777;margin-bottom:12px">דוח חשבוניות פתוחות ומועדי פירעון (שוטף+90)</div>
-        <div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:7px;padding:10px;font-size:12px;color:#e65100;margin-bottom:12px">
-          💡 הדוח כולל חשבוניות שעדיין לא שולמו לפי תנאי שוטף+90
-        </div>
-        <button class="btn" style="width:100%;background:#c62828;color:#fff;justify-content:flex-start;gap:10px" onclick="generatePDFFiltered('debt')">🔴 הפק דוח חוב וגיל חוב</button>
+      <div id="pcat-inventory" style="display:none">
+        <div class="pdf-report-row" onclick="generateReport('inventory','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — מלאי</div><div class="prr-sub">נרכש / נוצל / יתרה</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('inventory','low')"><div class="prr-icon">⚠️</div><div class="prr-body"><div class="prr-title">חומרים במלאי נמוך</div><div class="prr-sub">מתחת לסף המינימום</div></div><div class="prr-btn">הפק</div></div>
       </div>
-
-      <!-- TAB: OTHER -->
-      <div id="tab-other" style="display:none">
-        <div style="font-size:12px;color:#777;margin-bottom:12px">דוחות נוספים</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btnG" style="width:100%;justify-content:flex-start;gap:10px" onclick="generatePDF('inventory')">📊 דוח מלאי חומרים</button>
-        </div>
+      <div id="pcat-financial" style="display:none">
+        <div class="pdf-report-row" onclick="generateReport('financial','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">סיכום כספי שנתי</div><div class="prr-sub">לפי ספק ושנה עם אחוזים</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('financial','monthly')"><div class="prr-icon">📅</div><div class="prr-body"><div class="prr-title">פירוט חודשי</div><div class="prr-sub">כל חודש לפי ספקים</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('financial','category')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">פירוט לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ציוד + גרף</div></div><div class="prr-btn">הפק</div></div>
       </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: הוסף מלאי -->
-<div class="mbg" id="modal-inv">
-  <div class="modal">
-    <div class="mtitle">➕ הוספת פריט למלאי</div>
-    <div class="fg" style="margin-bottom:9px"><label class="flabel">שם חומר</label><input class="finput" id="mi-name" placeholder="שם החומר"></div>
-    <div class="fg" style="margin-bottom:9px"><label class="flabel">יחידה</label><input class="finput" id="mi-unit" placeholder="שקית/יחידה/ליטר"></div>
-    <div class="fg" style="margin-bottom:9px"><label class="flabel">כמות</label><input class="finput" type="number" id="mi-qty" placeholder="0"></div>
-    <div class="fg" style="margin-bottom:9px"><label class="flabel">יחידות לריסוס</label><input class="finput" type="number" id="mi-ups" value="1"></div>
-    <div class="fg" style="margin-bottom:13px"><label class="flabel">⚠️ סף התראת מלאי נמוך (0 = ללא התראה)</label><input class="finput" type="number" id="mi-threshold" value="0" min="0" step="0.1" placeholder="0"></div>
-    <div class="btnrow">
-      <button class="btn btnP" onclick="saveInvItem()">שמור</button>
-      <button class="btn btnS" onclick="closeMod('modal-inv')">ביטול</button>
-    </div>
-  </div>
-</div>
-
-<div class="mbg" id="modal-custom-sups">
-  <div class="modal">
-    <div class="mtitle">⚙️ ניהול ספקים מזדמנים</div>
-    <div id="custom-sups-list" style="margin-bottom:16px"></div>
-    <div style="border-top:1px solid #eee;padding-top:12px;display:flex;gap:8px">
-      <input type="text" class="finput" id="new-custom-sup-modal" placeholder="שם ספק חדש..." style="flex:1">
-      <button class="btn btnG" onclick="addCustomSupModal()">➕ הוסף</button>
-    </div>
-    <div class="btnrow" style="margin-top:12px">
-      <button class="btn btnS" onclick="closeMod('modal-custom-sups')">סגור</button>
+      <div id="pcat-debt" style="display:none">
+        <div class="pdf-report-row" onclick="generateReport('debt','overdue')"><div class="prr-icon">🔴</div><div class="prr-body"><div class="prr-title">חשבוניות שעבר מועדן</div><div class="prr-sub">חרגו מ-שוטף+90</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="generateReport('debt','aging')"><div class="prr-icon">📆</div><div class="prr-body"><div class="prr-title">גיל חוב מלא</div><div class="prr-sub">כל הפתוחות מדורגות לפי ותק</div></div><div class="prr-btn">הפק</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -6656,9 +6482,10 @@ function exportSprayTemplate(){
 // ═══ PDF EXPORT ═══
 
 function switchPdfTab(tabId) {
-  ['tab-purchases','tab-sprays','tab-compare','tab-account','tab-debt','tab-other'].forEach(id => {
-    document.getElementById(id).style.display = id === tabId ? '' : 'none';
-    const btn = document.getElementById('p' + id);
+  ['pcat-purchases','pcat-invoices','pcat-sprays','pcat-inventory','pcat-financial','pcat-debt'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = id === tabId ? '' : 'none';
+    var btn = document.getElementById('pc' + id);
     if (btn) btn.classList.toggle('active', id === tabId);
   });
 }
@@ -7198,6 +7025,15 @@ function pdfStyles() {
     .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 9px; font-weight: 600; }
     .badge-g { background: #e8f5e3; color: #2d5a27; }
     .badge-b { background: #e3f2fd; color: #1565c0; }
+    .pdf-tab { background:none;border:none;padding:9px 13px;font-size:12px;cursor:pointer;color:#555;border-bottom:3px solid transparent;font-family:inherit;white-space:nowrap }
+    .pdf-tab.active { color:#2d5a27;border-bottom-color:#2d5a27;font-weight:700 }
+    .pdf-report-row { display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:10px;cursor:pointer;transition:background .15s }
+    .pdf-report-row:hover { background:#f4fbf2;border-color:#a5d6a7 }
+    .prr-icon { font-size:22px;min-width:30px;text-align:center }
+    .prr-body { flex:1 }
+    .prr-title { font-size:13px;font-weight:700;color:#222;margin-bottom:2px }
+    .prr-sub { font-size:11px;color:#777 }
+    .prr-btn { background:#2d5a27;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap }
     @media print {
       body { font-size: 11px; }
       .pdf-footer { position: fixed; bottom: 0; }
@@ -9068,6 +8904,413 @@ function offlineApplyToForm() {
   fillInvoiceForm(inv);
   document.getElementById('modal-offline-reader').style.display = 'none';
   toast('✅ נתוני החשבונית מולאו — בדוק ושמור');
+}
+
+// ═══ מרכז דוחות PDF ═══
+function _pdfFilters() {
+  return {
+    sup:   document.getElementById('rpdf-sup')?.value   || '',
+    year:  document.getElementById('rpdf-year')?.value  || '',
+    month: document.getElementById('rpdf-month')?.value || '',
+  };
+}
+
+function _filterDels(f) {
+  return dels.filter(d => {
+    if (f.sup   && d.sup  !== f.sup)                    return false;
+    if (f.year  && String(d.year) !== String(f.year))   return false;
+    if (f.month && d.date) {
+      const m = new Date(d.date).getMonth() + 1;
+      if (String(m) !== String(f.month))                return false;
+    }
+    return true;
+  });
+}
+
+function _filterInvs(f) {
+  return invs.filter(i => {
+    if (f.sup  && i.sup  !== f.sup)                   return false;
+    if (f.year && String(i.year) !== String(f.year))  return false;
+    if (f.month && String(i.month) !== String(f.month)) return false;
+    return true;
+  });
+}
+
+function _filterSprs(f) {
+  return sprs.filter(s => {
+    if (!s.date) return true;
+    if (f.year  && s.date.substring(0,4) !== String(f.year))  return false;
+    if (f.month && String(new Date(s.date).getMonth()+1) !== String(f.month)) return false;
+    return true;
+  });
+}
+
+function _fmt(n, dec=2) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('he-IL',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+
+function _openReport(title, body, subtitle) {
+  closeMod('modal-pdf');
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('he-IL');
+  const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  const win = window.open('','_blank');
+  if (!win) { toast('⚠️ אפשר פתיחת חלונות בדפדפן'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="he" dir="rtl"><head>${pdfStyles()}
+  <style>
+    .pdf-tab{display:none}
+    .pdf-report-row{display:none}
+    .prr-btn{display:none}
+  </style>
+  <title>${title} — אתרוגי לוריא</title></head>
+  <body onload="setTimeout(function(){window.print();},1200)">
+  <div class="page">
+    ${pdfLetterhead()}
+    <div class="report-title">${title}</div>
+    <div class="report-subtitle">${subtitle || 'אתרוגי לוריא בע"מ | ח.פ. 516151610'} | הופק: ${dateStr} ${timeStr}</div>
+    ${body}
+  </div>${pdfFooter()}</body></html>`);
+  win.document.close();
+}
+
+function _sboxes(items) {
+  return '<div class="summary-box">' + items.map(([num,lbl]) =>
+    `<div class="sbox"><div class="sbox-num">${num}</div><div class="sbox-lbl">${lbl}</div></div>`
+  ).join('') + '</div>';
+}
+
+function generateReport(category, mode) {
+  const f = _pdfFilters();
+  const HMlbl = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const itemsSum = items => items.filter(it=>!it.iclExclude).reduce((s,it)=>s+(it.totalV||0),0);
+
+  let title='', body='', subtitle='';
+  const filterDesc = [f.sup,f.year?f.year+'':'',(f.month?HMlbl[+f.month]:'')].filter(Boolean).join(' · ');
+  subtitle = filterDesc ? `אתרוגי לוריא בע"מ | ${filterDesc}` : '';
+
+  // ════════ תעודות ════════
+  if (category === 'deliveries') {
+    const dd = _filterDels(f);
+    title = mode==='summary' ? 'דוח מסכם — תעודות משלוח' :
+            mode==='bycat'   ? 'דוח לפי קטגוריות — תעודות משלוח' :
+                               'דוח מפורט — תעודות משלוח';
+
+    const grand = dd.reduce((s,d)=>s+itemsSum(d.items),0);
+    const supCount = new Set(dd.map(d=>d.sup)).size;
+    body += _sboxes([[dd.length,'תעודות'],['₪'+_fmt(grand,0),'סה"כ כולל מע"מ'],[supCount,'ספקים']]);
+
+    if (mode === 'summary') {
+      // מסכם — לפי ספק ואחר כך לפי חודש
+      const bySup = {};
+      dd.forEach(d => {
+        if (!bySup[d.sup]) bySup[d.sup] = [];
+        bySup[d.sup].push(d);
+      });
+      Object.entries(bySup).sort(([a],[b])=>a.localeCompare(b,'he')).forEach(([sup,docs]) => {
+        const supTotal = docs.reduce((s,d)=>s+itemsSum(d.items),0);
+        const byMo = {};
+        docs.forEach(d => {
+          const mo = d.date ? new Date(d.date).getMonth()+1 : 0;
+          if (!byMo[mo]) byMo[mo] = {count:0,total:0};
+          byMo[mo].count++;
+          byMo[mo].total += itemsSum(d.items);
+        });
+        body += `<div class="section-title">${sup} — ${docs.length} תעודות | סה"כ: ₪${_fmt(supTotal,0)}</div>
+        <table><thead><tr><th>חודש</th><th>מספר תעודות</th><th>סה"כ כולל מע"מ</th></tr></thead><tbody>`;
+        Object.entries(byMo).sort(([a],[b])=>+a-+b).forEach(([mo,v]) => {
+          body += `<tr><td>${HMlbl[+mo]||mo}</td><td class="amnt">${v.count}</td><td class="amnt">₪${_fmt(v.total,0)}</td></tr>`;
+        });
+        body += `<tr style="font-weight:700;background:#f0f8f0"><td>סה"כ</td><td class="amnt">${docs.length}</td><td class="amnt">₪${_fmt(supTotal,0)}</td></tr>`;
+        body += '</tbody></table>';
+      });
+
+    } else if (mode === 'detailed') {
+      const bySup = {};
+      dd.forEach(d => { if (!bySup[d.sup]) bySup[d.sup]=[]; bySup[d.sup].push(d); });
+      Object.entries(bySup).sort(([a],[b])=>a.localeCompare(b,'he')).forEach(([sup,docs]) => {
+        const supTotal = docs.reduce((s,d)=>s+itemsSum(d.items),0);
+        body += `<div class="section-title">${sup} — ${docs.length} תעודות | ₪${_fmt(supTotal,0)}</div>
+        <table><thead><tr><th>תאריך</th><th>תעודה</th><th>מוצר</th><th style="text-align:center">כמות</th><th class="amnt">מחיר</th><th class="amnt">נטו</th><th class="amnt">כולל מע"מ</th><th>חשבונית</th></tr></thead><tbody>`;
+        docs.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(d => {
+          d.items.filter(it=>!it.iclExclude).forEach((it,i) => {
+            body += `<tr>
+              <td>${i===0?d.date:''}</td>
+              <td style="font-size:10px">${i===0?d.doc:''}</td>
+              <td>${it.product||''}</td>
+              <td class="amnt">${it.qty!=null?it.qty:''}</td>
+              <td class="amnt">${it.price?_fmt(it.price):''}</td>
+              <td class="amnt">${it.total?_fmt(it.total):''}</td>
+              <td class="amnt">${it.totalV?_fmt(it.totalV):''}</td>
+              <td style="font-size:10px">${i===0?(d.invNum||''):''}</td>
+            </tr>`;
+          });
+        });
+        body += `<tr style="font-weight:700;background:#f0f8f0"><td colspan="6">סה"כ ${sup}</td><td class="amnt">₪${_fmt(supTotal,0)}</td><td></td></tr>`;
+        body += '</tbody></table>';
+      });
+
+    } else if (mode === 'bycat') {
+      const byCat = {};
+      CATS.forEach(c => { byCat[c.id] = {label:c.icon+' '+c.label, docs:[], total:0}; });
+      byCat['_other'] = {label:'❓ לא מסווג', docs:[], total:0};
+      dd.forEach(d => {
+        d.items.filter(it=>!it.iclExclude).forEach(it => {
+          const cat = it.cat || '_other';
+          if (!byCat[cat]) byCat[cat] = {label:'❓ לא מסווג', docs:[], total:0};
+          byCat[cat].total += it.totalV || 0;
+          if (!byCat[cat].docs.includes(d.doc)) byCat[cat].docs.push(d.doc);
+        });
+      });
+      body += `<table><thead><tr><th>קטגוריה</th><th class="amnt">סה"כ כולל מע"מ</th><th class="amnt">אחוז מהסל</th></tr></thead><tbody>`;
+      Object.values(byCat).filter(c=>c.total>0).sort((a,b)=>b.total-a.total).forEach(c => {
+        body += `<tr><td>${c.label}</td><td class="amnt">₪${_fmt(c.total,0)}</td><td class="amnt">${_fmt(grand>0?c.total/grand*100:0,1)}%</td></tr>`;
+      });
+      body += `<tr style="font-weight:700;background:#f0f8f0"><td>סה"כ</td><td class="amnt">₪${_fmt(grand,0)}</td><td class="amnt">100%</td></tr>`;
+      body += '</tbody></table>';
+    }
+
+  // ════════ חשבוניות ════════
+  } else if (category === 'invoices') {
+    const ii = _filterInvs(f);
+    const filtered = mode === 'unpaid' ? ii.filter(i=>!i.paid) : ii;
+    title = mode==='summary'  ? 'דוח מסכם — חשבוניות' :
+            mode==='detailed' ? 'דוח מפורט — חשבוניות' :
+                                'חשבוניות שלא שולמו';
+    const grand = filtered.reduce((s,i)=>s+(i.total||0),0);
+    body += _sboxes([[filtered.length,'חשבוניות'],['₪'+_fmt(grand,0),'סה"כ']]);
+
+    if (mode === 'detailed') {
+      filtered.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(inv => {
+        const payDate = inv.date ? (() => { const d=new Date(inv.date); d.setDate(d.getDate()+90); return d.toLocaleDateString('he-IL'); })() : '';
+        const linked = (inv.docIds||[]).map(id=>dels.find(d=>String(d.id)===String(id))).filter(Boolean);
+        body += `<div class="section-title">${inv.num} | ${inv.sup} | ${inv.date||''} | ₪${_fmt(inv.total||0,0)}</div>`;
+        if (linked.length) {
+          body += `<table><thead><tr><th>תעודה</th><th>תאריך</th><th>מוצרים</th><th class="amnt">סה"כ</th></tr></thead><tbody>`;
+          linked.forEach(d => {
+            body += `<tr><td style="font-size:10px">${d.doc}</td><td>${d.date||''}</td><td style="font-size:10px">${d.items.slice(0,2).map(i=>i.product).join(', ')}${d.items.length>2?'...':''}</td><td class="amnt">₪${_fmt(d.items.reduce((s,i)=>s+(i.totalV||0),0),0)}</td></tr>`;
+          });
+          body += '</tbody></table>';
+        } else {
+          body += `<div style="font-size:11px;color:#aaa;margin-bottom:8px">אין תעודות משויכות</div>`;
+        }
+      });
+    } else {
+      // summary or unpaid
+      body += `<table><thead><tr><th>תאריך</th><th>מספר חשבונית</th><th>ספק</th><th>חודש/שנה</th><th class="amnt">סה"כ</th><th>תעודות</th><th>מועד פירעון</th>${mode==='unpaid'?'<th>גיל (ימים)</th>':''}</tr></thead><tbody>`;
+      filtered.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(inv => {
+        const payDate = inv.date ? (() => { const d=new Date(inv.date); d.setDate(d.getDate()+90); return d.toLocaleDateString('he-IL'); })() : '';
+        const ageDays = inv.date ? Math.floor((Date.now()-new Date(inv.date))/86400000)-90 : '';
+        body += `<tr${mode==='unpaid'&&ageDays>0?' style="color:#c62828"':''}>
+          <td>${inv.date||''}</td>
+          <td style="font-size:10px">${inv.num||''}</td>
+          <td>${inv.sup||''}</td>
+          <td>${HMlbl[inv.month]||''} ${inv.year||''}</td>
+          <td class="amnt">₪${_fmt(inv.total||0,0)}</td>
+          <td class="amnt">${(inv.docIds||[]).length}</td>
+          <td>${payDate}</td>
+          ${mode==='unpaid'?`<td class="amnt">${ageDays>0?'+'+ageDays:'בתוך המועד'}</td>`:''}
+        </tr>`;
+      });
+      body += `<tr style="font-weight:700;background:#f0f8f0"><td colspan="4">סה"כ</td><td class="amnt">₪${_fmt(grand,0)}</td><td colspan="${mode==='unpaid'?3:2}"></td></tr>`;
+      body += '</tbody></table>';
+    }
+
+  // ════════ ריסוסים ════════
+  } else if (category === 'sprays') {
+    const ss = _filterSprs(f);
+    const appGroups = {};
+    ss.forEach(s => {
+      const key = s.appId || s.id;
+      if (!appGroups[key]) appGroups[key] = {date:s.date,op:s.op,tank:s.tank,area:s.area,notes:s.notes,mats:[]};
+      appGroups[key].mats.push({mat:s.mat,qty:s.qty,phytem:s.phytem||''});
+    });
+    const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    title = mode==='summary'   ? 'דוח מסכם — ריסוסים' :
+            mode==='materials' ? 'ריסוסים לפי חומר' :
+                                 'דוח מפורט — ריסוסים';
+    const totalArea = apps.reduce((s,a)=>s+(+a.area||0),0);
+    body += _sboxes([[apps.length,'יישומים'],[totalArea.toFixed(1),'שטח כולל (דונם)']]);
+
+    if (mode === 'summary') {
+      const byMo = {};
+      apps.forEach(a => {
+        const mo = a.date ? new Date(a.date).getMonth()+1 : 0;
+        if (!byMo[mo]) byMo[mo] = {count:0,area:0};
+        byMo[mo].count++;
+        byMo[mo].area += +a.area||0;
+      });
+      body += `<table><thead><tr><th>חודש</th><th class="amnt">יישומים</th><th class="amnt">שטח (דונם)</th></tr></thead><tbody>`;
+      Object.entries(byMo).sort(([a],[b])=>+a-+b).forEach(([mo,v]) => {
+        body += `<tr><td>${HMlbl[+mo]||mo}</td><td class="amnt">${v.count}</td><td class="amnt">${v.area.toFixed(1)}</td></tr>`;
+      });
+      body += '</tbody></table>';
+
+    } else if (mode === 'detailed') {
+      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">כמות</th><th class="amnt">מיכל (ל')</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
+      apps.forEach(app => {
+        app.mats.forEach((m,i) => {
+          body += `<tr>
+            <td>${i===0?app.date:''}</td>
+            <td>${i===0?(app.op||''):''}</td>
+            <td>${m.mat||''}</td>
+            <td class="amnt">${m.qty||''}</td>
+            <td class="amnt">${i===0?(app.tank||''):''}</td>
+            <td class="amnt">${i===0?(app.area||''):''}</td>
+            <td>${i===0?(app.notes||''):''}</td>
+          </tr>`;
+        });
+      });
+      body += '</tbody></table>';
+
+    } else if (mode === 'materials') {
+      const byMat = {};
+      apps.forEach(a => {
+        a.mats.forEach(m => {
+          if (!byMat[m.mat]) byMat[m.mat] = {count:0,qty:0,dates:[]};
+          byMat[m.mat].count++;
+          byMat[m.mat].qty += +m.qty||0;
+          if (a.date) byMat[m.mat].dates.push(a.date);
+        });
+      });
+      body += `<table><thead><tr><th>חומר</th><th class="amnt">יישומים</th><th class="amnt">כמות כוללת</th><th>תאריכים</th></tr></thead><tbody>`;
+      Object.entries(byMat).sort(([,a],[,b])=>b.qty-a.qty).forEach(([mat,v]) => {
+        body += `<tr><td>${mat}</td><td class="amnt">${v.count}</td><td class="amnt">${v.qty.toFixed(2)}</td><td style="font-size:10px">${v.dates.slice(0,5).join(', ')}${v.dates.length>5?'...':''}</td></tr>`;
+      });
+      body += '</tbody></table>';
+    }
+
+  // ════════ מלאי ════════
+  } else if (category === 'inventory') {
+    title = mode==='low' ? 'חומרים במלאי נמוך' :
+            mode==='detailed' ? 'דוח מפורט — מלאי' : 'דוח מסכם — מלאי';
+    const items = mode==='low' ? invent.filter(item => {
+      if (!item.threshold||item.threshold<=0) return false;
+      const bought = (item.purchased||0)+dels.reduce((s,d)=>s+d.items.filter(i=>i.product===item.name).reduce((ss,i)=>ss+(i.qty||0),0),0);
+      const used = sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
+      return (bought-used) <= item.threshold;
+    }) : invent;
+
+    body += _sboxes([[items.length,'חומרים']]);
+    body += `<table><thead><tr><th>שם חומר</th><th>יחידה</th><th class="amnt">נרכש</th><th class="amnt">נוצל</th><th class="amnt">יתרה</th>${mode==='low'?'<th class="amnt">סף מינימום</th>':''}</tr></thead><tbody>`;
+    items.forEach(item => {
+      const bought = (item.purchased||0)+dels.reduce((s,d)=>s+d.items.filter(i=>i.product===item.name).reduce((ss,i)=>ss+(i.qty||0),0),0);
+      const used = sprs.filter(s=>s.mat===item.name).reduce((s,x)=>s+(x.qty||0),0)*(item.ups||1);
+      const stock = bought-used;
+      const low = item.threshold && stock<=item.threshold;
+      body += `<tr${low?' style="color:#c62828"':''}>
+        <td>${item.name||''}</td><td>${item.unit||''}</td>
+        <td class="amnt">${bought.toFixed(1)}</td>
+        <td class="amnt">${used.toFixed(1)}</td>
+        <td class="amnt" style="font-weight:700;color:${stock<0?'#c62828':stock<=item.threshold?'#e65100':'#2d5a27'}">${stock.toFixed(1)}</td>
+        ${mode==='low'?`<td class="amnt">${item.threshold||''}</td>`:''}
+      </tr>`;
+      if (mode === 'detailed') {
+        // purchases
+        const purList = dels.filter(d=>d.items.some(i=>i.product===item.name));
+        purList.slice(0,5).forEach(d => {
+          const it = d.items.find(i=>i.product===item.name);
+          body += `<tr style="background:#f9f9f9;font-size:10px"><td style="padding-right:20px">📦 ${d.date} — ${d.sup}</td><td>${item.unit||''}</td><td class="amnt">${it?.qty||''}</td><td></td><td></td></tr>`;
+        });
+      }
+    });
+    body += '</tbody></table>';
+
+  // ════════ כספי ════════
+  } else if (category === 'financial') {
+    const dd = _filterDels(f).filter(d=>d.sup!=='דשנים ICL');
+    const grand = dd.reduce((s,d)=>s+itemsSum(d.items),0);
+    title = mode==='monthly'  ? 'פירוט כספי חודשי' :
+            mode==='category' ? 'פירוט לפי קטגוריות' : 'סיכום כספי שנתי';
+
+    if (mode === 'summary') {
+      body += _sboxes([[dd.length,'תעודות'],['₪'+_fmt(grand,0),'סה"כ']]);
+      const bySup = {};
+      dd.forEach(d => {
+        if (!bySup[d.sup]) bySup[d.sup] = {};
+        if (!bySup[d.sup][d.year]) bySup[d.sup][d.year] = {count:0,total:0};
+        bySup[d.sup][d.year].count++;
+        bySup[d.sup][d.year].total += itemsSum(d.items);
+      });
+      body += `<table><thead><tr><th>ספק</th><th>שנה</th><th class="amnt">תעודות</th><th class="amnt">סה"כ</th><th class="amnt">%</th></tr></thead><tbody>`;
+      Object.entries(bySup).sort(([a],[b])=>a.localeCompare(b,'he')).forEach(([sup,years]) => {
+        Object.entries(years).sort(([a],[b])=>b.localeCompare(a)).forEach(([yr,v]) => {
+          body += `<tr><td>${sup}</td><td>${yr}</td><td class="amnt">${v.count}</td><td class="amnt">₪${_fmt(v.total,0)}</td><td class="amnt">${_fmt(grand>0?v.total/grand*100:0,1)}%</td></tr>`;
+        });
+      });
+      body += '</tbody></table>';
+
+    } else if (mode === 'monthly') {
+      const years = [...new Set(dd.map(d=>d.year))].filter(Boolean).sort().reverse();
+      years.forEach(yr => {
+        const yDels = dd.filter(d=>String(d.year)===String(yr));
+        const yTotal = yDels.reduce((s,d)=>s+itemsSum(d.items),0);
+        body += `<div class="section-title">📅 ${yr} — ₪${_fmt(yTotal,0)}</div>`;
+        body += `<table><thead><tr><th>חודש</th><th class="amnt">עמיר</th><th class="amnt">המשביר</th><th class="amnt">אחר</th><th class="amnt">סה"כ</th></tr></thead><tbody>`;
+        HMlbl.slice(1).forEach((mo,idx) => {
+          const moN = idx+1;
+          const get = sup => yDels.filter(d=>d.sup===sup&&new Date(d.date).getMonth()+1===moN).reduce((s,d)=>s+itemsSum(d.items),0);
+          const oth = yDels.filter(d=>!['עמיר','המשביר'].includes(d.sup)&&new Date(d.date).getMonth()+1===moN).reduce((s,d)=>s+itemsSum(d.items),0);
+          const tot = get('עמיר')+get('המשביר')+oth;
+          if (!tot) return;
+          body += `<tr><td>${mo}</td><td class="amnt">${get('עמיר')?'₪'+_fmt(get('עמיר'),0):'—'}</td><td class="amnt">${get('המשביר')?'₪'+_fmt(get('המשביר'),0):'—'}</td><td class="amnt">${oth?'₪'+_fmt(oth,0):'—'}</td><td class="amnt" style="font-weight:700">₪${_fmt(tot,0)}</td></tr>`;
+        });
+        body += `<tr style="font-weight:700;background:#f0f8f0"><td>סה"כ ${yr}</td><td colspan="3"></td><td class="amnt">₪${_fmt(yTotal,0)}</td></tr>`;
+        body += '</tbody></table>';
+      });
+
+    } else if (mode === 'category') {
+      body += _sboxes([['₪'+_fmt(grand,0),'סה"כ'],[dd.length,'תעודות']]);
+      const byCat = {};
+      CATS.forEach(c => { byCat[c.id] = {label:c.icon+' '+c.label, total:0}; });
+      byCat['_other'] = {label:'❓ לא מסווג', total:0};
+      dd.forEach(d => d.items.filter(it=>!it.iclExclude).forEach(it => {
+        const cat = it.cat||'_other';
+        if (!byCat[cat]) byCat[cat]={label:'❓ לא מסווג',total:0};
+        byCat[cat].total += it.totalV||0;
+      }));
+      const catList = Object.values(byCat).filter(c=>c.total>0).sort((a,b)=>b.total-a.total);
+      // bar chart (text-based)
+      const maxBar = 20;
+      body += `<table><thead><tr><th>קטגוריה</th><th>תרשים</th><th class="amnt">סה"כ</th><th class="amnt">אחוז</th></tr></thead><tbody>`;
+      catList.forEach(c => {
+        const pct = grand>0?c.total/grand:0;
+        const bars = Math.round(pct*maxBar);
+        body += `<tr><td>${c.label}</td><td style="font-size:14px;color:#2d5a27;letter-spacing:1px">${'█'.repeat(bars)}${'░'.repeat(maxBar-bars)}</td><td class="amnt">₪${_fmt(c.total,0)}</td><td class="amnt">${_fmt(pct*100,1)}%</td></tr>`;
+      });
+      body += '</tbody></table>';
+    }
+
+  // ════════ חוב ════════
+  } else if (category === 'debt') {
+    const open = invs.filter(i=>!i.paid);
+    title = mode==='overdue' ? 'חשבוניות שעבר מועדן' : 'גיל חוב — חשבוניות פתוחות';
+    const now = Date.now();
+    const withAge = open.map(inv => {
+      const days = inv.date ? Math.floor((now-new Date(inv.date))/86400000) : 0;
+      const daysOverdue = days - 90;
+      return {...inv, days, daysOverdue};
+    });
+    const filtered = mode==='overdue' ? withAge.filter(i=>i.daysOverdue>0) : withAge;
+    filtered.sort((a,b)=>b.daysOverdue-a.daysOverdue);
+    const grandDebt = filtered.reduce((s,i)=>s+(i.total||0),0);
+    body += _sboxes([[filtered.length,'חשבוניות פתוחות'],['₪'+_fmt(grandDebt,0),'סה"כ חוב']]);
+    body += `<table><thead><tr><th>מספר חשבונית</th><th>ספק</th><th>תאריך</th><th class="amnt">סה"כ</th><th class="amnt">ימי פיגור</th><th>מועד פירעון</th></tr></thead><tbody>`;
+    filtered.forEach(inv => {
+      const payDate = inv.date ? (() => { const d=new Date(inv.date); d.setDate(d.getDate()+90); return d.toLocaleDateString('he-IL'); })() : '';
+      const over = inv.daysOverdue;
+      body += `<tr style="${over>0?'color:#c62828':'color:#2e7d32'}">
+        <td>${inv.num||''}</td><td>${inv.sup||''}</td><td>${inv.date||''}</td>
+        <td class="amnt">₪${_fmt(inv.total||0,0)}</td>
+        <td class="amnt">${over>0?'+'+over:'בתוך המועד'}</td>
+        <td>${payDate}</td>
+      </tr>`;
+    });
+    body += `<tr style="font-weight:700;background:#ffebee"><td colspan="3">סה"כ חוב</td><td class="amnt">₪${_fmt(grandDebt,0)}</td><td colspan="2"></td></tr>`;
+    body += '</tbody></table>';
+  }
+
+  _openReport(title, body, subtitle);
 }
 
 function fixIclNow() {
