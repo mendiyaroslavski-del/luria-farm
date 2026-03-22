@@ -1337,33 +1337,33 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         </div>
       </div>
       <div id="pcat-purchases">
-        <div class="pdf-report-row" onclick="generateReport('deliveries','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — תעודות</div><div class="prr-sub">סכומים לפי ספק ושנה</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('deliveries','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — תעודות</div><div class="prr-sub">כל תעודה עם כל פריטיה</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('deliveries','bycat')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">דוח לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ריסוסים</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('deliveries','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — תעודות</div><div class="prr-sub">סכומים לפי ספק ושנה</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('deliveries','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — תעודות</div><div class="prr-sub">כל תעודה עם כל פריטיה</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('deliveries','bycat')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">דוח לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ריסוסים</div></div><div class="prr-btn">הפק</div></div>
       </div>
       <div id="pcat-invoices" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('invoices','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — חשבוניות</div><div class="prr-sub">רשימה עם סכומים ומועדי פירעון</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('invoices','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — חשבוניות</div><div class="prr-sub">עם כל התעודות המשויכות</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('invoices','unpaid')"><div class="prr-icon">⏳</div><div class="prr-body"><div class="prr-title">חשבוניות שלא שולמו</div><div class="prr-sub">פתוחות עם גיל חוב</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('invoices','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — חשבוניות</div><div class="prr-sub">רשימה עם סכומים ומועדי פירעון</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('invoices','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — חשבוניות</div><div class="prr-sub">עם כל התעודות המשויכות</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('invoices','unpaid')"><div class="prr-icon">⏳</div><div class="prr-body"><div class="prr-title">חשבוניות שלא שולמו</div><div class="prr-sub">פתוחות עם גיל חוב</div></div><div class="prr-btn">הפק</div></div>
       </div>
       <div id="pcat-sprays" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('sprays','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — ריסוסים</div><div class="prr-sub">לפי חודש — יישומים ושטח</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('sprays','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — ריסוסים</div><div class="prr-sub">כל יישום עם חומרים וכמויות</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('sprays','materials')"><div class="prr-icon">🧪</div><div class="prr-body"><div class="prr-title">ריסוסים לפי חומר</div><div class="prr-sub">סיכום כמויות לכל חומר</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('sprays','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — ריסוסים</div><div class="prr-sub">לפי חודש — יישומים ושטח</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('sprays','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — ריסוסים</div><div class="prr-sub">כל יישום עם חומרים וכמויות</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('sprays','materials')"><div class="prr-icon">🧪</div><div class="prr-body"><div class="prr-title">ריסוסים לפי חומר</div><div class="prr-sub">סיכום כמויות לכל חומר</div></div><div class="prr-btn">הפק</div></div>
       </div>
       <div id="pcat-inventory" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('inventory','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — מלאי</div><div class="prr-sub">נרכש / נוצל / יתרה</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('inventory','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — מלאי</div><div class="prr-sub">כולל פירוט תנועות</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('inventory','low')"><div class="prr-icon">⚠️</div><div class="prr-body"><div class="prr-title">חומרים במלאי נמוך</div><div class="prr-sub">מתחת לסף המינימום</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('inventory','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">דוח מסכם — מלאי</div><div class="prr-sub">נרכש / נוצל / יתרה</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('inventory','detailed')"><div class="prr-icon">📋</div><div class="prr-body"><div class="prr-title">דוח מפורט — מלאי</div><div class="prr-sub">כולל פירוט תנועות</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('inventory','low')"><div class="prr-icon">⚠️</div><div class="prr-body"><div class="prr-title">חומרים במלאי נמוך</div><div class="prr-sub">מתחת לסף המינימום</div></div><div class="prr-btn">הפק</div></div>
       </div>
       <div id="pcat-financial" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('financial','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">סיכום כספי שנתי</div><div class="prr-sub">לפי ספק ושנה עם אחוזים</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('financial','monthly')"><div class="prr-icon">📅</div><div class="prr-body"><div class="prr-title">פירוט חודשי</div><div class="prr-sub">כל חודש לפי ספקים</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('financial','category')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">פירוט לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ציוד + גרף</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('financial','summary')"><div class="prr-icon">📊</div><div class="prr-body"><div class="prr-title">סיכום כספי שנתי</div><div class="prr-sub">לפי ספק ושנה עם אחוזים</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('financial','monthly')"><div class="prr-icon">📅</div><div class="prr-body"><div class="prr-title">פירוט חודשי</div><div class="prr-sub">כל חודש לפי ספקים</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('financial','category')"><div class="prr-icon">🏷️</div><div class="prr-body"><div class="prr-title">פירוט לפי קטגוריות</div><div class="prr-sub">הדברה / דישון / ציוד + גרף</div></div><div class="prr-btn">הפק</div></div>
       </div>
       <div id="pcat-debt" style="display:none">
-        <div class="pdf-report-row" onclick="generateReport('debt','overdue')"><div class="prr-icon">🔴</div><div class="prr-body"><div class="prr-title">חשבוניות שעבר מועדן</div><div class="prr-sub">חרגו מ-שוטף+90</div></div><div class="prr-btn">הפק</div></div>
-        <div class="pdf-report-row" onclick="generateReport('debt','aging')"><div class="prr-icon">📆</div><div class="prr-body"><div class="prr-title">גיל חוב מלא</div><div class="prr-sub">כל הפתוחות מדורגות לפי ותק</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('debt','overdue')"><div class="prr-icon">🔴</div><div class="prr-body"><div class="prr-title">חשבוניות שעבר מועדן</div><div class="prr-sub">חרגו מ-שוטף+90</div></div><div class="prr-btn">הפק</div></div>
+        <div class="pdf-report-row" onclick="_preOpenWindow();generateReport('debt','aging')"><div class="prr-icon">📆</div><div class="prr-body"><div class="prr-title">גיל חוב מלא</div><div class="prr-sub">כל הפתוחות מדורגות לפי ותק</div></div><div class="prr-btn">הפק</div></div>
       </div>
     </div>
   </div>
@@ -8962,12 +8962,20 @@ function _fmt(n, dec=2) {
   return n.toLocaleString('he-IL',{minimumFractionDigits:dec,maximumFractionDigits:dec});
 }
 
+// חלון גלובלי שנפתח מיד עם לחיצה למניעת חסימת פופאפ
+let _reportWin = null;
+function _preOpenWindow() {
+  _reportWin = window.open('about:blank','_blank');
+  return _reportWin;
+}
+
 function _openReport(title, body, subtitle) {
   closeMod('modal-pdf');
   const now = new Date();
   const dateStr = now.toLocaleDateString('he-IL');
   const timeStr = now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
-  const win = window.open('','_blank');
+  const win = _reportWin || window.open('','_blank');
+  _reportWin = null;
   if (!win) { toast('⚠️ אפשר פתיחת חלונות בדפדפן'); return; }
   win.document.write(`<!DOCTYPE html><html lang="he" dir="rtl"><head>${pdfStyles()}
   <style>.pdf-tab{display:none}.pdf-report-row{display:none}.prr-btn{display:none}</style>
