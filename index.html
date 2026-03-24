@@ -8579,7 +8579,8 @@ function renderAnnual() {
             ${supFilter==='all' ? `
               <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">עמיר</th>
               <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">המשביר</th>
-              <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">ICL</th>
+              ${yr >= 2025 ? `<th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">דשנים ICL</th>` : ''}
+              ${yr <= 2024 ? `<th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">טיב כימיקלים</th>` : ''}
               <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">אחר</th>
             ` : ''}
             <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;font-weight:700">סה"כ</th>
@@ -8619,8 +8620,8 @@ function renderAnnual() {
         ${supFilter==='all' ? `
           <td style="padding:5px 8px;text-align:center">${fmt(amir)}</td>
           <td style="padding:5px 8px;text-align:center">${fmt(hamash)}</td>
-          <td style="padding:5px 8px;text-align:center">${fmt(icl)}</td>
-          <td style="padding:5px 8px;text-align:center">${fmt(tiv)}</td>
+          ${yr >= 2025 ? `<td style="padding:5px 8px;text-align:center">${fmt(icl)}</td>` : ''}
+          ${yr <= 2024 ? `<td style="padding:5px 8px;text-align:center">${fmt(tiv)}</td>` : ''}
           <td style="padding:5px 8px;text-align:center">${fmt(other)}</td>
         ` : ''}
         <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gm)">₪${Math.round(total).toLocaleString()}</td>
@@ -8638,8 +8639,8 @@ function renderAnnual() {
         <td style="padding:6px 8px">סה"כ ${yr}</td>
         <td style="padding:6px 8px;text-align:center;color:#2196f3">₪${Math.round(sumAmir).toLocaleString()}</td>
         <td style="padding:6px 8px;text-align:center;color:#e53935">₪${Math.round(sumHamash).toLocaleString()}</td>
-        <td style="padding:6px 8px;text-align:center;color:#ff9800">₪${Math.round(sumIcl).toLocaleString()}</td>
-        <td style="padding:6px 8px;text-align:center;color:#2e7d32">₪${Math.round(sumTiv).toLocaleString()}</td>
+        ${yr >= 2025 ? `<td style="padding:6px 8px;text-align:center;color:#ff9800">₪${Math.round(sumIcl).toLocaleString()}</td>` : ''}
+        ${yr <= 2024 ? `<td style="padding:6px 8px;text-align:center;color:#2e7d32">₪${Math.round(sumTiv).toLocaleString()}</td>` : ''}
         <td style="padding:6px 8px;text-align:center;color:#607d8b">₪${Math.round(sumOther).toLocaleString()}</td>
         <td style="padding:6px 8px;text-align:center;color:var(--gm)">₪${Math.round(yearTotal).toLocaleString()}</td>
       </tr>`;
