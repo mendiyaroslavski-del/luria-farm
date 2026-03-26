@@ -1289,6 +1289,27 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 </div>
 
 <!-- ═══════════════════════════════════ -->
+<!-- 📦 Drawer — פרטי מוצר (לוח צף)    -->
+<!-- ═══════════════════════════════════ -->
+<div id="pm-drawer-overlay" onclick="closePmDrawer()" style="display:none;position:fixed;inset:0;background:#0005;z-index:9000"></div>
+<div id="pm-drawer" style="display:none;position:fixed;bottom:0;right:0;left:0;z-index:9001;background:#fff;border-radius:22px 22px 0 0;box-shadow:0 -6px 30px rgba(0,0,0,.22);max-height:82vh;overflow-y:auto;direction:rtl;padding-bottom:env(safe-area-inset-bottom,12px)">
+  <!-- ידית גרירה -->
+  <div style="display:flex;justify-content:center;padding:10px 0 2px">
+    <div style="width:40px;height:4px;background:#e0e0d8;border-radius:4px"></div>
+  </div>
+  <!-- כותרת drawer -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 16px 12px;border-bottom:1px solid #f0f0ea">
+    <div id="pm-drawer-title" style="font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:700;color:var(--gd);flex:1"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="pm-drawer-edit-btn" onclick="" style="background:var(--gold);color:var(--gd);border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✏️ עריכה</button>
+      <button onclick="closePmDrawer()" style="background:none;border:none;font-size:22px;cursor:pointer;line-height:1;color:#999">✕</button>
+    </div>
+  </div>
+  <!-- תוכן -->
+  <div id="pm-drawer-body" style="padding:14px 16px"></div>
+</div>
+
+<!-- ═══════════════════════════════════ -->
 <!-- 🛡️ בקרת מערכת (ביקורת + איכות)   -->
 <!-- ═══════════════════════════════════ -->
 <div id="tab-control" class="sec">
@@ -1433,7 +1454,7 @@ function renderProductsList() {
   filtered.forEach(p => {
     const catStyle = catCol[p.cat]||'#9e9e9e';
     const fp = v => v>0 ? `₪${parseFloat(v).toLocaleString('he-IL',{maximumFractionDigits:2})}` : '—';
-    html += `<tr>
+    html += `<tr style="cursor:pointer" onclick="openPmDrawer('${p.id}')">
       <td style="font-weight:600">${p.canonical}</td>
       <td style="font-size:11px;color:#888">${(p.aliases||[]).join(', ')||'—'}</td>
       <td><span style="background:${catStyle}22;color:${catStyle};border-radius:10px;padding:2px 8px;font-size:11px">${p.cat||'—'}</span></td>
@@ -1442,7 +1463,7 @@ function renderProductsList() {
       <td style="text-align:center;font-size:12px">${fp(p.prices?.['המשביר'])}</td>
       <td style="text-align:center;font-size:12px">${fp(p.prices?.['דשנים ICL'])}</td>
       <td style="text-align:center;font-size:12px">${fp(p.prices?.['טיב כימיקלים'])}</td>
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
         <button onclick="openEditProductModal('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px">✏️</button>
         <button onclick="deleteProduct('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px">🗑️</button>
       </td>
@@ -1656,6 +1677,110 @@ function importFromSystem() {
   toast(`✅ יובאו ${added} מוצרים מהמערכת`);
   renderProductsList();
   renderNewProducts();
+}
+
+// ═══════════════════════════════
+// 📦 DRAWER — פרטי מוצר
+// ═══════════════════════════════
+function openPmDrawer(id) {
+  const pm = loadPM();
+  const p = pm.find(x => x.id === id);
+  if (!p) return;
+
+  // כותרת + כפתור עריכה
+  document.getElementById('pm-drawer-title').textContent = p.canonical;
+  document.getElementById('pm-drawer-edit-btn').onclick = () => { closePmDrawer(); openEditProductModal(id); };
+
+  // בנה מחירים דינמיים מהתעודות
+  const dynPrices = {};
+  dels.forEach(d => {
+    (d.items || []).forEach(it => {
+      const names = [p.canonical, ...(p.aliases || [])].map(n => n.toLowerCase());
+      if (!it.product || !it.price) return;
+      if (!names.includes(it.product.toLowerCase())) return;
+      const k = d.sup;
+      if (!dynPrices[k] || d.date > dynPrices[k].date)
+        dynPrices[k] = { price: it.price, date: d.date, doc: d.doc };
+    });
+  });
+
+  // מחירים סטטיים כ-fallback
+  const staticPrices = p.prices || {};
+  const knownSups = ['עמיר', 'המשביר', 'דשנים ICL', 'טיב כימיקלים'];
+  const allSups = [...new Set([...knownSups, ...Object.keys(dynPrices)])];
+
+  // קטגוריה + יחידה
+  const catColor = {'ריסוס':'#2d7a2d','דשן':'#7b1fa2','השקיה':'#0277bd','חומרי אריזה':'#e65100','ציוד':'#546e7a','הובלה':'#795548','אחר':'#9e9e9e'};
+  const catC = catColor[p.cat] || '#aaa';
+
+  let priceRows = '';
+  allSups.forEach(sup => {
+    const dyn = dynPrices[sup];
+    const stat = staticPrices[sup];
+    const hasData = dyn || stat;
+    if (!hasData) return;
+    const price = dyn ? dyn.price : stat;
+    const isLive = !!dyn;
+    const dateStr = dyn ? new Date(dyn.date).toLocaleDateString('he-IL') : 'מחיר בסיס';
+    const supColor = sup === 'עמיר' ? 'var(--blue)' : sup === 'המשביר' ? '#c62828' : sup === 'דשנים ICL' ? '#f57c00' : '#555';
+    priceRows += `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f5f5f0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:${supColor}18;color:${supColor};border-radius:8px;padding:3px 10px;font-size:12px;font-weight:600">${sup}</span>
+        ${isLive ? `<span style="font-size:11px;color:#2e7d32;background:#e8f5e9;border-radius:6px;padding:1px 7px">🔄 ${dateStr}</span>` : `<span style="font-size:11px;color:#9e9e8e">בסיס</span>`}
+      </div>
+      <span style="font-weight:700;font-size:16px;color:var(--gd)">₪${parseFloat(price).toLocaleString('he-IL',{maximumFractionDigits:2})}</span>
+    </div>`;
+  });
+
+  if (!priceRows) priceRows = `<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">אין מחירים שמורים</div>`;
+
+  // היסטוריית רכישה אחרונה (עד 5 שורות)
+  const histRows = [];
+  dels.forEach(d => {
+    (d.items || []).forEach(it => {
+      const names = [p.canonical, ...(p.aliases || [])].map(n => n.toLowerCase());
+      if (it.product && names.includes(it.product.toLowerCase()) && it.price)
+        histRows.push({ date: d.date, sup: d.sup, doc: d.doc, qty: it.qty, unit: it.unit, price: it.price, total: it.total });
+    });
+  });
+  histRows.sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1);
+  const recent = histRows.slice(0, 5);
+
+  let histHtml = '';
+  if (recent.length) {
+    histHtml = `<div style="margin-top:16px">
+      <div style="font-weight:700;font-size:13px;color:#555;margin-bottom:8px">📋 רכישות אחרונות</div>
+      ${recent.map(r => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #f5f5f0;color:#333">
+        <span>${r.date ? new Date(r.date).toLocaleDateString('he-IL') : ''} · ${r.sup}</span>
+        <span>${r.qty ? r.qty + ' × ' : ''}₪${parseFloat(r.price).toLocaleString('he-IL',{maximumFractionDigits:2})}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  document.getElementById('pm-drawer-body').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      ${p.cat ? `<span style="background:${catC}18;color:${catC};border-radius:10px;padding:3px 12px;font-size:12px;font-weight:600">${p.cat}</span>` : ''}
+      ${p.unit ? `<span style="background:#f0f0ea;color:#555;border-radius:10px;padding:3px 12px;font-size:12px">${p.unit}</span>` : ''}
+      ${(p.aliases||[]).length ? `<span style="background:#f5f5f0;color:#888;border-radius:10px;padding:3px 12px;font-size:11px">כינויים: ${(p.aliases||[]).join(', ')}</span>` : ''}
+    </div>
+    <div style="font-weight:700;font-size:13px;color:#555;margin-bottom:8px">💰 מחירים לספק</div>
+    ${priceRows}
+    ${histHtml}
+  `;
+
+  document.getElementById('pm-drawer').style.display = 'block';
+  document.getElementById('pm-drawer-overlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  // אנימציה
+  requestAnimationFrame(() => {
+    document.getElementById('pm-drawer').style.transform = 'translateY(0)';
+  });
+}
+
+function closePmDrawer() {
+  document.getElementById('pm-drawer').style.display = 'none';
+  document.getElementById('pm-drawer-overlay').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 // ==================== CONTROL TAB ====================
