@@ -222,6 +222,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
     <button class="navbtn" id="navbtn-quality" onclick="showTab(this,'quality')">🔍 בדיקת נתונים</button>
     <button class="navbtn" onclick="showTab(this,'bot')">🤖 עוזר חכם</button>
+    <button class="navbtn" id="navbtn-audit" onclick="showTab(this,'audit')">🛡️ ביקורת נתונים</button>
   </nav>
   <div id="file-indicator" style="display:flex;align-items:center;gap:8px;padding:5px 18px;font-size:12px;border-top:1px solid rgba(255,255,255,.1);background:#fff3e0;flex-wrap:wrap;direction:rtl">
     <span style="color:#999;font-size:12px">⚠️ לא מחובר לקובץ — לחץ ייצא/ייבא לבחור</span>
@@ -1655,6 +1656,7 @@ function showTab(btn, name) {
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); setTimeout(drawSprayChart,100); }
   if(name==='inventory') renderInventory();
   if(name==='search') searchPrices();
+  if(name==='audit') runAudit();
 customFields = load(K.FL) || [];
 renderCustomFields();
 // הצג סטטוס מפתח API
@@ -8613,7 +8615,7 @@ function renderAnnual() {
             ${supFilter==='all' ? `
               <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">עמיר</th>
               <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">המשביר</th>
-              ${yr >= 2025 ? `<th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">דשנים ICL</th>` : ''}
+              ${yr >= 2025 ? `<th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;color:#9e9e9e" title="לידיעה בלבד — סכומים אלו כלולים כבר בעמיר">דשנים ICL *</th>` : ''}
               ${yr <= 2024 ? `<th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">טיב כימיקלים</th>` : ''}
               <th style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee">אחר</th>
             ` : ''}
@@ -8630,20 +8632,31 @@ function renderAnnual() {
         !isNaN(new Date(d.date)) && new Date(d.date).getMonth()===moIdx
       ).reduce((s,d) => s + itemsSum(d.items), 0);
 
+      // ICL מחושב מ-allDelsAnnual בנפרד (לא נכלל ב-filtDels ולא ב-total)
+      const getIclTotal = () => allDelsAnnual.filter(d =>
+        d.sup === 'דשנים ICL' &&
+        parseInt(d.year)===yr &&
+        !isNaN(new Date(d.date)) && new Date(d.date).getMonth()===moIdx
+      ).reduce((s,d) => s + itemsSum(d.items), 0);
+
       const amir  = getSupTotal('עמיר');
       const hamash = getSupTotal('המשביר');
-      const icl   = getSupTotal('דשנים ICL');
+      const icl   = getIclTotal();
       const tiv   = getSupTotal('טיב כימיקלים');
       const other = filtDels.filter(d =>
         parseInt(d.year)===yr && !['עמיר','המשביר','דשנים ICL','טיב כימיקלים'].includes(d.sup) &&
         !isNaN(new Date(d.date)) && new Date(d.date).getMonth()===moIdx
       ).reduce((s,d) => s + itemsSum(d.items), 0);
       const total = data[yr][moIdx];
-      if (total === 0) return;
+      if (total === 0 && icl === 0) return;
       hasAny = true;
 
       const fmt = v => v > 0 ? `<span style="color:#333">₪${Math.round(v).toLocaleString()}</span>` : '<span style="color:#ddd">—</span>';
-      html += `<tr style="border-bottom:1px solid #f5f5f5">
+      // ICL מוצג באפור עם הערת "כלול בעמיר"
+      const fmtIcl = v => v > 0
+        ? `<span style="color:#9e9e9e" title="כלול בחשבוניות עמיר — לידיעה בלבד">₪${Math.round(v).toLocaleString()}</span>`
+        : '<span style="color:#ddd">—</span>';
+      html += `<tr style="border-bottom:1px solid #f5f5f5${total===0?' opacity:0.6':''}">
         <td style="padding:5px 8px;font-weight:600">
           ${moName}
           <button onclick="showMonthDrilldown(${yr},${moIdx+1},'${supFilter}')"
@@ -8654,11 +8667,11 @@ function renderAnnual() {
         ${supFilter==='all' ? `
           <td style="padding:5px 8px;text-align:center">${fmt(amir)}</td>
           <td style="padding:5px 8px;text-align:center">${fmt(hamash)}</td>
-          ${yr >= 2025 ? `<td style="padding:5px 8px;text-align:center">${fmt(icl)}</td>` : ''}
+          ${yr >= 2025 ? `<td style="padding:5px 8px;text-align:center;background:#fafafa">${fmtIcl(icl)}</td>` : ''}
           ${yr <= 2024 ? `<td style="padding:5px 8px;text-align:center">${fmt(tiv)}</td>` : ''}
           <td style="padding:5px 8px;text-align:center">${fmt(other)}</td>
         ` : ''}
-        <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gm)">₪${Math.round(total).toLocaleString()}</td>
+        <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gm)">${total>0?'₪'+Math.round(total).toLocaleString():'<span style="color:#ddd">—</span>'}</td>
       </tr>`;
     });
 
@@ -8666,14 +8679,14 @@ function renderAnnual() {
     if (supFilter === 'all') {
       const sumAmir   = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='עמיר').reduce((s,d)=>s+itemsSum(d.items),0);
       const sumHamash = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='המשביר').reduce((s,d)=>s+itemsSum(d.items),0);
-      const sumIcl    = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='דשנים ICL').reduce((s,d)=>s+itemsSum(d.items),0);
+      const sumIcl    = allDelsAnnual.filter(d=>parseInt(d.year)===yr&&d.sup==='דשנים ICL').reduce((s,d)=>s+itemsSum(d.items),0);
       const sumTiv    = filtDels.filter(d=>parseInt(d.year)===yr&&d.sup==='טיב כימיקלים').reduce((s,d)=>s+itemsSum(d.items),0);
       const sumOther  = filtDels.filter(d=>parseInt(d.year)===yr&&!['עמיר','המשביר','דשנים ICL','טיב כימיקלים'].includes(d.sup)).reduce((s,d)=>s+itemsSum(d.items),0);
       html += `<tr style="background:#f9f9f9;font-weight:700;border-top:2px solid #ddd">
         <td style="padding:6px 8px">סה"כ ${yr}</td>
         <td style="padding:6px 8px;text-align:center;color:#2196f3">₪${Math.round(sumAmir).toLocaleString()}</td>
         <td style="padding:6px 8px;text-align:center;color:#e53935">₪${Math.round(sumHamash).toLocaleString()}</td>
-        ${yr >= 2025 ? `<td style="padding:6px 8px;text-align:center;color:#ff9800">₪${Math.round(sumIcl).toLocaleString()}</td>` : ''}
+        ${yr >= 2025 ? `<td style="padding:6px 8px;text-align:center;color:#9e9e9e" title="לידיעה בלבד — כלול בעמיר">₪${Math.round(sumIcl).toLocaleString()}<br><span style="font-size:10px;font-weight:400">(כלול בעמיר)</span></td>` : ''}
         ${yr <= 2024 ? `<td style="padding:6px 8px;text-align:center;color:#2e7d32">₪${Math.round(sumTiv).toLocaleString()}</td>` : ''}
         <td style="padding:6px 8px;text-align:center;color:#607d8b">₪${Math.round(sumOther).toLocaleString()}</td>
         <td style="padding:6px 8px;text-align:center;color:var(--gm)">₪${Math.round(yearTotal).toLocaleString()}</td>
@@ -9422,6 +9435,443 @@ function fixIclNow() {
     <div id="dup-modal-content" style="font-size:13px"></div>
   </div>
 </div>
+
+<!-- ===== TAB: ביקורת נתונים ===== -->
+<div id="tab-audit" class="sec">
+  <div class="main">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div class="shtitle">🛡️ ביקורת נתונים</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:12px;color:#555;display:flex;align-items:center;gap:5px">
+          <input type="checkbox" id="audit-show-fixed" onchange="runAudit()" style="width:14px;height:14px">
+          הצג גם ממצאים שתוקנו
+        </label>
+        <button class="btn btnP" onclick="runAudit()" style="font-size:13px;padding:7px 16px">🔄 רענן ביקורת</button>
+      </div>
+    </div>
+
+    <!-- סיכום עליון -->
+    <div id="audit-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+
+    <!-- אזור תוצאות -->
+    <div id="audit-results"></div>
+  </div>
+</div>
+
+<!-- מודל אישור תיקון ביקורת -->
+<div id="modal-audit-fix" style="display:none;position:fixed;inset:0;background:#0008;z-index:9990;overflow-y:auto;padding:20px">
+  <div style="background:#fff;border-radius:14px;max-width:560px;margin:0 auto;padding:22px;direction:rtl">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong style="font-size:16px">✅ אישור תיקון</strong>
+      <button onclick="document.getElementById('modal-audit-fix').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="audit-fix-body" style="font-size:14px;margin-bottom:18px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btnS" onclick="document.getElementById('modal-audit-fix').style.display='none'">ביטול</button>
+      <button class="btn btnP" id="audit-fix-confirm-btn" onclick="applyAuditFix()">✅ אשר תיקון</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== AUDIT ENGINE ====================
+let _auditPendingFix = null;
+
+function auditGracePeriod(dateStr) {
+  // תעודה לא דורשת חשבונית אם היא מהחודש הנוכחי
+  // או מהחודש הקודם והיום לפני ה-10
+  if (!dateStr) return true;
+  const now = new Date();
+  const d = new Date(dateStr);
+  const nowY = now.getFullYear(), nowM = now.getMonth();
+  const dY = d.getFullYear(), dM = d.getMonth();
+  if (dY === nowY && dM === nowM) return true; // חודש שוטף
+  const prevM = nowM === 0 ? 11 : nowM - 1;
+  const prevY = nowM === 0 ? nowY - 1 : nowY;
+  if (dY === prevY && dM === prevM && now.getDate() <= 10) return true; // חודש קודם לפני ה-10
+  return false;
+}
+
+function auditDelTotal(d) {
+  return (d.items || []).reduce((s, it) => s + (parseFloat(it.totalV) || 0), 0);
+}
+
+function auditInvLinkedTotal(inv) {
+  const docDels = (inv.docIds || []).map(id => dels.find(d => String(d.id) === String(id))).filter(Boolean);
+  return docDels.reduce((s, d) => s + auditDelTotal(d), 0);
+}
+
+function runAudit() {
+  const showFixed = document.getElementById('audit-show-fixed')?.checked;
+  const results = [];
+  const now = new Date();
+
+  // ── סוג 1: תעודה ללא חשבונית ──
+  const unlinkedDels = dels.filter(d => {
+    if (d.invNum || d.crossInv) return false; // כבר משויך
+    if (auditGracePeriod(d.date)) return false; // בתקופת חסד
+    return true;
+  });
+
+  // קיבוץ לפי ספק + חודש
+  const unlinkedBySupMonth = {};
+  unlinkedDels.forEach(d => {
+    const dt = new Date(d.date);
+    const key = `${d.sup}|${dt.getFullYear()}|${dt.getMonth()+1}`;
+    if (!unlinkedBySupMonth[key]) unlinkedBySupMonth[key] = [];
+    unlinkedBySupMonth[key].push(d);
+  });
+
+  Object.entries(unlinkedBySupMonth).forEach(([key, group]) => {
+    const [sup, yr, mo] = key.split('|');
+    const groupTotal = group.reduce((s, d) => s + auditDelTotal(d), 0);
+
+    // חיפוש חשבונית מתאימה (חודש הבא)
+    const nextMo = parseInt(mo) === 12 ? 1 : parseInt(mo) + 1;
+    const nextYr = parseInt(mo) === 12 ? parseInt(yr) + 1 : parseInt(yr);
+    const candidates = invs.filter(inv =>
+      inv.sup === sup &&
+      (inv.month === parseInt(mo) || inv.month === nextMo) &&
+      (inv.year === parseInt(yr) || inv.year === nextYr)
+    );
+
+    // מצא חשבונית עם סכום קרוב (פחות מ-2% הפרש)
+    let bestMatch = null;
+    let bestDiff = Infinity;
+    candidates.forEach(inv => {
+      const alreadyLinked = (inv.docIds || []).length > 0;
+      if (alreadyLinked) return;
+      const diff = Math.abs(inv.total - groupTotal) / (groupTotal || 1);
+      if (diff < 0.02 && diff < bestDiff) {
+        bestDiff = diff;
+        bestMatch = inv;
+      }
+    });
+
+    results.push({
+      type: 'del_no_inv',
+      severity: bestMatch ? 'warn' : 'error',
+      sup, yr: parseInt(yr), mo: parseInt(mo),
+      dels: group,
+      groupTotal,
+      suggestion: bestMatch,
+      fixed: false,
+      key: `del_no_inv_${key}`
+    });
+  });
+
+  // ── סוג 2: חשבונית ללא תעודות משויכות (ולא ישירה) ──
+  invs.forEach(inv => {
+    if (inv.direct) return; // חשבונית ישירה — תקין
+    const linked = (inv.docIds || []).filter(id => dels.find(d => String(d.id) === String(id)));
+    if (linked.length > 0) return; // יש תעודות
+
+    // חיפוש תעודות מתאימות (ספק + חודש קודם)
+    const prevMo = inv.month === 1 ? 12 : inv.month - 1;
+    const prevYr = inv.month === 1 ? inv.year - 1 : inv.year;
+    const candidates = dels.filter(d =>
+      d.sup === inv.sup &&
+      !d.invNum &&
+      !d.crossInv &&
+      !auditGracePeriod(d.date)
+    );
+    const samePeriod = candidates.filter(d => {
+      const dt = new Date(d.date);
+      return (dt.getFullYear() === prevYr && dt.getMonth()+1 === prevMo) ||
+             (dt.getFullYear() === inv.year && dt.getMonth()+1 === inv.month);
+    });
+    const candTotal = samePeriod.reduce((s, d) => s + auditDelTotal(d), 0);
+    const diff = Math.abs(inv.total - candTotal) / (inv.total || 1);
+    const bestMatch = diff < 0.02 ? samePeriod : null;
+
+    results.push({
+      type: 'inv_no_del',
+      severity: bestMatch ? 'warn' : 'error',
+      inv,
+      suggestion: bestMatch?.length > 0 ? { dels: bestMatch, candTotal } : null,
+      fixed: false,
+      key: `inv_no_del_${inv.id}`
+    });
+  });
+
+  // ── סוג 3: תעודה עם מספר חשבונית שלא קיים ──
+  dels.forEach(d => {
+    if (!d.invNum) return;
+    const found = invs.find(inv => inv.num === d.invNum && inv.sup === d.sup);
+    if (found) return;
+    results.push({
+      type: 'orphan_invnum',
+      severity: 'error',
+      del: d,
+      fixed: false,
+      key: `orphan_${d.id}`
+    });
+  });
+
+  // ── סוג 4: פערי סכום ──
+  invs.forEach(inv => {
+    const linked = (inv.docIds || []).map(id => dels.find(d => String(d.id) === String(id))).filter(Boolean);
+    if (linked.length === 0) return;
+    const linkedTotal = linked.reduce((s, d) => s + auditDelTotal(d), 0);
+    const diff = Math.abs(inv.total - linkedTotal);
+    const pct = diff / (inv.total || 1);
+    if (diff < 1) return; // הפרש זניח
+    results.push({
+      type: 'sum_mismatch',
+      severity: pct > 0.05 ? 'error' : 'warn',
+      inv, linked, linkedTotal, diff, pct,
+      fixed: false,
+      key: `sum_${inv.id}`
+    });
+  });
+
+  renderAudit(results);
+}
+
+function renderAudit(results) {
+  const fmt = n => Math.round(n).toLocaleString('he-IL');
+  const supCol = {'עמיר':'#2d7a2d','המשביר':'#0277bd','דשנים ICL':'#7b1fa2','טיב כימיקלים':'#e65100'};
+
+  // סיכום
+  const counts = {error:0, warn:0};
+  results.forEach(r => counts[r.severity]++);
+  const total = results.length;
+  document.getElementById('audit-summary').innerHTML = `
+    <div style="background:#fff;border-radius:10px;padding:13px;text-align:center;box-shadow:0 2px 8px #0001;border-top:3px solid #${total===0?'4caf50':'e53935'}">
+      <div style="font-size:26px;font-weight:900;color:#${total===0?'4caf50':'e53935'}">${total}</div>
+      <div style="font-size:12px;color:#666;margin-top:3px">סה"כ ממצאים</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:13px;text-align:center;box-shadow:0 2px 8px #0001;border-top:3px solid #e53935">
+      <div style="font-size:26px;font-weight:900;color:#e53935">${counts.error}</div>
+      <div style="font-size:12px;color:#666;margin-top:3px">🔴 קריטי</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:13px;text-align:center;box-shadow:0 2px 8px #0001;border-top:3px solid #f57c00">
+      <div style="font-size:26px;font-weight:900;color:#f57c00">${counts.warn}</div>
+      <div style="font-size:12px;color:#666;margin-top:3px">🟡 לבדיקה</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:13px;text-align:center;box-shadow:0 2px 8px #0001;border-top:3px solid #4caf50">
+      <div style="font-size:26px;font-weight:900;color:#4caf50">${results.filter(r=>r.suggestion).length}</div>
+      <div style="font-size:12px;color:#666;margin-top:3px">🤖 תיקון אוטומטי זמין</div>
+    </div>
+  `;
+
+  if (total === 0) {
+    document.getElementById('audit-results').innerHTML = `
+      <div style="text-align:center;padding:40px;background:#f1f8e9;border-radius:12px;border:2px solid #c5e1a5">
+        <div style="font-size:48px">✅</div>
+        <div style="font-size:18px;font-weight:700;color:#2e7d32;margin-top:10px">כל הנתונים תקינים!</div>
+        <div style="font-size:13px;color:#558b2f;margin-top:5px">לא נמצאו ליקויים במערכת</div>
+      </div>`;
+    return;
+  }
+
+  const typeOrder = ['del_no_inv','inv_no_del','orphan_invnum','sum_mismatch'];
+  const typeLabel = {
+    del_no_inv: 'תעודות ללא חשבונית משויכת',
+    inv_no_del: 'חשבוניות ללא תעודות משויכות',
+    orphan_invnum: 'מספר חשבונית לא קיים במערכת',
+    sum_mismatch: 'פער סכום בין תעודות לחשבונית'
+  };
+  const typeIcon = {del_no_inv:'📦',inv_no_del:'📄',orphan_invnum:'❓',sum_mismatch:'⚖️'};
+
+  let html = '';
+  typeOrder.forEach(type => {
+    const group = results.filter(r => r.type === type);
+    if (!group.length) return;
+    html += `<div class="card" style="margin-bottom:14px">
+      <div class="ctitle">${typeIcon[type]} ${typeLabel[type]} <span style="background:#e53935;color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700;margin-right:6px">${group.length}</span></div>`;
+
+    group.forEach(r => {
+      const col = supCol[r.sup || r.inv?.sup] || '#555';
+      const sev = r.severity === 'error' ? '#ffebee' : '#fff8e1';
+      const sevBorder = r.severity === 'error' ? '#ef9a9a' : '#ffe082';
+
+      if (r.type === 'del_no_inv') {
+        const moLabel = HM[r.mo] + ' ' + r.yr;
+        html += `<div style="background:${sev};border:1px solid ${sevBorder};border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+            <div>
+              <span style="background:${col};color:#fff;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">${r.sup}</span>
+              <span style="font-size:13px;font-weight:600;margin-right:8px">${moLabel}</span>
+              <span style="font-size:12px;color:#666">${r.dels.length} תעודות | סה"כ: ₪${fmt(r.groupTotal)}</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${r.suggestion ? `<button class="btn btnP" style="font-size:12px;padding:5px 12px" onclick="prepareAuditFix('del_no_inv','${r.key}')">🤖 שייך לחשבונית ${r.suggestion.num} אוטומטית</button>` : '<span style="font-size:12px;color:#999">לא נמצאה חשבונית מתאימה</span>'}
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:#555">
+            תעודות: ${r.dels.map(d=>`<span style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:1px 6px;margin:1px">${d.doc||d.id}</span>`).join(' ')}
+          </div>
+          ${r.suggestion ? `<div style="margin-top:6px;font-size:12px;color:#2d7a2d;background:#e8f5e9;border-radius:4px;padding:4px 8px">💡 חשבונית <strong>${r.suggestion.num}</strong> — ${HM[r.suggestion.month]} ${r.suggestion.year} — סכום ₪${fmt(r.suggestion.total)} (הפרש: ₪${fmt(Math.abs(r.suggestion.total-r.groupTotal))})</div>` : ''}
+        </div>`;
+        window['_auditData_' + r.key] = r;
+      }
+
+      if (r.type === 'inv_no_del') {
+        const inv = r.inv;
+        html += `<div style="background:${sev};border:1px solid ${sevBorder};border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+            <div>
+              <span style="background:${supCol[inv.sup]||'#555'};color:#fff;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">${inv.sup}</span>
+              <span style="font-size:13px;font-weight:600;margin-right:8px">חשבונית ${inv.num}</span>
+              <span style="font-size:12px;color:#666">${HM[inv.month]} ${inv.year} | ₪${fmt(inv.total)}</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              ${r.suggestion ? `<button class="btn btnP" style="font-size:12px;padding:5px 12px" onclick="prepareAuditFix('inv_no_del','${r.key}')">🤖 שייך ${r.suggestion.dels.length} תעודות אוטומטית</button>` : '<span style="font-size:12px;color:#999">לא נמצאו תעודות מתאימות</span>'}
+            </div>
+          </div>
+          ${r.suggestion ? `<div style="margin-top:6px;font-size:12px;color:#2d7a2d;background:#e8f5e9;border-radius:4px;padding:4px 8px">💡 תעודות מוצעות: ${r.suggestion.dels.map(d=>`<strong>${d.doc||d.id}</strong>`).join(', ')} — סה"כ ₪${fmt(r.suggestion.candTotal)}</div>` : ''}
+        </div>`;
+        window['_auditData_' + r.key] = r;
+      }
+
+      if (r.type === 'orphan_invnum') {
+        const d = r.del;
+        html += `<div style="background:${sev};border:1px solid ${sevBorder};border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <div>
+              <span style="background:${supCol[d.sup]||'#555'};color:#fff;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">${d.sup}</span>
+              <span style="font-size:13px;margin-right:8px">תעודה <strong>${d.doc||d.id}</strong> — ${d.date}</span>
+              <span style="font-size:12px;color:#e53935">מספר חשבונית לא קיים: <strong>${d.invNum}</strong></span>
+            </div>
+            <button class="btn" style="font-size:12px;padding:5px 12px;background:#fff3e0;border:1px solid #ffcc80;color:#e65100" onclick="prepareAuditFix('clear_invnum','${r.key}')">🗑️ נקה מספר חשבונית</button>
+          </div>
+        </div>`;
+        window['_auditData_' + r.key] = r;
+      }
+
+      if (r.type === 'sum_mismatch') {
+        const inv = r.inv;
+        const pctStr = (r.pct*100).toFixed(1);
+        html += `<div style="background:${sev};border:1px solid ${sevBorder};border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">
+            <div>
+              <span style="background:${supCol[inv.sup]||'#555'};color:#fff;border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">${inv.sup}</span>
+              <span style="font-size:13px;font-weight:600;margin-right:8px">חשבונית ${inv.num} — ${HM[inv.month]} ${inv.year}</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px">
+            <div style="background:#fff;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-weight:700;color:#2d5a27;font-size:15px">₪${fmt(inv.total)}</div>
+              <div style="color:#666">חשבונית</div>
+            </div>
+            <div style="background:#fff;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-weight:700;color:#0277bd;font-size:15px">₪${fmt(r.linkedTotal)}</div>
+              <div style="color:#666">סכום תעודות (${r.linked.length})</div>
+            </div>
+            <div style="background:#${r.severity==='error'?'ffebee':'fff8e1'};border-radius:6px;padding:8px;text-align:center">
+              <div style="font-weight:700;color:#${r.severity==='error'?'e53935':'f57c00'};font-size:15px">₪${fmt(r.diff)}</div>
+              <div style="color:#666">הפרש (${pctStr}%)</div>
+            </div>
+          </div>
+        </div>`;
+      }
+    });
+
+    html += '</div>';
+  });
+
+  document.getElementById('audit-results').innerHTML = html;
+}
+
+function prepareAuditFix(type, key) {
+  const r = window['_auditData_' + key];
+  if (!r) return;
+  let bodyHtml = '';
+
+  if (type === 'del_no_inv') {
+    const inv = r.suggestion;
+    bodyHtml = `
+      <div style="margin-bottom:12px;padding:10px;background:#e8f5e9;border-radius:8px">
+        <strong>פעולה מוצעת:</strong> שיוך ${r.dels.length} תעודות לחשבונית <strong>${inv.num}</strong>
+      </div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="background:#f5f5f5"><th style="padding:6px;text-align:right;border-bottom:1px solid #ddd">תעודה</th><th style="padding:6px;text-align:right;border-bottom:1px solid #ddd">תאריך</th><th style="padding:6px;text-align:right;border-bottom:1px solid #ddd">סכום</th></tr>
+        ${r.dels.map(d=>`<tr><td style="padding:5px 6px;border-bottom:1px solid #eee">${d.doc||d.id}</td><td style="padding:5px 6px;border-bottom:1px solid #eee">${d.date}</td><td style="padding:5px 6px;border-bottom:1px solid #eee">₪${Math.round(auditDelTotal(d)).toLocaleString()}</td></tr>`).join('')}
+      </table>
+      <div style="margin-top:10px;padding:8px;background:#f3e5f5;border-radius:6px;font-size:13px">
+        <strong>יעד:</strong> חשבונית ${inv.num} — ${HM[inv.month]} ${inv.year} — ₪${Math.round(inv.total).toLocaleString()}
+      </div>`;
+  }
+
+  if (type === 'inv_no_del') {
+    const inv = r.inv;
+    const sug = r.suggestion;
+    bodyHtml = `
+      <div style="margin-bottom:12px;padding:10px;background:#e8f5e9;border-radius:8px">
+        <strong>פעולה מוצעת:</strong> שיוך ${sug.dels.length} תעודות לחשבונית <strong>${inv.num}</strong>
+      </div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="background:#f5f5f5"><th style="padding:6px;text-align:right;border-bottom:1px solid #ddd">תעודה</th><th style="padding:6px;text-align:right;border-bottom:1px solid #ddd">תאריך</th><th style="padding:6px;text-align:right;border-bottom:1px solid #ddd">סכום</th></tr>
+        ${sug.dels.map(d=>`<tr><td style="padding:5px 6px;border-bottom:1px solid #eee">${d.doc||d.id}</td><td style="padding:5px 6px;border-bottom:1px solid #eee">${d.date}</td><td style="padding:5px 6px;border-bottom:1px solid #eee">₪${Math.round(auditDelTotal(d)).toLocaleString()}</td></tr>`).join('')}
+      </table>`;
+  }
+
+  if (type === 'clear_invnum') {
+    const d = r.del;
+    bodyHtml = `<div style="padding:12px;background:#fff3e0;border-radius:8px;font-size:14px">
+      ניקוי מספר חשבונית <strong>${d.invNum}</strong> מתעודה <strong>${d.doc||d.id}</strong><br>
+      <span style="color:#666;font-size:12px;margin-top:4px;display:block">החשבונית לא קיימת במערכת. לאחר הניקוי ניתן לשייך מחדש.</span>
+    </div>`;
+  }
+
+  _auditPendingFix = { type, key, r };
+  document.getElementById('audit-fix-body').innerHTML = bodyHtml;
+  document.getElementById('modal-audit-fix').style.display = 'block';
+}
+
+function applyAuditFix() {
+  if (!_auditPendingFix) return;
+  const { type, key, r } = _auditPendingFix;
+
+  if (type === 'del_no_inv') {
+    const inv = r.suggestion;
+    const ids = r.dels.map(d => d.id);
+    // עדכן invNum בתעודות
+    ids.forEach(id => {
+      const d = dels.find(x => String(x.id) === String(id));
+      if (d) d.invNum = inv.num;
+    });
+    // עדכן docIds בחשבונית
+    const invObj = invs.find(x => x.id === inv.id);
+    if (invObj) {
+      const existing = new Set((invObj.docIds||[]).map(String));
+      ids.forEach(id => existing.add(String(id)));
+      invObj.docIds = [...existing];
+    }
+    save(K.D, dels);
+    save(K.I, invs);
+    toast(`✅ ${r.dels.length} תעודות שויכו לחשבונית ${inv.num}`);
+  }
+
+  if (type === 'inv_no_del') {
+    const inv = invs.find(x => x.id === r.inv.id);
+    const sug = r.suggestion;
+    if (inv) {
+      const existing = new Set((inv.docIds||[]).map(String));
+      sug.dels.forEach(d => {
+        existing.add(String(d.id));
+        d.invNum = inv.num;
+      });
+      inv.docIds = [...existing];
+    }
+    save(K.D, dels);
+    save(K.I, invs);
+    toast(`✅ ${sug.dels.length} תעודות שויכו לחשבונית ${r.inv.num}`);
+  }
+
+  if (type === 'clear_invnum') {
+    const d = dels.find(x => String(x.id) === String(r.del.id));
+    if (d) d.invNum = '';
+    save(K.D, dels);
+    toast(`🗑️ מספר חשבונית נוקה מתעודה ${r.del.doc||r.del.id}`);
+  }
+
+  document.getElementById('modal-audit-fix').style.display = 'none';
+  _auditPendingFix = null;
+  runAudit(); // רענן
+}
+</script>
 
 <!-- מודל קורא PDF ללא API -->
 <div id="modal-offline-reader" style="display:none;position:fixed;inset:0;background:#0009;z-index:9999;overflow-y:auto;padding:16px">
