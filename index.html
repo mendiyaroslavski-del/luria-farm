@@ -213,16 +213,15 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn on" onclick="showTab(this,'entry')">📦 הזנת תעודה</button>
     <button class="navbtn" onclick="showTab(this,'dashboard')">🏠 לוח בקרה</button>
     <button class="navbtn" onclick="showTab(this,'invoice')">📄 חשבוניות</button>
-    <button class="navbtn" onclick="showTab(this,'search')">🔍 מחירים</button>
     <button class="navbtn" onclick="showTab(this,'globsearch')">🔎 חיפוש כללי</button>
     <button class="navbtn" onclick="showTab(this,'stats')">📊 סטטיסטיקה</button>
     <button class="navbtn" onclick="showTab(this,'annual')">📅 דו"ח שנתי</button>
     <button class="navbtn" onclick="showTab(this,'spray')">🌿 ריסוסים</button>
     <button class="navbtn" onclick="showTab(this,'inventory')">📦 מלאי</button>
     <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
-    <button class="navbtn" id="navbtn-quality" onclick="showTab(this,'quality')">🔍 בדיקת נתונים</button>
+    <button class="navbtn" onclick="showTab(this,'products')">📦 מאסטר מוצרים</button>
+    <button class="navbtn" id="navbtn-control" onclick="showTab(this,'control')">🛡️ בקרת מערכת</button>
     <button class="navbtn" onclick="showTab(this,'bot')">🤖 עוזר חכם</button>
-    <button class="navbtn" id="navbtn-audit" onclick="showTab(this,'audit')">🛡️ ביקורת נתונים</button>
   </nav>
   <div id="file-indicator" style="display:flex;align-items:center;gap:8px;padding:5px 18px;font-size:12px;border-top:1px solid rgba(255,255,255,.1);background:#fff3e0;flex-wrap:wrap;direction:rtl">
     <span style="color:#999;font-size:12px">⚠️ לא מחובר לקובץ — לחץ ייצא/ייבא לבחור</span>
@@ -1200,6 +1199,482 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 
 <!-- ═══════════════════════════════════ -->
+<!-- 📦 מאסטר מוצרים                   -->
+<!-- ═══════════════════════════════════ -->
+<div id="tab-products" class="sec">
+  <div class="main">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div class="shtitle">📦 מאסטר מוצרים</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="pm-search" class="finput" placeholder="חיפוש מוצר..." style="width:200px" oninput="renderProductsList()">
+        <button class="btn btnP" onclick="openAddProductModal()" style="font-size:13px;padding:7px 14px">+ הוסף מוצר</button>
+      </div>
+    </div>
+
+    <!-- לשוניות פנימיות -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #e0e0d8;margin-bottom:14px">
+      <button id="pm-tab-list" onclick="switchPMTab('list')" style="padding:8px 18px;border:none;background:var(--gold);color:var(--gd);font-weight:700;font-family:Heebo,sans-serif;font-size:13px;border-radius:8px 8px 0 0;cursor:pointer">📋 מוצרים</button>
+      <button id="pm-tab-dups" onclick="switchPMTab('dups')" style="padding:8px 18px;border:none;background:transparent;color:#666;font-family:Heebo,sans-serif;font-size:13px;border-radius:8px 8px 0 0;cursor:pointer">🔀 כפילויות <span id="pm-dups-badge" style="background:#e53935;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:4px;display:none"></span></button>
+      <button id="pm-tab-new" onclick="switchPMTab('new')" style="padding:8px 18px;border:none;background:transparent;color:#666;font-family:Heebo,sans-serif;font-size:13px;border-radius:8px 8px 0 0;cursor:pointer">⚠️ לא מוגדרים <span id="pm-new-badge" style="background:#f57c00;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:4px;display:none"></span></button>
+      <button id="pm-tab-prices" onclick="switchPMTab('prices')" style="padding:8px 18px;border:none;background:transparent;color:#666;font-family:Heebo,sans-serif;font-size:13px;border-radius:8px 8px 0 0;cursor:pointer">🔍 חיפוש מחיר</button>
+    </div>
+
+    <div id="pm-panel-list"><div id="pm-products-list"></div></div>
+    <div id="pm-panel-dups" style="display:none"><div id="pm-dups-list"></div></div>
+    <div id="pm-panel-new" style="display:none"><div id="pm-new-list"></div></div>
+    <div id="pm-panel-prices" style="display:none">
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <input class="sinput" id="price-q" placeholder="הקלד שם מוצר..." oninput="searchPrices()" style="flex:1;min-width:180px">
+          <select class="fsel" style="width:130px" id="price-sup" onchange="searchPrices()">
+            <option value="">כל הספקים</option>
+            <option value="עמיר">עמיר</option>
+            <option value="המשביר">המשביר</option>
+            <option value="דשנים ICL">דשנים ICL</option>
+            <optgroup id="price-sup-custom-group" label="ספקים מזדמנים"></optgroup>
+          </select>
+        </div>
+        <div class="tblw">
+          <table class="dtbl">
+            <thead><tr><th>מוצר</th><th>ספק</th><th>מחיר אחרון</th><th>תאריך רכישה</th></tr></thead>
+            <tbody id="price-results"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- מודל הוספה/עריכת מוצר -->
+<div id="modal-product-edit" style="display:none;position:fixed;inset:0;background:#0008;z-index:9990;overflow-y:auto;padding:20px">
+  <div style="background:#fff;border-radius:14px;max-width:520px;margin:0 auto;padding:22px;direction:rtl">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong id="pm-modal-title" style="font-size:16px">📦 מוצר חדש</strong>
+      <button onclick="document.getElementById('modal-product-edit').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div class="fr fr1" style="gap:10px">
+      <div class="fg"><label class="flabel">שם קנוני (רשמי)</label><input type="text" id="pm-canonical" class="finput" placeholder="למשל: ביומקטין 5 ליטר"></div>
+      <div class="fg"><label class="flabel">כינויים נוספים (מופרדים בפסיק)</label><input type="text" id="pm-aliases" class="finput" placeholder="ביומקטיין 5 ליטר, ביומקטין 5 ל"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="flabel">קטגוריה</label>
+          <select id="pm-cat" class="fsel">
+            <option value="">בחר...</option>
+            <option>ריסוס</option><option>דשן</option><option>השקיה</option>
+            <option>חומרי אריזה</option><option>ציוד</option><option>הובלה</option><option>אחר</option>
+          </select>
+        </div>
+        <div class="fg"><label class="flabel">יחידת מידה</label>
+          <select id="pm-unit" class="fsel">
+            <option value="">בחר...</option>
+            <option>ליטר</option><option>ק"ג</option><option>יחידה</option>
+            <option>מטר</option><option>שק</option><option>קרטון</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label class="flabel" style="font-size:12px;color:var(--gm)">מחירים עדכניים לספק (ללא מע"מ)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px"><span style="width:60px">עמיר:</span><input type="number" id="pm-price-amir" class="finput" placeholder="₪" step="0.01" inputmode="text" style="width:100px"></div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px"><span style="width:60px">המשביר:</span><input type="number" id="pm-price-hamash" class="finput" placeholder="₪" step="0.01" inputmode="text" style="width:100px"></div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px"><span style="width:60px">ICL:</span><input type="number" id="pm-price-icl" class="finput" placeholder="₪" step="0.01" inputmode="text" style="width:100px"></div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px"><span style="width:60px">טיב:</span><input type="number" id="pm-price-tiv" class="finput" placeholder="₪" step="0.01" inputmode="text" style="width:100px"></div>
+        </div>
+      </div>
+    </div>
+    <input type="hidden" id="pm-edit-id">
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btnS" onclick="document.getElementById('modal-product-edit').style.display='none'">ביטול</button>
+      <button class="btn btnP" onclick="saveProduct()">💾 שמור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 🛡️ בקרת מערכת (ביקורת + איכות)   -->
+<!-- ═══════════════════════════════════ -->
+<div id="tab-control" class="sec">
+  <div class="main">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <div class="shtitle">🛡️ בקרת מערכת</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="font-size:12px;color:#555;display:flex;align-items:center;gap:5px">
+          <input type="checkbox" id="audit-show-fixed-c" onchange="runAudit()" style="width:14px;height:14px">
+          הצג גם ממצאים שתוקנו
+        </label>
+        <button class="btn btnP" onclick="initControlTab()" style="font-size:13px;padding:7px 14px">🔄 רענן</button>
+      </div>
+    </div>
+
+    <!-- לשוניות פנימיות -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #e0e0d8;margin-bottom:14px">
+      <button id="ctrl-tab-audit" onclick="switchCtrlTab('audit')" style="padding:8px 18px;border:none;background:var(--gold);color:var(--gd);font-weight:700;font-family:Heebo,sans-serif;font-size:13px;border-radius:8px 8px 0 0;cursor:pointer">🔗 ביקורת שיוכים</button>
+      <button id="ctrl-tab-quality" onclick="switchCtrlTab('quality')" style="padding:8px 18px;border:none;background:transparent;color:#666;font-family:Heebo,sans-serif;font-size:13px;border-radius:8px 8px 0 0;cursor:pointer">🔍 איכות נתונים</button>
+    </div>
+
+    <!-- ביקורת שיוכים -->
+    <div id="ctrl-panel-audit">
+      <div id="audit-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+      <div id="audit-results"></div>
+    </div>
+
+    <!-- איכות נתונים -->
+    <div id="ctrl-panel-quality" style="display:none">
+      <div class="iobar" style="flex-wrap:wrap;gap:8px">
+        <button class="btn btnP" onclick="runQualityChecks()" style="font-size:14px;padding:10px 22px">🔍 הרץ בדיקה</button>
+        <select class="fsel" id="q-sev-filter" onchange="renderQuality()" style="width:130px">
+          <option value="">כל הרמות</option>
+          <option value="error">🔴 שגיאה</option>
+          <option value="warn">🟡 אזהרה</option>
+          <option value="info">🔵 מידע</option>
+        </select>
+        <select class="fsel" id="q-type-filter" onchange="renderQuality()" style="width:160px">
+          <option value="">כל הבדיקות</option>
+          <option value="dup">כפולות ת.מ.</option>
+          <option value="price">מחיר חריג</option>
+          <option value="monthly">חריגה חודשית</option>
+          <option value="noinv">ללא חשבונית</option>
+          <option value="zero">מחיר/סכום אפס</option>
+          <option value="invmatch">פער חשבונית↔ת.מ.</option>
+          <option value="nan">ערך חסר NaN</option>
+        </select>
+        <select class="fsel" id="q-sup-filter" onchange="renderQuality()" style="width:120px">
+          <option value="">כל הספקים</option>
+          <option value="עמיר">עמיר</option>
+          <option value="המשביר">המשביר</option>
+          <option value="דשנים ICL">דשנים ICL</option>
+        </select>
+        <button class="btn btnS" onclick="exportQualityExcel()" id="q-export-btn" style="display:none">📥 ייצא</button>
+      </div>
+      <div id="q-summary" style="display:none;margin-bottom:12px"></div>
+      <div id="q-status" style="text-align:center;padding:40px;color:var(--grayM);font-size:15px">לחץ "הרץ בדיקה" לסריקת הנתונים</div>
+      <div id="q-results" style="display:none">
+        <div class="tblw">
+          <table class="dtbl" id="q-table">
+            <thead><tr>
+              <th style="width:50px">רמה</th><th style="width:130px">בדיקה</th>
+              <th style="width:80px">ספק</th><th style="width:95px">תאריך</th>
+              <th style="width:110px">מסמך</th><th>פירוט</th><th style="width:120px">פעולה</th>
+            </tr></thead>
+            <tbody id="q-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== PRODUCT MASTER ====================
+const PM_KEY = 'luria_products_v1';
+let _pmTab = 'list';
+let _ctrlTab = 'audit';
+
+function loadPM() {
+  try { return JSON.parse(localStorage.getItem(PM_KEY)||'[]'); } catch { return []; }
+}
+function savePM(data) { localStorage.setItem(PM_KEY, JSON.stringify(data)); }
+
+function pmId() { return 'p' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+// ── fuzzy similarity (Levenshtein-based) ──
+function strSim(a, b) {
+  a = a.trim().toLowerCase(); b = b.trim().toLowerCase();
+  if (a === b) return 1;
+  const la = a.length, lb = b.length;
+  if (!la || !lb) return 0;
+  const dp = Array.from({length:la+1},(_,i)=>Array.from({length:lb+1},(_,j)=>i||j?i?j?0:i:j:0));
+  for(let i=1;i<=la;i++) for(let j=1;j<=lb;j++)
+    dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return 1 - dp[la][lb]/Math.max(la,lb);
+}
+
+function initProductsTab() {
+  _pmTab = 'list';
+  switchPMTab('list');
+  renderProductsList();
+  renderDuplicates();
+  renderNewProducts();
+}
+
+function switchPMTab(tab) {
+  _pmTab = tab;
+  ['list','dups','new','prices'].forEach(t => {
+    document.getElementById('pm-panel-'+t).style.display = t===tab ? '' : 'none';
+    const btn = document.getElementById('pm-tab-'+t);
+    if(btn) { btn.style.background = t===tab ? 'var(--gold)' : 'transparent'; btn.style.color = t===tab ? 'var(--gd)' : '#666'; btn.style.fontWeight = t===tab ? '700' : '400'; }
+  });
+  if(tab==='prices') searchPrices();
+}
+
+function renderProductsList() {
+  const pm = loadPM();
+  const q = (document.getElementById('pm-search')?.value||'').trim().toLowerCase();
+  const filtered = q ? pm.filter(p => p.canonical.toLowerCase().includes(q) || (p.aliases||[]).some(a=>a.toLowerCase().includes(q))) : pm;
+  const supCols = ['עמיר','המשביר','דשנים ICL','טיב כימיקלים'];
+  const catCol = {'ריסוס':'#2d7a2d','דשן':'#7b1fa2','השקיה':'#0277bd','חומרי אריזה':'#e65100','ציוד':'#546e7a','הובלה':'#795548','אחר':'#9e9e9e'};
+
+  if (!filtered.length) {
+    document.getElementById('pm-products-list').innerHTML = `<div style="text-align:center;padding:40px;color:#aaa">
+      ${pm.length === 0 ? '📦 המאסטר ריק — לחץ "+ הוסף מוצר" או "📥 ייבא מהמערכת" להתחיל' : 'לא נמצאו תוצאות'}
+      ${pm.length === 0 ? `<br><br><button class="btn btnP" onclick="importFromSystem()" style="font-size:13px">📥 ייבא מוצרים מהמערכת</button>` : ''}
+    </div>`;
+    return;
+  }
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;color:#999">
+    <span>${filtered.length} מוצרים</span>
+    ${pm.length === 0 ? '' : `<button class="btn btnS" onclick="importFromSystem()" style="font-size:11px;padding:4px 10px">📥 ייבא מהמערכת</button>`}
+  </div>
+  <div class="tblw"><table class="itbl">
+    <thead><tr>
+      <th>שם קנוני</th><th>כינויים</th><th>קטגוריה</th><th>יחידה</th>
+      <th>עמיר ₪</th><th>המשביר ₪</th><th>ICL ₪</th><th>טיב ₪</th><th></th>
+    </tr></thead><tbody>`;
+
+  filtered.forEach(p => {
+    const catStyle = catCol[p.cat]||'#9e9e9e';
+    const fp = v => v>0 ? `₪${parseFloat(v).toLocaleString('he-IL',{maximumFractionDigits:2})}` : '—';
+    html += `<tr>
+      <td style="font-weight:600">${p.canonical}</td>
+      <td style="font-size:11px;color:#888">${(p.aliases||[]).join(', ')||'—'}</td>
+      <td><span style="background:${catStyle}22;color:${catStyle};border-radius:10px;padding:2px 8px;font-size:11px">${p.cat||'—'}</span></td>
+      <td style="font-size:12px">${p.unit||'—'}</td>
+      <td style="text-align:center;font-size:12px">${fp(p.prices?.['עמיר'])}</td>
+      <td style="text-align:center;font-size:12px">${fp(p.prices?.['המשביר'])}</td>
+      <td style="text-align:center;font-size:12px">${fp(p.prices?.['דשנים ICL'])}</td>
+      <td style="text-align:center;font-size:12px">${fp(p.prices?.['טיב כימיקלים'])}</td>
+      <td style="white-space:nowrap">
+        <button onclick="openEditProductModal('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px">✏️</button>
+        <button onclick="deleteProduct('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px">🗑️</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('pm-products-list').innerHTML = html;
+}
+
+function renderDuplicates() {
+  const pm = loadPM();
+  // מוצרים מהמערכת (תעודות)
+  const sysNames = [...new Set(dels.flatMap(d=>(d.items||[]).map(it=>it.product).filter(Boolean)))];
+  const pmNames = pm.flatMap(p=>[p.canonical,...(p.aliases||[])]);
+  const allNames = [...new Set([...sysNames, ...pmNames])];
+
+  // מצא זוגות דומים (>0.75 similarity, לא זהים)
+  const pairs = [];
+  const seen = new Set();
+  for(let i=0;i<allNames.length;i++) for(let j=i+1;j<allNames.length;j++) {
+    const sim = strSim(allNames[i], allNames[j]);
+    if(sim >= 0.75 && sim < 1) {
+      const key = [allNames[i],allNames[j]].sort().join('|');
+      if(!seen.has(key)) { seen.add(key); pairs.push({a:allNames[i], b:allNames[j], sim}); }
+    }
+  }
+
+  const badge = document.getElementById('pm-dups-badge');
+  if(pairs.length) { badge.textContent=pairs.length; badge.style.display=''; }
+  else badge.style.display='none';
+
+  if(!pairs.length) {
+    document.getElementById('pm-dups-list').innerHTML='<div style="text-align:center;padding:40px;color:#2e7d32;font-size:15px">✅ לא נמצאו שמות דומים</div>';
+    return;
+  }
+
+  let html = `<div style="font-size:12px;color:#666;margin-bottom:12px">נמצאו <strong>${pairs.length}</strong> זוגות עם שמות דומים — בחר לכל זוג האם מדובר באותו מוצר:</div>`;
+  pairs.sort((a,b)=>b.sim-a.sim).forEach((p,i) => {
+    const pct = Math.round(p.sim*100);
+    const col = pct>90?'#e53935':pct>80?'#f57c00':'#fbc02d';
+    html += `<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="flex:1">
+        <span style="font-weight:600">${p.a}</span>
+        <span style="margin:0 8px;color:#999">↔</span>
+        <span style="font-weight:600">${p.b}</span>
+        <span style="margin-right:8px;font-size:11px;background:${col}22;color:${col};border-radius:8px;padding:1px 7px">${pct}% דמיון</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btnP" style="font-size:12px;padding:5px 12px" onclick="mergeDuplicate('${p.a}','${p.b}')">✅ אותו מוצר — אחד</button>
+        <button class="btn btnS" style="font-size:12px;padding:5px 12px" onclick="markDifferent('${p.a}','${p.b}')">❌ מוצרים שונים</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('pm-dups-list').innerHTML = html;
+}
+
+function renderNewProducts() {
+  const pm = loadPM();
+  const pmNames = new Set(pm.flatMap(p=>[p.canonical.toLowerCase(),...(p.aliases||[]).map(a=>a.toLowerCase())]));
+  const ignored = new Set(JSON.parse(localStorage.getItem('pm_ignored')||'[]'));
+
+  const sysNames = [...new Set(dels.flatMap(d=>(d.items||[]).map(it=>it.product).filter(Boolean)))];
+  const undefNames = sysNames.filter(n => n && !pmNames.has(n.toLowerCase()) && !ignored.has(n));
+
+  const badge = document.getElementById('pm-new-badge');
+  if(undefNames.length) { badge.textContent=undefNames.length; badge.style.display=''; }
+  else badge.style.display='none';
+
+  if(!undefNames.length) {
+    document.getElementById('pm-new-list').innerHTML='<div style="text-align:center;padding:40px;color:#2e7d32;font-size:15px">✅ כל המוצרים מוגדרים במאסטר</div>';
+    return;
+  }
+
+  // מצא כמה פעמים כל שם מופיע
+  const counts = {};
+  dels.forEach(d=>(d.items||[]).forEach(it=>{ if(it.product) counts[it.product]=(counts[it.product]||0)+1; }));
+
+  let html = `<div style="font-size:12px;color:#666;margin-bottom:12px"><strong>${undefNames.length}</strong> מוצרים מופיעים בתעודות אך לא במאסטר:</div>`;
+  undefNames.sort((a,b)=>(counts[b]||0)-(counts[a]||0)).forEach(name => {
+    const cnt = counts[name]||0;
+    html += `<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div>
+        <span style="font-weight:600">${name}</span>
+        <span style="font-size:11px;color:#999;margin-right:8px">${cnt} הופעות</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btnP" style="font-size:12px;padding:5px 12px" onclick="openAddProductModal('${name.replace(/'/g,"\\'")}')">+ הוסף למאסטר</button>
+        <button class="btn btnS" style="font-size:12px;padding:5px 12px" onclick="ignoreProduct('${name.replace(/'/g,"\\'")}')">התעלם</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('pm-new-list').innerHTML = html;
+}
+
+function openAddProductModal(prefill='') {
+  document.getElementById('pm-modal-title').textContent = '📦 מוצר חדש';
+  document.getElementById('pm-edit-id').value = '';
+  document.getElementById('pm-canonical').value = prefill;
+  document.getElementById('pm-aliases').value = '';
+  document.getElementById('pm-cat').value = '';
+  document.getElementById('pm-unit').value = '';
+  ['amir','hamash','icl','tiv'].forEach(k => document.getElementById('pm-price-'+k).value='');
+  document.getElementById('modal-product-edit').style.display='block';
+  setTimeout(()=>document.getElementById('pm-canonical').focus(),100);
+}
+
+function openEditProductModal(id) {
+  const pm = loadPM();
+  const p = pm.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('pm-modal-title').textContent = '✏️ עריכת מוצר';
+  document.getElementById('pm-edit-id').value = id;
+  document.getElementById('pm-canonical').value = p.canonical;
+  document.getElementById('pm-aliases').value = (p.aliases||[]).join(', ');
+  document.getElementById('pm-cat').value = p.cat||'';
+  document.getElementById('pm-unit').value = p.unit||'';
+  document.getElementById('pm-price-amir').value = p.prices?.['עמיר']||'';
+  document.getElementById('pm-price-hamash').value = p.prices?.['המשביר']||'';
+  document.getElementById('pm-price-icl').value = p.prices?.['דשנים ICL']||'';
+  document.getElementById('pm-price-tiv').value = p.prices?.['טיב כימיקלים']||'';
+  document.getElementById('modal-product-edit').style.display='block';
+}
+
+function saveProduct() {
+  const canonical = document.getElementById('pm-canonical').value.trim();
+  if(!canonical) { alert('חובה להזין שם קנוני'); return; }
+  const pm = loadPM();
+  const id = document.getElementById('pm-edit-id').value;
+  const obj = {
+    id: id || pmId(),
+    canonical,
+    aliases: document.getElementById('pm-aliases').value.split(',').map(s=>s.trim()).filter(Boolean),
+    cat: document.getElementById('pm-cat').value,
+    unit: document.getElementById('pm-unit').value,
+    prices: {
+      'עמיר': parseFloat(document.getElementById('pm-price-amir').value)||0,
+      'המשביר': parseFloat(document.getElementById('pm-price-hamash').value)||0,
+      'דשנים ICL': parseFloat(document.getElementById('pm-price-icl').value)||0,
+      'טיב כימיקלים': parseFloat(document.getElementById('pm-price-tiv').value)||0
+    }
+  };
+  if(id) { const idx=pm.findIndex(x=>x.id===id); if(idx>=0) pm[idx]=obj; else pm.push(obj); }
+  else pm.push(obj);
+  savePM(pm);
+  document.getElementById('modal-product-edit').style.display='none';
+  toast(`✅ מוצר "${canonical}" נשמר`);
+  renderProductsList();
+  renderNewProducts();
+}
+
+function deleteProduct(id) {
+  const pm = loadPM();
+  const p = pm.find(x=>x.id===id);
+  if(!p || !confirm(`למחוק "${p.canonical}" מהמאסטר?`)) return;
+  savePM(pm.filter(x=>x.id!==id));
+  renderProductsList();
+  toast('🗑️ מוצר נמחק');
+}
+
+function mergeDuplicate(nameA, nameB) {
+  // פתח מודל עריכה עם שני השמות
+  const pm = loadPM();
+  // מצא איזה שהוא קנוני
+  const existing = pm.find(p => p.canonical===nameA || (p.aliases||[]).includes(nameA));
+  if(existing) {
+    if(!(existing.aliases||[]).includes(nameB)) {
+      existing.aliases = [...(existing.aliases||[]), nameB];
+      savePM(pm);
+      toast(`✅ "${nameB}" נוסף ככינוי של "${existing.canonical}"`);
+    }
+  } else {
+    openAddProductModal(nameA);
+    document.getElementById('pm-aliases').value = nameB;
+    return;
+  }
+  renderDuplicates();
+  renderProductsList();
+}
+
+function markDifferent(a, b) {
+  const ign = JSON.parse(localStorage.getItem('pm_different_pairs')||'[]');
+  ign.push([a,b].sort().join('|'));
+  localStorage.setItem('pm_different_pairs', JSON.stringify([...new Set(ign)]));
+  renderDuplicates();
+  toast('✅ סומן כמוצרים שונים');
+}
+
+function ignoreProduct(name) {
+  const ign = JSON.parse(localStorage.getItem('pm_ignored')||'[]');
+  ign.push(name);
+  localStorage.setItem('pm_ignored', JSON.stringify([...new Set(ign)]));
+  renderNewProducts();
+}
+
+function importFromSystem() {
+  // ייבוא כל המוצרים הקיימים מ-PRODUCTS + PRICES לתוך המאסטר
+  const pm = loadPM();
+  const existing = new Set(pm.map(p=>p.canonical));
+  let added = 0;
+  PRODUCTS.forEach(name => {
+    if(existing.has(name)) return;
+    const prices = {};
+    ['עמיר','המשביר','דשנים ICL','טיב כימיקלים'].forEach(sup => {
+      const k = `${name}|${sup}`;
+      if(PRICES[k]) prices[sup] = PRICES[k];
+    });
+    pm.push({ id: pmId(), canonical: name, aliases:[], cat:'', unit:'', prices });
+    added++;
+  });
+  savePM(pm);
+  toast(`✅ יובאו ${added} מוצרים מהמערכת`);
+  renderProductsList();
+  renderNewProducts();
+}
+
+// ==================== CONTROL TAB ====================
+function initControlTab() {
+  switchCtrlTab('audit');
+  runAudit();
+}
+
+function switchCtrlTab(tab) {
+  _ctrlTab = tab;
+  ['audit','quality'].forEach(t => {
+    document.getElementById('ctrl-panel-'+t).style.display = t===tab ? '' : 'none';
+    const btn = document.getElementById('ctrl-tab-'+t);
+    if(btn) { btn.style.background = t===tab ? 'var(--gold)' : 'transparent'; btn.style.color = t===tab ? 'var(--gd)' : '#666'; btn.style.fontWeight = t===tab ? '700' : '400'; }
+  });
+}
+</script>
+
+<!-- ═══════════════════════════════════ -->
 <!-- 🤖 עוזר חכם                        -->
 <!-- ═══════════════════════════════════ -->
 <div id="tab-bot" class="sec">
@@ -1655,8 +2130,9 @@ function showTab(btn, name) {
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); setTimeout(drawSprayChart,100); }
   if(name==='inventory') renderInventory();
-  if(name==='search') searchPrices();
   if(name==='audit') runAudit();
+  if(name==='control') initControlTab();
+  if(name==='products') initProductsTab();
 customFields = load(K.FL) || [];
 renderCustomFields();
 // הצג סטטוס מפתח API
@@ -2117,8 +2593,8 @@ function saveDelFinal(){
     if (window._returnToQuality) {
       window._returnToQuality = false;
       setTimeout(() => {
-        const qBtn = document.querySelector('.navbtn[onclick*="quality"]');
-        if (qBtn) showTab(qBtn, 'quality');
+        const qBtn = document.querySelector('.navbtn[onclick*="control"]');
+        if (qBtn) { showTab(qBtn, 'control'); switchCtrlTab('quality'); }
         runQualityChecks();
       }, 200);
     }
@@ -9502,7 +9978,7 @@ function auditInvLinkedTotal(inv) {
 }
 
 function runAudit() {
-  const showFixed = document.getElementById('audit-show-fixed')?.checked;
+  const showFixed = document.getElementById('audit-show-fixed-c')?.checked || document.getElementById('audit-show-fixed')?.checked;
   const results = [];
   const now = new Date();
 
