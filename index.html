@@ -1225,19 +1225,19 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div id="pm-panel-prices" style="display:none">
       <div class="card">
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <input class="sinput" id="price-q" placeholder="הקלד שם מוצר..." oninput="searchPrices()" style="flex:1;min-width:180px">
-          <select class="fsel" style="width:130px" id="price-sup" onchange="searchPrices()">
+          <input class="sinput" id="pm-price-q" placeholder="הקלד שם מוצר..." oninput="searchPmPrices()" style="flex:1;min-width:180px">
+          <select class="fsel" style="width:130px" id="pm-price-sup" onchange="searchPmPrices()">
             <option value="">כל הספקים</option>
             <option value="עמיר">עמיר</option>
             <option value="המשביר">המשביר</option>
             <option value="דשנים ICL">דשנים ICL</option>
-            <optgroup id="price-sup-custom-group" label="ספקים מזדמנים"></optgroup>
+            <optgroup id="pm-price-sup-custom-group" label="ספקים מזדמנים"></optgroup>
           </select>
         </div>
         <div class="tblw">
           <table class="dtbl">
             <thead><tr><th>מוצר</th><th>ספק</th><th>מחיר אחרון</th><th>תאריך רכישה</th></tr></thead>
-            <tbody id="price-results"></tbody>
+            <tbody id="pm-price-results"></tbody>
           </table>
         </div>
       </div>
@@ -1259,8 +1259,16 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         <div class="fg"><label class="flabel">קטגוריה</label>
           <select id="pm-cat" class="fsel">
             <option value="">בחר...</option>
-            <option>ריסוס</option><option>דשן</option><option>השקיה</option>
-            <option>חומרי אריזה</option><option>ציוד</option><option>הובלה</option><option>אחר</option>
+            <option value="ריסוס">🌿 ריסוס</option>
+            <option value="הדברה">🪲 הדברה</option>
+            <option value="עשביה">🌾 עשביה</option>
+            <option value="דשן">🌱 דשן</option>
+            <option value="דישון נוזלי">💧 דישון נוזלי</option>
+            <option value="השקיה">🚿 השקיה</option>
+            <option value="חומרי אריזה">📦 חומרי אריזה</option>
+            <option value="ציוד">🔧 ציוד</option>
+            <option value="הובלה">🚛 הובלה</option>
+            <option value="אחר">📌 אחר</option>
           </select>
         </div>
         <div class="fg"><label class="flabel">יחידת מידה</label>
@@ -1423,7 +1431,7 @@ function switchPMTab(tab) {
     const btn = document.getElementById('pm-tab-'+t);
     if(btn) { btn.style.background = t===tab ? 'var(--gold)' : 'transparent'; btn.style.color = t===tab ? 'var(--gd)' : '#666'; btn.style.fontWeight = t===tab ? '700' : '400'; }
   });
-  if(tab==='prices') searchPrices();
+  if(tab==='prices') searchPmPrices();
 }
 
 function renderProductsList() {
@@ -1431,7 +1439,18 @@ function renderProductsList() {
   const q = (document.getElementById('pm-search')?.value||'').trim().toLowerCase();
   const filtered = q ? pm.filter(p => p.canonical.toLowerCase().includes(q) || (p.aliases||[]).some(a=>a.toLowerCase().includes(q))) : pm;
   const supCols = ['עמיר','המשביר','דשנים ICL','טיב כימיקלים'];
-  const catCol = {'ריסוס':'#2d7a2d','דשן':'#7b1fa2','השקיה':'#0277bd','חומרי אריזה':'#e65100','ציוד':'#546e7a','הובלה':'#795548','אחר':'#9e9e9e'};
+  const CAT_MAP = {
+    'ריסוס':       {color:'#2d7a2d', icon:'🌿'},
+    'הדברה':       {color:'#795548', icon:'🪲'},
+    'עשביה':       {color:'#8bc34a', icon:'🌾'},
+    'דשן':         {color:'#7b1fa2', icon:'🌱'},
+    'דישון נוזלי': {color:'#0277bd', icon:'💧'},
+    'השקיה':       {color:'#00838f', icon:'🚿'},
+    'חומרי אריזה': {color:'#e65100', icon:'📦'},
+    'ציוד':        {color:'#546e7a', icon:'🔧'},
+    'הובלה':       {color:'#795548', icon:'🚛'},
+    'אחר':         {color:'#9e9e9e', icon:'📌'},
+  };
 
   if (!filtered.length) {
     document.getElementById('pm-products-list').innerHTML = `<div style="text-align:center;padding:40px;color:#aaa">
@@ -1452,12 +1471,14 @@ function renderProductsList() {
     </tr></thead><tbody>`;
 
   filtered.forEach(p => {
-    const catStyle = catCol[p.cat]||'#9e9e9e';
+    const cm = CAT_MAP[p.cat];
+    const catColor = cm ? cm.color : '#9e9e9e';
+    const catDisplay = cm ? `<span title="${p.cat}" style="background:${catColor}22;color:${catColor};border-radius:10px;padding:2px 8px;font-size:15px">${cm.icon}</span>` : '—';
     const fp = v => v>0 ? `₪${parseFloat(v).toLocaleString('he-IL',{maximumFractionDigits:2})}` : '—';
     html += `<tr style="cursor:pointer" onclick="openPmDrawer('${p.id}')">
       <td style="font-weight:600">${p.canonical}</td>
       <td style="font-size:11px;color:#888">${(p.aliases||[]).join(', ')||'—'}</td>
-      <td><span style="background:${catStyle}22;color:${catStyle};border-radius:10px;padding:2px 8px;font-size:11px">${p.cat||'—'}</span></td>
+      <td style="text-align:center">${catDisplay}</td>
       <td style="font-size:12px">${p.unit||'—'}</td>
       <td style="text-align:center;font-size:12px">${fp(p.prices?.['עמיר'])}</td>
       <td style="text-align:center;font-size:12px">${fp(p.prices?.['המשביר'])}</td>
@@ -1709,9 +1730,9 @@ function openPmDrawer(id) {
   const knownSups = ['עמיר', 'המשביר', 'דשנים ICL', 'טיב כימיקלים'];
   const allSups = [...new Set([...knownSups, ...Object.keys(dynPrices)])];
 
-  // קטגוריה + יחידה
-  const catColor = {'ריסוס':'#2d7a2d','דשן':'#7b1fa2','השקיה':'#0277bd','חומרי אריזה':'#e65100','ציוד':'#546e7a','הובלה':'#795548','אחר':'#9e9e9e'};
-  const catC = catColor[p.cat] || '#aaa';
+  const _CM = {'ריסוס':{color:'#2d7a2d',icon:'🌿'},'הדברה':{color:'#795548',icon:'🪲'},'עשביה':{color:'#8bc34a',icon:'🌾'},'דשן':{color:'#7b1fa2',icon:'🌱'},'דישון נוזלי':{color:'#0277bd',icon:'💧'},'השקיה':{color:'#00838f',icon:'🚿'},'חומרי אריזה':{color:'#e65100',icon:'📦'},'ציוד':{color:'#546e7a',icon:'🔧'},'הובלה':{color:'#795548',icon:'🚛'},'אחר':{color:'#9e9e9e',icon:'📌'}};
+  const catC = (_CM[p.cat]?.color) || '#aaa';
+  const catIcon = (_CM[p.cat]?.icon) || '';
 
   let priceRows = '';
   allSups.forEach(sup => {
@@ -1759,7 +1780,7 @@ function openPmDrawer(id) {
 
   document.getElementById('pm-drawer-body').innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      ${p.cat ? `<span style="background:${catC}18;color:${catC};border-radius:10px;padding:3px 12px;font-size:12px;font-weight:600">${p.cat}</span>` : ''}
+      ${p.cat ? `<span style="background:${catC}18;color:${catC};border-radius:10px;padding:3px 12px;font-size:13px;font-weight:600">${catIcon} ${p.cat}</span>` : ''}
       ${p.unit ? `<span style="background:#f0f0ea;color:#555;border-radius:10px;padding:3px 12px;font-size:12px">${p.unit}</span>` : ''}
       ${(p.aliases||[]).length ? `<span style="background:#f5f5f0;color:#888;border-radius:10px;padding:3px 12px;font-size:11px">כינויים: ${(p.aliases||[]).join(', ')}</span>` : ''}
     </div>
@@ -2469,7 +2490,7 @@ function addCustomSupModal(){
 
 function refreshCustomSupDropdowns() {
   // רענן את כל הרשימות הנפתחות
-  ['e-sup-custom-group','inv-sup-custom-group','price-sup-custom-group','del-sup-custom-group','pdf-sup-custom-group'].forEach(id => {
+  ['e-sup-custom-group','inv-sup-custom-group','price-sup-custom-group','del-sup-custom-group','pdf-sup-custom-group','pm-price-sup-custom-group'].forEach(id => {
     const grp = document.getElementById(id);
     if(!grp) return;
     grp.innerHTML = '';
@@ -3596,6 +3617,18 @@ function searchPrices(){
   const sup=document.getElementById('price-sup').value;
   const tbody=document.getElementById('price-results');
   if(!q){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">הקלד שם מוצר לחיפוש</td></tr>';return}
+  _doSearchPrices(q, sup, tbody);
+}
+
+function searchPmPrices(){
+  const q=(document.getElementById('pm-price-q')?.value||'').toLowerCase();
+  const sup=document.getElementById('pm-price-sup')?.value||'';
+  const tbody=document.getElementById('pm-price-results');
+  if(!q){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">הקלד שם מוצר לחיפוש</td></tr>';return}
+  _doSearchPrices(q, sup, tbody);
+}
+
+function _doSearchPrices(q, sup, tbody){
 
   // בנה מפת מחיר+תאריך אחרון מכל התעודות (כולל ספקים מזדמנים)
   const dynPrices={};
