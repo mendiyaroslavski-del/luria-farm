@@ -1208,7 +1208,6 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input type="text" id="pm-search" class="finput" placeholder="חיפוש מוצר..." style="width:200px" oninput="renderProductsList()">
         <button class="btn btnP" onclick="openAddProductModal()" style="font-size:13px;padding:7px 14px">+ הוסף מוצר</button>
-        <button class="btn btnS" onclick="propagateAllPMCats()" style="font-size:13px;padding:7px 14px" title="מעדכן קטגוריות בכל התעודות והמלאי לפי המאסטר">🔄 הפץ לכולם</button>
       </div>
     </div>
 
@@ -1403,91 +1402,6 @@ function loadPM() {
 }
 function savePM(data) { localStorage.setItem(PM_KEY, JSON.stringify(data)); }
 
-// ── מיפוי קטגוריית מאסטר → ID קטגוריית תעודות ──
-function pmCatToDeliveryCat(pmCat) {
-  const map = {
-    'ריסוס':       'pest',
-    'הדברה':       'pest',
-    'עשביה':       'herb',
-    'דשן':         'fert',
-    'דישון נוזלי': 'liquid',
-    'השקיה':       'irrig',
-    'ציוד':        'equip',
-    'חומרי אריזה': 'general',
-    'הובלה':       'general',
-    'אחר':         'general',
-  };
-  return map[pmCat] || null;
-}
-
-// ── מיפוי קטגוריית מאסטר → קטגוריית מלאי ──
-function pmCatToInvCat(pmCat) {
-  if (pmCat === 'ריסוס' || pmCat === 'הדברה') return 'spray';
-  if (pmCat) return 'general';
-  return '';
-}
-
-// ── מצא מוצר מאסטר לפי שם (קנוני או כינוי) ──
-function findPMByName(name) {
-  if (!name) return null;
-  const pm = loadPM();
-  const low = name.toLowerCase();
-  return pm.find(p =>
-    p.canonical.toLowerCase() === low ||
-    (p.aliases||[]).some(a => a.toLowerCase() === low)
-  ) || null;
-}
-
-// ── לולאת עדכון: שמירה במאסטר → עדכון תעודות + מלאי ──
-function propagatePMCat(product) {
-  if (!product.cat) return { dels: 0, inv: 0 };
-  const deliveryCat = pmCatToDeliveryCat(product.cat);
-  const invCat      = pmCatToInvCat(product.cat);
-  const names = new Set([product.canonical, ...(product.aliases||[])].map(n => n.toLowerCase()));
-
-  let dCount = 0, iCount = 0;
-
-  // עדכון פריטי תעודות
-  if (deliveryCat && typeof dels !== 'undefined') {
-    dels.forEach(d => {
-      (d.items||[]).forEach(it => {
-        if (it.product && names.has(it.product.toLowerCase()) && it.cat !== deliveryCat) {
-          it.cat = deliveryCat;
-          dCount++;
-        }
-      });
-    });
-    if (dCount > 0) save(K.D, dels);
-  }
-
-  // עדכון מלאי
-  if (typeof invent !== 'undefined') {
-    invent.forEach(item => {
-      if (names.has(item.name.toLowerCase()) && item.category !== invCat) {
-        item.category = invCat;
-        iCount++;
-      }
-    });
-    if (iCount > 0) save(K.IV, invent);
-  }
-
-  return { dels: dCount, inv: iCount };
-}
-
-// ── הפץ קטגוריות כל המאסטר לכל המערכת ──
-function propagateAllPMCats() {
-  const pm = loadPM();
-  const withCat = pm.filter(p => p.cat);
-  if (!withCat.length) { toast('⚠️ אין מוצרים עם קטגוריה מוגדרת במאסטר'); return; }
-  let totalDels = 0, totalInv = 0;
-  withCat.forEach(p => {
-    const r = propagatePMCat(p);
-    totalDels += r.dels;
-    totalInv  += r.inv;
-  });
-  toast(`✅ הופצו ${withCat.length} מוצרים · עודכנו ${totalDels} פריטים בתעודות, ${totalInv} פריטים במלאי`);
-}
-
 function pmId() { return 'p' + Date.now() + Math.random().toString(36).slice(2,6); }
 
 // ── fuzzy similarity (Levenshtein-based) ──
@@ -1523,7 +1437,13 @@ function switchPMTab(tab) {
 function renderProductsList() {
   const pm = loadPM();
   const q = (document.getElementById('pm-search')?.value||'').trim().toLowerCase();
-  const filtered = q ? pm.filter(p => p.canonical.toLowerCase().includes(q) || (p.aliases||[]).some(a=>a.toLowerCase().includes(q))) : pm;
+  const _base = q ? pm.filter(p => p.canonical.toLowerCase().includes(q) || (p.aliases||[]).some(a=>a.toLowerCase().includes(q))) : pm;
+  // לא מסווגים קודם, מסווגים בסוף — בכל קבוצה לפי א-ב
+  const filtered = [..._base].sort((a, b) => {
+    const aHas = !!a.cat, bHas = !!b.cat;
+    if (aHas !== bHas) return aHas ? 1 : -1;
+    return a.canonical.localeCompare(b.canonical, 'he');
+  });
   const supCols = ['עמיר','המשביר','דשנים ICL','טיב כימיקלים'];
   const CAT_MAP = {
     'ריסוס':       {color:'#2d7a2d', icon:'🌿'},
@@ -1556,10 +1476,17 @@ function renderProductsList() {
       <th>עמיר ₪</th><th>המשביר ₪</th><th>ICL ₪</th><th>טיב ₪</th><th></th>
     </tr></thead><tbody>`;
 
+  let _shownDivider = false;
+  let _unclassCount = filtered.filter(p => !p.cat).length;
   filtered.forEach(p => {
     const cm = CAT_MAP[p.cat];
     const catColor = cm ? cm.color : '#9e9e9e';
     const catDisplay = cm ? `<span title="${p.cat}" style="background:${catColor}22;color:${catColor};border-radius:10px;padding:2px 8px;font-size:15px">${cm.icon}</span>` : '—';
+    // מפריד בין לא-מסווגים למסווגים
+    if (!_shownDivider && p.cat) {
+      _shownDivider = true;
+      html += `<tr><td colspan="9" style="padding:4px 0;text-align:center;font-size:11px;color:#aaa;border-top:2px dashed #e0e0d8;background:#fafafa">✅ מסווגים</td></tr>`;
+    }
     const fp = v => v>0 ? `₪${parseFloat(v).toLocaleString('he-IL',{maximumFractionDigits:2})}` : '—';
     html += `<tr style="cursor:pointer" onclick="openPmDrawer('${p.id}')">
       <td style="font-weight:600">${p.canonical}</td>
@@ -1716,12 +1643,7 @@ function saveProduct() {
   else pm.push(obj);
   savePM(pm);
   document.getElementById('modal-product-edit').style.display='none';
-  // לולאת עדכון — מפיץ את הקטגוריה לתעודות ולמלאי
-  const _prop = propagatePMCat(obj);
-  let _msg = `✅ מוצר "${canonical}" נשמר`;
-  if (_prop.dels > 0 || _prop.inv > 0)
-    _msg += ` · עודכנו ${_prop.dels} פריטים בתעודות, ${_prop.inv} פריטים במלאי`;
-  toast(_msg);
+  toast(`✅ מוצר "${canonical}" נשמר`);
   renderProductsList();
   renderNewProducts();
 }
@@ -2654,12 +2576,6 @@ function autoDetectItemCat(rid, productName) {
   if (!productName) return;
   const row = rows.find(r => r.id === rid);
   if (!row || row.cat) return; // אל תדרוס בחירה ידנית
-  // בדוק מאסטר מוצרים קודם
-  const masterProd = findPMByName(productName);
-  if (masterProd?.cat) {
-    const cat = pmCatToDeliveryCat(masterProd.cat);
-    if (cat) { row.cat = cat; renderRows(); return; }
-  }
   loadKwMap();
   const name = productName.toLowerCase();
   const sorted = Object.entries(kwMap).sort((a,b) => b[0].length - a[0].length);
@@ -5371,12 +5287,6 @@ function getSprayProductNames(){
 // Effective category: manual override wins, else auto-detect from spray records
 function getEffectiveCat(item){
   if(item.category==='spray'||item.category==='general') return item.category;
-  // בדוק מאסטר מוצרים
-  const masterProd = findPMByName(item.name);
-  if (masterProd?.cat) {
-    const invCat = pmCatToInvCat(masterProd.cat);
-    if (invCat) return invCat;
-  }
   const sprayNames = getSprayProductNames();
   return sprayNames.has(item.name) ? 'spray' : 'none';
 }
