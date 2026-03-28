@@ -1208,6 +1208,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input type="text" id="pm-search" class="finput" placeholder="חיפוש מוצר..." style="width:200px" oninput="renderProductsList()">
         <button class="btn btnP" onclick="openAddProductModal()" style="font-size:13px;padding:7px 14px">+ הוסף מוצר</button>
+        <button class="btn btnS" onclick="propagateAllPMCats()" style="font-size:13px;padding:7px 14px" title="מעדכן קטגוריות בכל התעודות והמלאי לפי המאסטר">🔄 הפץ לכולם</button>
       </div>
     </div>
 
@@ -1401,6 +1402,91 @@ function loadPM() {
   try { return JSON.parse(localStorage.getItem(PM_KEY)||'[]'); } catch { return []; }
 }
 function savePM(data) { localStorage.setItem(PM_KEY, JSON.stringify(data)); }
+
+// ── מיפוי קטגוריית מאסטר → ID קטגוריית תעודות ──
+function pmCatToDeliveryCat(pmCat) {
+  const map = {
+    'ריסוס':       'pest',
+    'הדברה':       'pest',
+    'עשביה':       'herb',
+    'דשן':         'fert',
+    'דישון נוזלי': 'liquid',
+    'השקיה':       'irrig',
+    'ציוד':        'equip',
+    'חומרי אריזה': 'general',
+    'הובלה':       'general',
+    'אחר':         'general',
+  };
+  return map[pmCat] || null;
+}
+
+// ── מיפוי קטגוריית מאסטר → קטגוריית מלאי ──
+function pmCatToInvCat(pmCat) {
+  if (pmCat === 'ריסוס' || pmCat === 'הדברה') return 'spray';
+  if (pmCat) return 'general';
+  return '';
+}
+
+// ── מצא מוצר מאסטר לפי שם (קנוני או כינוי) ──
+function findPMByName(name) {
+  if (!name) return null;
+  const pm = loadPM();
+  const low = name.toLowerCase();
+  return pm.find(p =>
+    p.canonical.toLowerCase() === low ||
+    (p.aliases||[]).some(a => a.toLowerCase() === low)
+  ) || null;
+}
+
+// ── לולאת עדכון: שמירה במאסטר → עדכון תעודות + מלאי ──
+function propagatePMCat(product) {
+  if (!product.cat) return { dels: 0, inv: 0 };
+  const deliveryCat = pmCatToDeliveryCat(product.cat);
+  const invCat      = pmCatToInvCat(product.cat);
+  const names = new Set([product.canonical, ...(product.aliases||[])].map(n => n.toLowerCase()));
+
+  let dCount = 0, iCount = 0;
+
+  // עדכון פריטי תעודות
+  if (deliveryCat && typeof dels !== 'undefined') {
+    dels.forEach(d => {
+      (d.items||[]).forEach(it => {
+        if (it.product && names.has(it.product.toLowerCase()) && it.cat !== deliveryCat) {
+          it.cat = deliveryCat;
+          dCount++;
+        }
+      });
+    });
+    if (dCount > 0) save(K.D, dels);
+  }
+
+  // עדכון מלאי
+  if (typeof invent !== 'undefined') {
+    invent.forEach(item => {
+      if (names.has(item.name.toLowerCase()) && item.category !== invCat) {
+        item.category = invCat;
+        iCount++;
+      }
+    });
+    if (iCount > 0) save(K.IV, invent);
+  }
+
+  return { dels: dCount, inv: iCount };
+}
+
+// ── הפץ קטגוריות כל המאסטר לכל המערכת ──
+function propagateAllPMCats() {
+  const pm = loadPM();
+  const withCat = pm.filter(p => p.cat);
+  if (!withCat.length) { toast('⚠️ אין מוצרים עם קטגוריה מוגדרת במאסטר'); return; }
+  let totalDels = 0, totalInv = 0;
+  withCat.forEach(p => {
+    const r = propagatePMCat(p);
+    totalDels += r.dels;
+    totalInv  += r.inv;
+  });
+  toast(`✅ הופצו ${withCat.length} מוצרים · עודכנו ${totalDels} פריטים בתעודות, ${totalInv} פריטים במלאי`);
+}
 
 function pmId() { return 'p' + Date.now() + Math.random().toString(36).slice(2,6); }
 
@@ -1630,7 +1716,12 @@ function saveProduct() {
   else pm.push(obj);
   savePM(pm);
   document.getElementById('modal-product-edit').style.display='none';
-  toast(`✅ מוצר "${canonical}" נשמר`);
+  // לולאת עדכון — מפיץ את הקטגוריה לתעודות ולמלאי
+  const _prop = propagatePMCat(obj);
+  let _msg = `✅ מוצר "${canonical}" נשמר`;
+  if (_prop.dels > 0 || _prop.inv > 0)
+    _msg += ` · עודכנו ${_prop.dels} פריטים בתעודות, ${_prop.inv} פריטים במלאי`;
+  toast(_msg);
   renderProductsList();
   renderNewProducts();
 }
@@ -2563,6 +2654,12 @@ function autoDetectItemCat(rid, productName) {
   if (!productName) return;
   const row = rows.find(r => r.id === rid);
   if (!row || row.cat) return; // אל תדרוס בחירה ידנית
+  // בדוק מאסטר מוצרים קודם
+  const masterProd = findPMByName(productName);
+  if (masterProd?.cat) {
+    const cat = pmCatToDeliveryCat(masterProd.cat);
+    if (cat) { row.cat = cat; renderRows(); return; }
+  }
   loadKwMap();
   const name = productName.toLowerCase();
   const sorted = Object.entries(kwMap).sort((a,b) => b[0].length - a[0].length);
@@ -5274,6 +5371,12 @@ function getSprayProductNames(){
 // Effective category: manual override wins, else auto-detect from spray records
 function getEffectiveCat(item){
   if(item.category==='spray'||item.category==='general') return item.category;
+  // בדוק מאסטר מוצרים
+  const masterProd = findPMByName(item.name);
+  if (masterProd?.cat) {
+    const invCat = pmCatToInvCat(masterProd.cat);
+    if (invCat) return invCat;
+  }
   const sprayNames = getSprayProductNames();
   return sprayNames.has(item.name) ? 'spray' : 'none';
 }
