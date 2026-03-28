@@ -2168,6 +2168,40 @@ function initData() {
     console.log('[migrate-v3] ✅ ' + v3Fixed + ' תעודות דשנים 2024 סומנו כ-iclExclude');
   }
 
+  // מיגרציה v4: נקה כפילויות אפס-מוביל (70488501 vs 070488501)
+  const MIG_V4 = 'v4_leadzero';
+  if (localStorage.getItem('luria_mig_v4') !== MIG_V4) {
+    const normD = doc => (doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim().replace(/^0+/,'');
+    // בנה map: sup|normDoc|date → [indices]
+    const map = {};
+    dels.forEach((d, i) => {
+      const k = (d.sup||'') + '|' + normD(d.doc) + '|' + (d.date||'');
+      if (!map[k]) map[k] = [];
+      map[k].push(i);
+    });
+    // מצא קבוצות עם יותר מ-1 תעודה — שמור את החדשה יותר (ללא _hist), מחק HIST
+    const toDelete = new Set();
+    Object.values(map).forEach(indices => {
+      if (indices.length < 2) return;
+      // העדף תעודות שאינן HIST
+      const nonHist = indices.filter(i => !dels[i]._hist);
+      const hist    = indices.filter(i =>  dels[i]._hist);
+      if (nonHist.length > 0 && hist.length > 0) {
+        hist.forEach(i => toDelete.add(i));
+      } else {
+        // כולם אותו סוג — שמור את הראשון, מחק שאר
+        indices.slice(1).forEach(i => toDelete.add(i));
+      }
+    });
+    if (toDelete.size > 0) {
+      const before = dels.length;
+      dels = dels.filter((_, i) => !toDelete.has(i));
+      save(K.D, dels);
+      console.log('[migrate-v4] 🗑 הוסרו ' + toDelete.size + ' כפילויות אפס-מוביל (מ-' + before + ' ל-' + dels.length + ')');
+    }
+    localStorage.setItem('luria_mig_v4', MIG_V4);
+  }
+
   return dels;
 }
 
@@ -3922,7 +3956,7 @@ function renderAmirImportPreview(data) {
 
   // ── בדיקת כפילויות חכמה ──
   // 1. כפילות לפי מספר תעודה (עם נרמול SH)
-  const normalizeDoc = d => d.replace(/^SH/i,'').replace(/SH$/i,'').trim();
+  const normalizeDoc = d => d.replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim().replace(/^0+/,'');
   const existingNorm = new Set(dels.filter(x=>x.sup===supplier).map(d => normalizeDoc(d.doc)));
   const dupDels = dels_list.filter(d => existingNorm.has(normalizeDoc(d.doc)));
   const newDels = dels_list.filter(d => !existingNorm.has(normalizeDoc(d.doc)));
@@ -4089,14 +4123,14 @@ function confirmAmirImport() {
 
   dels_list.forEach(d => {
     // נרמול: ספרות בלבד — עמיד ל-SH/SI מימין או משמאל (RTL/LTR)
-    const normDoc = (d.doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim();
+    const normDoc = (d.doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim().replace(/^0+/,'');
 
     // מחק כפילויות: אותן ספרות + אותו תאריך + אותו ספק
     let deleted = 0;
     for (let i = dels.length - 1; i >= 0; i--) {
       const x = dels[i];
       if (x.sup !== supplier) continue;
-      const xNorm = (x.doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim();
+      const xNorm = (x.doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim().replace(/^0+/,'');
       if (xNorm !== normDoc) continue;
       if (d.date && x.date && d.date !== x.date) continue; // תאריך שונה — לא כפילות
       // נקה קישור מחשבוניות (docIds)
@@ -4143,9 +4177,9 @@ function confirmAmirImport() {
   const invNum = inv.num;
   if (invNum) {
     // מצא את ה-IDs של התעודות שזה עתה נוספו
-    const normDocSet = new Set(dels_list.map(d => (d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim()));
+    const normDocSet = new Set(dels_list.map(d => (d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim().replace(/^0+/,'')));
     const newDocIds = dels
-      .filter(d => d.sup === supplier && normDocSet.has((d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim()))
+      .filter(d => d.sup === supplier && normDocSet.has((d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim().replace(/^0+/,'')))
       .map(d => String(d.id));
 
     // עדכן invNum על כל תעודה
@@ -9394,7 +9428,7 @@ function renderAnnual() {
 
 // ═══ בדיקת כפילויות ═══
 function findDuplicates() {
-  const normDoc = doc => (doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim();
+  const normDoc = doc => (doc || '').replace(/[A-Za-z]/g, '').replace(/\s/g,'').trim().replace(/^0+/,'');
 
   // 1. תעודות זהות — אותן ספרות + אותו ספק + אותו תאריך
   const identical = [];
