@@ -4674,7 +4674,9 @@ let chartInst=null;
 let statSupFilter='all';
 // החזר חשבוניות ישירות כ-"תעודות" לסטטיסטיקה
 function getDirectInvAsDels(){
-  return invs.filter(i=>i.direct && i.total>0).map(i=>({
+  // מספרי חשבוניות שכבר מקושרים לתעודות — אין לספור פעמיים
+  const linkedInvNums = new Set(dels.map(d => d.invNum).filter(Boolean));
+  return invs.filter(i => i.direct && i.total > 0 && !linkedInvNums.has(i.num)).map(i=>({
     sup: i.sup,
     date: i.date,
     year: String(i.year||new Date(i.date||'').getFullYear()||''),
