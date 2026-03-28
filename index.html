@@ -4674,9 +4674,25 @@ let chartInst=null;
 let statSupFilter='all';
 // החזר חשבוניות ישירות כ-"תעודות" לסטטיסטיקה
 function getDirectInvAsDels(){
-  // מספרי חשבוניות שכבר מקושרים לתעודות — אין לספור פעמיים
+  // 1. מספרי חשבוניות שכבר מקושרים לתעודות — לא לספור פעמיים
   const linkedInvNums = new Set(dels.map(d => d.invNum).filter(Boolean));
-  return invs.filter(i => i.direct && i.total > 0 && !linkedInvNums.has(i.num)).map(i=>({
+
+  // 2. ספקים שיש להם תעודות רגילות (לא ישירות) — לפי שנה
+  //    מפה: "sup|year" → true
+  const supYearWithDels = new Set();
+  dels.forEach(d => {
+    if (d.sup && d.year) supYearWithDels.add(d.sup.trim() + '|' + d.year);
+  });
+
+  return invs.filter(i => {
+    if (!i.direct || !(i.total > 0)) return false;
+    // אם המספר כבר מקושר לתעודה — לא כלול
+    if (linkedInvNums.has(i.num)) return false;
+    // אם לספק כבר יש תעודות רגילות באותה שנה — לא כלול (למנוע כפילות)
+    const invYear = String(i.year || new Date(i.date||'').getFullYear() || '');
+    if (supYearWithDels.has((i.sup||'').trim() + '|' + invYear)) return false;
+    return true;
+  }).map(i=>({
     sup: i.sup,
     date: i.date,
     year: String(i.year||new Date(i.date||'').getFullYear()||''),
