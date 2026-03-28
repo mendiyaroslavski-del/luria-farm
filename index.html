@@ -2147,6 +2147,27 @@ function initData() {
     console.log('[migrate-icl] ✅ ' + iclFixed_count + ' תעודות ICL תוקנו');
   }
 
+  // מיגרציה v3: תעודות "דשנים" ב-2024 — כלולות כבר בחשבוניות טיב כימיקלים
+  // מספרי התעודות שמופיעים בחשבוניות h946b-e של טיב כימיקלים
+  const DASHANIM_2024_DOCS = new Set(['91518','91856','91866','91873','90189','90598','90867','91076','91096','91322','91444','91507','91512']);
+  const MIG_V3 = 'v3_dashanim2024';
+  if (localStorage.getItem('luria_mig') !== MIG_V3) {
+    let v3Fixed = 0;
+    dels.forEach(d => {
+      if (String(d.year) !== '2024') return;
+      if (!d.sup || !d.sup.includes('דשנים')) return;
+      const docNums = String(d.doc || '').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
+      if (docNums.some(n => DASHANIM_2024_DOCS.has(n))) {
+        (d.items || []).forEach(it => { it.iclExclude = true; });
+        v3Fixed++;
+        console.log('[migrate-v3] דשנים 2024 הוחרג:', d.doc);
+      }
+    });
+    if (v3Fixed > 0) save(K.D, dels);
+    localStorage.setItem('luria_mig', MIG_V3);
+    console.log('[migrate-v3] ✅ ' + v3Fixed + ' תעודות דשנים 2024 סומנו כ-iclExclude');
+  }
+
   return dels;
 }
 
