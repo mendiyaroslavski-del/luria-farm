@@ -3995,8 +3995,15 @@ function renderAmirImportPreview(data) {
 
   let html = `<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
-      <strong>חשבונית ${inv.num}</strong>
-      <span style="color:#666">${inv.date}</span>
+      <strong>חשבונית:</strong>
+      <input id="imp-inv-num" value="${inv.num||''}"
+        onchange="_amirImportData.invoice.num=this.value.trim();renderAmirImportPreview(_amirImportData)"
+        style="font-size:13px;font-weight:700;border:1px solid #a5d6a7;border-radius:4px;padding:2px 6px;width:130px;font-family:inherit;direction:ltr;text-align:left"
+        placeholder="מספר חשבונית">
+      <input id="imp-inv-date" value="${inv.date||''}"
+        onchange="_amirImportData.invoice.date=this.value.trim()"
+        style="font-size:12px;border:1px solid #a5d6a7;border-radius:4px;padding:2px 6px;width:105px;font-family:inherit"
+        placeholder="תאריך YYYY-MM-DD">
       <span style="color:#2e7d32;font-weight:700">₪${(inv.total_with_vat||0).toLocaleString()}</span>
       <span style="color:#888;font-size:11px">(לפני מע"מ: ₪${(inv.total_before_vat||0).toLocaleString()})</span>
     </div>
@@ -4041,7 +4048,19 @@ function renderAmirImportPreview(data) {
     const total = d.items.reduce((s,it) => s+(it.total||0), 0);
     html += `<div style="background:${bg};border:1px solid #e0e0e0;border-radius:8px;padding:10px 12px;margin-bottom:8px" id="imp-del-${di}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px">
-        <span>${badge}<strong>${d.doc}</strong> — ${d.date}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${badge}
+          <input value="${d.doc||''}"
+            onchange="_amirImportData.deliveries[${di}].doc=this.value.trim();renderAmirImportPreview(_amirImportData)"
+            style="font-size:12px;font-weight:700;border:1px solid #bdbdbd;border-radius:4px;padding:1px 5px;width:110px;font-family:inherit;direction:ltr;text-align:left"
+            placeholder="מס׳ תעודה">
+          <input value="${d.date||''}"
+            onchange="_amirImportData.deliveries[${di}].date=this.value.trim()"
+            style="font-size:11px;border:1px solid #bdbdbd;border-radius:4px;padding:1px 5px;width:100px;font-family:inherit"
+            placeholder="YYYY-MM-DD">
+          <button onclick="_amirImportData.deliveries.splice(${di},1);renderAmirImportPreview(_amirImportData)"
+            style="background:#ffebee;border:1px solid #ef9a9a;border-radius:4px;cursor:pointer;font-size:11px;color:#c62828;padding:1px 7px;font-family:inherit">🗑</button>
+        </div>
         <span id="imp-deltotal-${di}" style="font-weight:700;color:#2e7d32">₪${total.toFixed(2)}</span>
       </div>
       <table style="width:100%;font-size:11px;border-collapse:collapse" id="imp-tbl-${di}">
