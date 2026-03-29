@@ -4004,7 +4004,16 @@ function renderAmirImportPreview(data) {
         onchange="_amirImportData.invoice.date=this.value.trim()"
         style="font-size:12px;border:1px solid #a5d6a7;border-radius:4px;padding:2px 6px;width:105px;font-family:inherit"
         placeholder="תאריך YYYY-MM-DD">
-      <span style="color:#2e7d32;font-weight:700">₪${(inv.total_with_vat||0).toLocaleString()}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+      <label style="font-size:12px;color:#555;white-space:nowrap">סכום כולל מע"מ:</label>
+      <input id="imp-inv-total" value="${(inv.total_with_vat||0).toFixed(2)}"
+        onchange="_amirImportData.invoice.total_with_vat=parseFloat(this.value)||0;_amirImportData.invoice.total_before_vat=+((parseFloat(this.value)||0)/1.18).toFixed(2);renderAmirImportPreview(_amirImportData)"
+        style="font-size:13px;font-weight:700;color:#2e7d32;border:1px solid #a5d6a7;border-radius:4px;padding:2px 6px;width:100px;font-family:inherit;direction:ltr;text-align:left"
+        inputmode="decimal">
+      <button onclick="_calcInvTotalFromItems()"
+        style="font-size:11px;background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit"
+        title="חשב סכום חשבונית אוטומטית מסכום הפריטים">🔄 חשב מפריטים</button>
       <span style="color:#888;font-size:11px">(לפני מע"מ: ₪${(inv.total_before_vat||0).toLocaleString()})</span>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
@@ -4105,6 +4114,23 @@ function renderAmirImportPreview(data) {
   document.getElementById('amir-import-actions').style.display = 'flex';
 }
 
+function _calcInvTotalFromItems() {
+  if (!_amirImportData) return;
+  const invYear = parseInt((_amirImportData.invoice.date||'').substring(0,4)) || new Date().getFullYear();
+  const VAT = invYear >= 2025 ? 0.18 : 0.17;
+  let totalBeforeVat = 0;
+  (_amirImportData.deliveries || []).forEach(d => {
+    (d.items || []).forEach(it => {
+      totalBeforeVat += (it.total || 0);
+    });
+  });
+  const totalWithVat = +(totalBeforeVat * (1 + VAT)).toFixed(2);
+  _amirImportData.invoice.total_before_vat = +totalBeforeVat.toFixed(2);
+  _amirImportData.invoice.total_with_vat   = totalWithVat;
+  renderAmirImportPreview(_amirImportData);
+  toast(`🔄 סכום חשבונית עודכן: ₪${totalWithVat.toLocaleString()} (מע"מ ${VAT*100}%)`);
+}
+
 function _addImportItem(di) {
   if (!_amirImportData) return;
   _amirImportData.deliveries[di].items.push({product:'', qty:1, price:0, discount:0, total:0, _new:true});
@@ -4137,7 +4163,8 @@ function confirmAmirImport() {
   }
   const inv = _amirImportData.invoice;
   const dels_list = _amirImportData.deliveries || [];
-  const VAT = 0.18;
+  const invYear = parseInt((inv.date||'').substring(0,4)) || new Date().getFullYear();
+  const VAT = invYear >= 2025 ? 0.18 : 0.17;
   let added = 0, skipped = 0;
 
   dels_list.forEach(d => {
