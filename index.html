@@ -929,7 +929,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="ctitle">➕ ישום חדש</div>
     <!-- פרטים כלליים לישום -->
     <div class="fr fr2">
-      <div class="fg"><label class="flabel">תאריך</label><input type="date" class="finput" id="spr-date"></div>
+      <div class="fg"><label class="flabel">תאריך</label><input type="date" class="finput" id="spr-date" oninput="updateSprHeDate()"><div id="spr-hedate" style="font-size:12px;color:#558b2f;margin-top:4px;font-weight:700;min-height:16px;letter-spacing:0.3px"></div></div>
       <div class="fg"><label class="flabel">מרסס</label><input type="text" class="finput" id="spr-op" placeholder="שם המרסס"></div>
     </div>
     <div class="fr fr2">
@@ -5134,6 +5134,18 @@ function smUpdateCostDisplay(mid, m){
   }
 }
 
+function toHebrewDateWords(dateStr){
+  if(!dateStr) return '';
+  try{
+    const d=new Date(dateStr+'T12:00:00');
+    return new Intl.DateTimeFormat('he-u-ca-hebrew',{day:'numeric',month:'long',year:'long'}).format(d);
+  }catch(e){return '';}
+}
+function updateSprHeDate(){
+  const v=document.getElementById('spr-date')?.value;
+  const el=document.getElementById('spr-hedate');
+  if(el) el.textContent=v?toHebrewDateWords(v):'';
+}
 function saveSpray(){
   const date=document.getElementById('spr-date').value;
   const op=document.getElementById('spr-op').value.trim();
@@ -5229,7 +5241,7 @@ function renderSprays(){
     const phytems=[...new Set(g.mats.map(m=>m.phytem).filter(Boolean))].join(', ');
     const updateBtn=missingPrice?`<button onclick="updateSprayPrices(${g.appId})" style="background:#e65100;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;padding:3px 7px;margin-top:3px;display:block" title="מלא מחירים לפי הרכישה האחרונה">💰 עדכן מחיר</button>`:'';
     return `<tr>
-      <td>${g.date||'—'}</td>
+      <td>${g.date||'—'}${g.date?'<br><span style="font-size:11px;color:#558b2f;font-weight:700">'+toHebrewDateWords(g.date)+'</span>':''}</td>
       <td>${g.op||'—'}</td>
       <td style="min-width:220px;font-size:13px">${matsHtml}${updateBtn}</td>
       <td>${g.tank?g.tank+'L':'—'}${g.numTanks?` × ${g.numTanks}`:''}</td>
@@ -8027,6 +8039,7 @@ document.addEventListener('click',e=>{
 const today=new Date().toISOString().split('T')[0];
 document.getElementById('e-date').value=today;
 document.getElementById('spr-date').value=today;
+updateSprHeDate();
 document.getElementById('inv-date').value=today;
 document.getElementById('inv-month').value=new Date().getMonth()+1;
 document.getElementById('cmp-mo').value=new Date().getMonth()+1;
