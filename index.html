@@ -5330,7 +5330,9 @@ function renderSprays(){
     const totalCost=g.mats.reduce((s,m)=>s+(m.totalCost||0),0);
     const missingPrice=g.mats.some(m=>!m.unitPrice||!m.totalCost);
     const matsHtml=g.mats.map(m=>{
-      const qtyStr=m.qty?`${m.qty}/100ל׳${m.totalQty&&m.totalQty!==m.qty?` (סה״כ: ${m.totalQty%1===0?m.totalQty:m.totalQty.toFixed(2)})`:''}`:'';
+      const qtyStr=m.qty
+        ? `${m.qty}/100ל׳${(m.totalQty&&m.totalQty!==m.qty)?` → <strong style="color:#1a237e">${m.totalQty%1===0?m.totalQty:parseFloat(m.totalQty.toFixed(2))} ${m.unit||''}</strong>`:''}`
+        : '';
       const priceStr=m.unitPrice?` — ₪${m.unitPrice.toFixed?m.unitPrice.toFixed(2):m.unitPrice}/${m.unit||'יח׳'}`:'';
       const costStr=m.totalCost?` = <span style="color:#388e3c;font-weight:600">₪${Math.round(m.totalCost).toLocaleString()}</span>`:'';
       const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}]</span>`:'';
@@ -7578,8 +7580,8 @@ function generatePDFFiltered(type) {
     const appGroups = {};
     filtered.forEach(s => {
       const key = s.appId || s.id;
-      if (!appGroups[key]) appGroups[key] = {date:s.date,op:s.op,tank:s.tank,numTanks:s.numTanks,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||''});
+      if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
+      appGroups[key].mats.push({mat:s.mat,qtyPer100:s.qty,qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||''});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const totalArea = apps.reduce((s,a)=>s+(parseFloat(a.area)||0),0);
@@ -7607,15 +7609,16 @@ function generatePDFFiltered(type) {
 
     if (apps.length === 0) { body += '<div style="text-align:center;padding:40px;color:#999">לא נמצאו ריסוסים לפי הסינון</div>'; }
     else {
-      const sprHdr = `<tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>כמות</th><th>מחיר יח'</th><th>עלות</th><th>מיכל</th><th>שטח</th><th>ישום פיטם</th><th>הערות</th></tr>`;
+      const sprHdr = `<tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>ל-100ל׳</th><th>סה״כ כמות</th><th>מחיר יח'</th><th>עלות</th><th>ליטרים</th><th>שטח</th><th>ישום פיטם</th><th>הערות</th></tr>`;
       const sprRow = (app, m, i) => `<tr>
-        <td>${i===0?(app.date||'')+(app.date?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${toHebrewDateWords(app.date)}</span>` : ''):''}</td>
+        <td>${i===0?(app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:''):''}</td>
         <td>${i===0?(app.op||''):''}</td>
         <td>${m.mat||''}</td>
-        <td class="amnt">${m.qty||''} ${m.unit||''}</td>
+        <td class="amnt">${m.qtyPer100||m.qty||''} ${m.unit||''}</td>
+        <td class="amnt" style="font-weight:700;color:#1a237e">${m.qty&&m.qty!==(m.qtyPer100||m.qty)?(m.qty%1===0?m.qty:m.qty.toFixed(2))+' '+(m.unit||''):''}</td>
         <td class="amnt">${m.unitPrice?'₪'+m.unitPrice.toFixed(2):''}</td>
         <td class="amnt" style="font-weight:600;color:#2e7d32">${m.totalCost?'₪'+Math.round(m.totalCost).toLocaleString():''}</td>
-        <td class="amnt">${i===0?(app.tank?app.tank+'L'+(app.numTanks>1?' × '+app.numTanks:''):''):''}</td>
+        <td class="amnt">${i===0?(app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank?app.tank+'L'+(app.numTanks>1?' × '+app.numTanks:''):''))  :''}</td>
         <td class="amnt">${i===0?(app.area||''):''}</td>
         <td>${m.phytem||''}</td>
         <td>${i===0?(app.notes||''):''}</td></tr>`;
@@ -8052,25 +8055,27 @@ function generatePDF(type) {
     const appGroups = {};
     sprs.forEach(s => {
       const key = s.appId || s.id;
-      if (!appGroups[key]) appGroups[key] = {date:s.date,op:s.op,tank:s.tank,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qty:s.qty,phytem:s.phytem||''});
+      if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
+      appGroups[key].mats.push({mat:s.mat,qty:s.qty,totalQty:s.totalQty||s.qty,unit:s.unit||'',phytem:s.phytem||''});
     });
     const apps = Object.values(appGroups);
     body += `<div class="summary-box">
       <div class="sbox"><div class="sbox-num">${apps.length}</div><div class="sbox-lbl">יישומים</div></div>
       <div class="sbox"><div class="sbox-num">${apps.reduce((s,a)=>s+(a.area||0),0).toLocaleString()}</div><div class="sbox-lbl">שטח כולל</div></div>
     </div>
-    <table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר מרוסס</th><th>כמות</th><th>מיכל (ל')</th><th>שטח</th><th>מהירות</th><th>הערות</th></tr></thead><tbody>`;
+    <table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר מרוסס</th><th>כמות ל-100ל׳</th><th>סה״כ כמות</th><th>מיכל (ל')</th><th>שטח</th><th>הערות</th></tr></thead><tbody>`;
     apps.forEach(app => {
       app.mats.forEach((m,i) => {
+        const tq = m.totalQty!==undefined?m.totalQty:m.qty;
+        const tqStr = tq?(tq%1===0?tq:tq.toFixed(2))+' '+(m.unit||''):'';
         body += `<tr>
-          <td>${i===0 ? (app.date||'')+(app.date?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${toHebrewDateWords(app.date)}</span>`:'') : ''}</td>
+          <td>${i===0 ? (app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:'') : ''}</td>
           <td>${i===0 ? (app.op||'') : ''}</td>
           <td>${m.mat||''}</td>
-          <td class="amnt">${m.qty||''}</td>
-          <td class="amnt">${i===0 ? (app.tank||'') : ''}</td>
+          <td class="amnt">${m.qty||''} ${m.unit||''}/100ל׳</td>
+          <td class="amnt" style="font-weight:600;color:#1a237e">${tqStr}</td>
+          <td class="amnt">${i===0 ? (app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank||'')) : ''}</td>
           <td class="amnt">${i===0 ? (app.area||'') : ''}</td>
-          <td>${m.phytem||''}</td>
           <td>${i===0 ? (app.notes||'') : ''}</td>
         </tr>`;
       });
