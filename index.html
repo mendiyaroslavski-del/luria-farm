@@ -5011,6 +5011,8 @@ function calcSprayTotals(){
   const sumStr = tractorConfigs.filter(t=>t.numTanks).length>1
     ? ` <strong>= ${totalLiters.toLocaleString()} ליטר סה״כ</strong>` : '';
   el.innerHTML = parts.join(' &nbsp;|&nbsp; ')+sumStr;
+  // עדכן תצוגת עלות חומרים לפי ליטרים חדשים
+  sprayMats.forEach(m=>smUpdateCostDisplay(m.id,m));
 }
 
 function initSprayMats(){
@@ -5066,20 +5068,28 @@ function getLastPrice(matName){
 }
 
 function renderSprayMats(){
+  // calc current totalLiters from tractorConfigs
+  tractorConfigs.forEach(t=>syncTractorConfig(t.id));
+  let totalLiters=0;
+  tractorConfigs.forEach(t=>{
+    if(!t.numTanks) return;
+    const fullTanks=t.lastLiters>0?t.numTanks-1:t.numTanks;
+    totalLiters += t.lastLiters>0?(fullTanks*t.tank)+t.lastLiters:t.numTanks*t.tank;
+  });
+
   document.getElementById('spr-mats').innerHTML=sprayMats.map((m,i)=>{
     const info = m.priceInfo || getLastPrice(m.mat);
     const pricePerUnit = m.pricePerUnit !== undefined ? m.pricePerUnit : info.pricePerUnit;
     const unit = info.unit || 'יח׳';
-    const numTanks = parseFloat(document.getElementById('spr-num-tanks')?.value||0);
-    const qty = m.qty||0;
-    const costPerApp = pricePerUnit * qty;
-    const totalCost = numTanks>0 ? costPerApp * numTanks : costPerApp;
+    const qty = m.qty||0; // qty per 100L
+    const totalQty = totalLiters>0 ? (qty/100)*totalLiters : qty;
+    const totalCost = pricePerUnit>0&&totalQty>0 ? pricePerUnit*totalQty : 0;
     const priceColor = pricePerUnit>0 ? 'color:var(--gm)' : 'color:#aaa';
-    
+
     const costHtml2 = (pricePerUnit>0 && qty>0)
-      ? `💰 ${qty} ${unit} × ₪${pricePerUnit.toFixed(2)}/${unit} = <strong>₪${Math.round(costPerApp).toLocaleString()}</strong>${numTanks>1?` × ${numTanks} מיכלים = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}`
+      ? `💰 ${qty} ${unit}/100ל׳${totalLiters>0?` × ${totalLiters.toLocaleString()}ל׳ ÷ 100 = <strong>${totalQty%1===0?totalQty:totalQty.toFixed(2)} ${unit}</strong> × ₪${pricePerUnit.toFixed(2)} = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}`
       : '';
-    
+
     return `
     <div class="spray-item-row">
       ${sprayMats.length>1?`<button class="spr-del" onclick="removeSprayMat(${m.id})">✕</button>`:''}
@@ -5092,7 +5102,7 @@ function renderSprayMats(){
           <div class="aclist" id="sm-ac-${m.id}"></div>
         </div>
         <div class="fg">
-          <label class="flabel">כמות (${unit||'יח׳'})</label>
+          <label class="flabel">כמות ל-100ל׳ (${unit||'יח׳'})</label>
           <input type="text" class="finput" id="sm-qty-${m.id}" value="${qty||''}"
             inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="0" oninput="smUpdate(${m.id})">
         </div>
@@ -5164,15 +5174,21 @@ function smUpdateCostDisplay(mid, m){
   const info = m.priceInfo || getLastPrice(m.mat);
   const pricePerUnit = m.pricePerUnit || info.pricePerUnit || 0;
   const unit = info.unit || 'יח׳';
-  const numTanks = parseFloat((document.getElementById('spr-num-tanks')?.value||'0').replace(',','.'))||0;
+  tractorConfigs.forEach(t=>syncTractorConfig(t.id));
+  let totalLiters=0;
+  tractorConfigs.forEach(t=>{
+    if(!t.numTanks) return;
+    const ft=t.lastLiters>0?t.numTanks-1:t.numTanks;
+    totalLiters += t.lastLiters>0?(ft*t.tank)+t.lastLiters:t.numTanks*t.tank;
+  });
   const qty = m.qty||0;
-  const costPerApp = pricePerUnit * qty;
-  const totalCost = numTanks>1 ? costPerApp * numTanks : costPerApp;
+  const totalQty = totalLiters>0 ? (qty/100)*totalLiters : qty;
+  const totalCost = pricePerUnit>0&&totalQty>0 ? pricePerUnit*totalQty : 0;
   const costEl = document.getElementById('sm-cost-'+mid);
   if(!costEl) return;
   if(pricePerUnit>0 && qty>0){
-    costEl.innerHTML = `💰 ${qty} ${unit} × ₪${pricePerUnit.toFixed(2)}/${unit} = <strong>₪${Math.round(costPerApp).toLocaleString()}</strong>`
-      + (numTanks>1?` × ${numTanks} מיכלים = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:'');
+    costEl.innerHTML = `💰 ${qty} ${unit}/100ל׳`
+      + (totalLiters>0 ? ` × ${totalLiters.toLocaleString()}ל׳ ÷ 100 = <strong>${totalQty%1===0?totalQty:totalQty.toFixed(2)} ${unit}</strong> × ₪${pricePerUnit.toFixed(2)} = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>` : '');
     costEl.style.display='block';
   } else {
     costEl.style.display='none';
@@ -5261,7 +5277,7 @@ function saveSpray(){
   // Save each chemical as a separate spray record, linked by appId
   const appId=Date.now();
   validMats.forEach(m=>{
-    const totalQty=totalTanks>0&&m.qty>0?m.qty*totalTanks:m.qty;
+    const totalQty = totalLiters>0&&m.qty>0 ? (m.qty/100)*totalLiters : m.qty;
     const info=m.priceInfo||getLastPrice(m.mat);
     const unitPrice=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
     const unit=info.unit||'יח׳';
@@ -5272,7 +5288,7 @@ function saveSpray(){
   const totalSprayCost=validMats.reduce((s,m)=>{
     const info=m.priceInfo||getLastPrice(m.mat);
     const u=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
-    const tq=totalTanks>0&&m.qty>0?m.qty*totalTanks:m.qty;
+    const tq=totalLiters>0&&m.qty>0?(m.qty/100)*totalLiters:m.qty;
     return s+u*tq;
   },0);
   document.getElementById('spr-notes').value='';
@@ -5314,7 +5330,7 @@ function renderSprays(){
     const totalCost=g.mats.reduce((s,m)=>s+(m.totalCost||0),0);
     const missingPrice=g.mats.some(m=>!m.unitPrice||!m.totalCost);
     const matsHtml=g.mats.map(m=>{
-      const qtyStr=m.qty?(m.totalQty&&m.totalQty!==m.qty?`${m.qty} (${m.totalQty})`:`${m.qty}`):'';
+      const qtyStr=m.qty?`${m.qty}/100ל׳${m.totalQty&&m.totalQty!==m.qty?` (סה״כ: ${m.totalQty%1===0?m.totalQty:m.totalQty.toFixed(2)})`:''}`:'';
       const priceStr=m.unitPrice?` — ₪${m.unitPrice.toFixed?m.unitPrice.toFixed(2):m.unitPrice}/${m.unit||'יח׳'}`:'';
       const costStr=m.totalCost?` = <span style="color:#388e3c;font-weight:600">₪${Math.round(m.totalCost).toLocaleString()}</span>`:'';
       const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}]</span>`:'';
