@@ -219,6 +219,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn" onclick="showTab(this,'spray')">🌿 ריסוסים</button>
     <button class="navbtn" onclick="showTab(this,'inventory')">📦 מלאי</button>
     <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
+    <button class="navbtn" onclick="showTab(this,'salary')">👷 שכר</button>
     <button class="navbtn" onclick="showTab(this,'products')">📦 מאסטר מוצרים</button>
     <button class="navbtn" id="navbtn-control" onclick="showTab(this,'control')">🛡️ בקרת מערכת</button>
     <button class="navbtn" onclick="showTab(this,'bot')">🤖 עוזר חכם</button>
@@ -1202,6 +1203,84 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 </div>
 
 
+
+<!-- ═══════════════════════════════════ -->
+<!-- 👷 שכר עובדים                      -->
+<!-- ═══════════════════════════════════ -->
+<div id="tab-salary" class="sec">
+  <div class="main">
+    <div class="shtitle">👷 שכר עובדים</div>
+
+    <!-- טופס הזנת חודש שכר -->
+    <div class="card">
+      <div class="ctitle">➕ הזנת חודש שכר
+        <label style="margin-right:12px;cursor:pointer;background:#1565c0;color:#fff;padding:5px 12px;border-radius:8px;font-size:13px;font-weight:600">
+          📄 יבא מ-PDF
+          <input type="file" accept="application/pdf" multiple style="display:none" onchange="importSalaryPDF(this)">
+        </label>
+      </div>
+      <div id="sal-import-status" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:8px"></div>
+      <div class="fr fr3">
+        <div class="fg">
+          <label class="flabel">חודש</label>
+          <select class="fsel" id="sal-month">
+            <option value="1">ינואר</option><option value="2">פברואר</option>
+            <option value="3">מרץ</option><option value="4">אפריל</option>
+            <option value="5">מאי</option><option value="6">יוני</option>
+            <option value="7">יולי</option><option value="8">אוגוסט</option>
+            <option value="9">ספטמבר</option><option value="10">אוקטובר</option>
+            <option value="11">נובמבר</option><option value="12">דצמבר</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label class="flabel">שנה</label>
+          <input type="number" class="finput" id="sal-year" value="2026" min="2020" max="2040">
+        </div>
+        <div class="fg">
+          <label class="flabel">הערות</label>
+          <input type="text" class="finput" id="sal-notes" placeholder="הערה לחודש זה">
+        </div>
+      </div>
+
+      <!-- כותרת טבלת עובדים -->
+      <div style="display:grid;grid-template-columns:1fr 100px 100px 110px 32px;gap:6px;align-items:center;font-size:11px;font-weight:700;color:#558b2f;padding:6px 4px 2px;border-bottom:1px solid #c8e6c9;margin-top:10px">
+        <span>שם עובד</span>
+        <span style="text-align:center">ברוטו (₪)</span>
+        <span style="text-align:center">נטו (₪)</span>
+        <span style="text-align:center">עלות מעסיק (₪)</span>
+        <span></span>
+      </div>
+      <div id="sal-emps"></div>
+
+      <!-- סיכום -->
+      <div id="sal-summary" style="display:none;background:#f0faf0;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:13px;display:flex;gap:16px;flex-wrap:wrap">
+        <span>ברוטו: <strong id="sal-sum-gross">—</strong></span>
+        <span>נטו: <strong id="sal-sum-net">—</strong></span>
+        <span>עלות מעסיק: <strong id="sal-sum-emp" style="color:#1a237e">—</strong></span>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btnG" onclick="addSalEmp()">+ עובד נוסף</button>
+        <button class="btn" style="background:#1a237e;color:#fff;border:none" onclick="saveSalary()">💾 שמור חודש שכר</button>
+      </div>
+    </div>
+
+    <!-- היסטוריה -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="ctitle" style="margin:0">📋 היסטוריה</div>
+        <select class="fsel" style="width:100px" id="sal-filter-year" onchange="renderSalaries()">
+          <option value="">כל השנים</option>
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+        </select>
+      </div>
+      <div id="sal-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════════════════════ -->
 <!-- 📦 מאסטר מוצרים                   -->
 <!-- ═══════════════════════════════════ -->
@@ -2020,7 +2099,7 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2',SAL:'lsal2'};
 const IDB_NAME  = 'luria-fh-db';
 const IDB_STORE = 'handles';
 const IDB_KEY   = 'main';
@@ -2227,6 +2306,7 @@ let invent = load(K.IV);
 let customSups = load(K.C); // ספקים מזדמנים
 // customFields מוצהר ב-FIELDS MANAGER section
 let expenses  = load(K.EX); // הוצאות כלליות
+let salaries  = load(K.SAL); // שכר עובדים
 let fileHandle = null; // שמירה
 function openFHDB(){
   return new Promise((res,rej)=>{
@@ -5938,6 +6018,238 @@ ${others.join(', ')}
 // ══════════════════════════════════════════
 // ═══ EXPENSES — הוצאות כלליות ═══
 // ══════════════════════════════════════════
+// 👷 מודול שכר עובדים
+// ══════════════════════════════════════════
+const HMlblSal = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+let salEmps = [];
+
+function initSalEmps(){
+  salEmps = [{id:Date.now(), name:'', gross:0, net:0, empCost:0}];
+  renderSalEmps();
+}
+
+function addSalEmp(){
+  salEmps.push({id:Date.now()+Math.random(), name:'', gross:0, net:0, empCost:0});
+  renderSalEmps();
+}
+
+function removeSalEmp(id){
+  if(salEmps.length<=1) return;
+  salEmps = salEmps.filter(e=>e.id!==id);
+  renderSalEmps();
+  calcSalTotals();
+}
+
+function syncSalEmp(id){
+  const e = salEmps.find(x=>x.id===id);
+  if(!e) return;
+  e.name    = document.getElementById('se-name-'+id)?.value||'';
+  e.gross   = parseFloat(document.getElementById('se-gross-'+id)?.value||0)||0;
+  e.net     = parseFloat(document.getElementById('se-net-'+id)?.value||0)||0;
+  e.empCost = parseFloat(document.getElementById('se-emp-'+id)?.value||0)||0;
+}
+
+function renderSalEmps(){
+  const c = document.getElementById('sal-emps');
+  if(!c) return;
+  c.innerHTML = salEmps.map((e,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 100px 100px 110px 32px;gap:6px;align-items:center;padding:5px 4px;border-bottom:1px solid #f0f4f0">
+      <input type="text" class="finput" id="se-name-${e.id}" value="${esc(e.name)}" placeholder="שם עובד" oninput="syncSalEmp(${e.id});calcSalTotals()">
+      <input type="text" class="finput" style="text-align:center" id="se-gross-${e.id}" value="${e.gross||''}" inputmode="decimal" placeholder="0" oninput="syncSalEmp(${e.id});calcSalTotals()">
+      <input type="text" class="finput" style="text-align:center" id="se-net-${e.id}" value="${e.net||''}" inputmode="decimal" placeholder="0" oninput="syncSalEmp(${e.id});calcSalTotals()">
+      <input type="text" class="finput" style="text-align:center;color:#1a237e;font-weight:700" id="se-emp-${e.id}" value="${e.empCost||''}" inputmode="decimal" placeholder="0" oninput="syncSalEmp(${e.id});calcSalTotals()">
+      ${salEmps.length>1?`<button onclick="removeSalEmp(${e.id})" style="background:none;border:none;color:#e53935;font-size:18px;cursor:pointer;padding:0">✕</button>`:'<span></span>'}
+    </div>
+  `).join('');
+}
+
+function calcSalTotals(){
+  salEmps.forEach(e=>syncSalEmp(e.id));
+  const gross   = salEmps.reduce((s,e)=>s+(e.gross||0),0);
+  const net     = salEmps.reduce((s,e)=>s+(e.net||0),0);
+  const empCost = salEmps.reduce((s,e)=>s+(e.empCost||0),0);
+  const smry = document.getElementById('sal-summary');
+  if(smry){
+    smry.style.display = gross||net||empCost ? 'flex' : 'none';
+    document.getElementById('sal-sum-gross').textContent = '₪'+gross.toLocaleString();
+    document.getElementById('sal-sum-net').textContent   = '₪'+net.toLocaleString();
+    document.getElementById('sal-sum-emp').textContent   = '₪'+empCost.toLocaleString();
+  }
+}
+
+async function importSalaryPDF(input){
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  const apiKey = localStorage.getItem('luria_api_key');
+  if(!apiKey){ toast('⚠️ אין מפתח API — הגדר בהגדרות'); return; }
+
+  const statusEl = document.getElementById('sal-import-status');
+  statusEl.style.display='block';
+  statusEl.style.background='#fff9c4';
+  statusEl.style.color='#555';
+  statusEl.textContent = `⏳ מנתח ${files.length} קובץ/ים...`;
+
+  const allEmps = [];
+  let detectedMonth = 0, detectedYear = 0;
+
+  for(let i=0; i<files.length; i++){
+    const file = files[i];
+    statusEl.textContent = `⏳ מנתח קובץ ${i+1}/${files.length}: ${file.name}`;
+    try {
+      const base64 = await new Promise((res,rej)=>{
+        const r = new FileReader();
+        r.onload = ()=>res(r.result.split(',')[1]);
+        r.onerror = ()=>rej(new Error('קריאת קובץ נכשלה'));
+        r.readAsDataURL(file);
+      });
+
+      const prompt = `זהו תלוש משכורת ישראלי. חלץ את הנתונים הבאים וה‍חזר JSON בלבד ללא טקסט נוסף:
+{
+  "month": <מספר חודש 1-12>,
+  "year": <שנה 4 ספרות>,
+  "employees": [
+    {
+      "name": "<שם מלא של העובד>",
+      "gross": <סה"כ תשלומים ברוטו — מספר>,
+      "net": <נטו לתשלום — מספר>,
+      "empCost": <עלות מעסיק כוללת = ברוטו + ביטוח לאומי מעסיק + הפקדות מעסיק לגמל+פיצויים. אם לא ידוע — 0>
+    }
+  ]
+}
+חשוב: ייתכן שיש מספר עובדים בקובץ אחד. חלץ את כולם.
+שם העובד מופיע בשורה השנייה או השלישית של התלוש.
+ברוטו = "סה"כ תשלומים" או "שכר ברוטו".
+נטו = "נטו לתשלום" או "טו לתשלום".
+החזר JSON בלבד.`;
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:2000,
+          messages:[{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+            {type:'text',text:prompt}
+          ]}]
+        })
+      });
+      const data = await resp.json();
+      if(!resp.ok) throw new Error(data.error?.message||'API error');
+      let raw = data.content?.find(b=>b.type==='text')?.text||'';
+      raw = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+      const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+      if(s!==-1&&e!==-1) raw=raw.substring(s,e+1);
+      const parsed = JSON.parse(raw);
+      if(parsed.month&&!detectedMonth){ detectedMonth=parsed.month; detectedYear=parsed.year||new Date().getFullYear(); }
+      (parsed.employees||[]).forEach(emp=>{
+        if(emp.name) allEmps.push({id:Date.now()+Math.random(),name:emp.name,gross:emp.gross||0,net:emp.net||0,empCost:emp.empCost||0});
+      });
+    } catch(err){
+      statusEl.style.background='#ffebee';
+      statusEl.textContent=`❌ שגיאה בקובץ ${file.name}: ${err.message}`;
+      return;
+    }
+  }
+
+  if(!allEmps.length){ statusEl.style.background='#ffebee'; statusEl.textContent='❌ לא זוהו עובדים'; return; }
+
+  // מלא את הטופס
+  if(detectedMonth){ document.getElementById('sal-month').value=detectedMonth; }
+  if(detectedYear){ document.getElementById('sal-year').value=detectedYear; }
+  salEmps = allEmps;
+  renderSalEmps();
+  calcSalTotals();
+  statusEl.style.background='#e8f5e9';
+  statusEl.style.color='#1b5e20';
+  statusEl.textContent=`✅ זוהו ${allEmps.length} עובדים מ-${files.length} קובץ/ים. בדוק ואשר.`;
+  input.value='';
+}
+
+function saveSalary(){
+  salEmps.forEach(e=>syncSalEmp(e.id));
+  const month = parseInt(document.getElementById('sal-month').value);
+  const year  = parseInt(document.getElementById('sal-year').value);
+  const notes = document.getElementById('sal-notes').value.trim();
+  const validEmps = salEmps.filter(e=>e.name.trim()||e.gross||e.net||e.empCost);
+  if(!validEmps.length){ toast('⚠️ הזן לפחות עובד אחד'); return; }
+  // מחק רשומה קיימת לאותו חודש
+  salaries = salaries.filter(s=>!(s.month===month&&s.year===year));
+  const totalGross   = validEmps.reduce((s,e)=>s+(e.gross||0),0);
+  const totalNet     = validEmps.reduce((s,e)=>s+(e.net||0),0);
+  const totalEmpCost = validEmps.reduce((s,e)=>s+(e.empCost||0),0);
+  salaries.push({id:Date.now(),month,year,notes,employees:validEmps,totalGross,totalNet,totalEmpCost});
+  salaries.sort((a,b)=>a.year!==b.year?b.year-a.year:b.month-a.month);
+  save(K.SAL,salaries);
+  renderSalaries();
+  initSalEmps();
+  document.getElementById('sal-notes').value='';
+  toast(`✅ שכר ${HMlblSal[month]} ${year} נשמר — ${validEmps.length} עובדים | עלות מעסיק: ₪${totalEmpCost.toLocaleString()}`);
+}
+
+function deleteSalary(id){
+  if(!confirm('למחוק רשומת שכר זו?')) return;
+  salaries = salaries.filter(s=>s.id!==id);
+  save(K.SAL,salaries);
+  renderSalaries();
+  toast('🗑 נמחק');
+}
+
+function renderSalaries(){
+  const filterYear = parseInt(document.getElementById('sal-filter-year')?.value||0)||0;
+  const c = document.getElementById('sal-list');
+  if(!c) return;
+  const filtered = filterYear ? salaries.filter(s=>s.year===filterYear) : salaries;
+  if(!filtered.length){ c.innerHTML='<div style="text-align:center;padding:30px;color:#aaa">אין רשומות שכר</div>'; return; }
+
+  const totalEmp = filtered.reduce((s,r)=>s+(r.totalEmpCost||0),0);
+  c.innerHTML = `
+    <div style="background:#e8f5e9;border-radius:8px;padding:8px 14px;margin-bottom:10px;display:flex;gap:20px;flex-wrap:wrap;font-size:13px">
+      <span>סה״כ חודשים: <strong>${filtered.length}</strong></span>
+      <span>עלות מעסיק כוללת: <strong style="color:#1a237e">₪${totalEmp.toLocaleString()}</strong></span>
+    </div>
+    ${filtered.map(r=>`
+    <div style="border:1px solid #c8e6c9;border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div style="background:#e8f5e9;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        <div style="font-weight:700;font-size:15px;color:#1b5e20">📅 ${HMlblSal[r.month]} ${r.year}</div>
+        <div style="display:flex;gap:16px;align-items:center;font-size:13px">
+          <span>ברוטו: <strong>₪${(r.totalGross||0).toLocaleString()}</strong></span>
+          <span>עלות מעסיק: <strong style="color:#1a237e">₪${(r.totalEmpCost||0).toLocaleString()}</strong></span>
+          <span style="color:#555">${r.employees?.length||0} עובדים</span>
+          <button onclick="event.stopPropagation();deleteSalary(${r.id})" style="background:none;border:none;color:#e53935;font-size:16px;cursor:pointer">🗑</button>
+        </div>
+      </div>
+      <div style="display:none;padding:8px 12px">
+        ${r.notes?`<div style="font-size:12px;color:#777;margin-bottom:6px">📝 ${r.notes}</div>`:''}
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f0faf0">
+            <th style="text-align:right;padding:5px 8px">שם עובד</th>
+            <th style="text-align:center;padding:5px 8px">ברוטו</th>
+            <th style="text-align:center;padding:5px 8px">נטו</th>
+            <th style="text-align:center;padding:5px 8px;color:#1a237e">עלות מעסיק</th>
+          </tr></thead>
+          <tbody>
+            ${(r.employees||[]).map(e=>`<tr style="border-bottom:1px solid #f0f4f0">
+              <td style="padding:5px 8px">${esc(e.name||'—')}</td>
+              <td style="text-align:center;padding:5px 8px">${e.gross?'₪'+(e.gross||0).toLocaleString():''}</td>
+              <td style="text-align:center;padding:5px 8px">${e.net?'₪'+(e.net||0).toLocaleString():''}</td>
+              <td style="text-align:center;padding:5px 8px;font-weight:700;color:#1a237e">${e.empCost?'₪'+(e.empCost||0).toLocaleString():''}</td>
+            </tr>`).join('')}
+            <tr style="background:#f0faf0;font-weight:700">
+              <td style="padding:5px 8px">סה״כ</td>
+              <td style="text-align:center;padding:5px 8px">₪${(r.totalGross||0).toLocaleString()}</td>
+              <td style="text-align:center;padding:5px 8px">₪${(r.totalNet||0).toLocaleString()}</td>
+              <td style="text-align:center;padding:5px 8px;color:#1a237e">₪${(r.totalEmpCost||0).toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    `).join('')}
+  `;
+}
+
+// ══════════════════════════════════════════
 const EXP_CATS = {
   fuel:'⛽ דלק', maint:'🔧 תחזוקה', equip:'🛠️ ציוד',
   labor:'👷 עבודה', water:'💧 מים', transport:'🚛 הובלה', other:'📌 אחר'
@@ -7069,6 +7381,25 @@ function buildWorkbook() {
     XLSX.utils.book_append_sheet(wb, wsEx, '💰 הוצאות');
   }
 
+  // גליון שכר עובדים
+  if(salaries.length){
+    const salRows = [['חודש','שנה','שם עובד','ברוטו','נטו','עלות מעסיק','הערות']];
+    salaries.forEach(r=>{
+      (r.employees||[]).forEach((e,i)=>{
+        salRows.push([
+          HMlblSal[r.month]||r.month, r.year,
+          e.name||'', e.gross||0, e.net||0, e.empCost||0,
+          i===0?(r.notes||''):''
+        ]);
+      });
+      salRows.push([HMlblSal[r.month]||r.month, r.year, 'סה״כ', r.totalGross||0, r.totalNet||0, r.totalEmpCost||0, '']);
+      salRows.push([]);
+    });
+    const wsSal = XLSX.utils.aoa_to_sheet(salRows);
+    wsSal['!cols']=[12,8,20,14,14,16,20].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, wsSal, '👷 שכר');
+  }
+
   // RTL לכל הגליונות
   wb.SheetNames.forEach(sn => { wb.Sheets[sn]['!views'] = [{rightToLeft: true}]; });
 
@@ -7615,7 +7946,7 @@ function generatePDFFiltered(type) {
         <td>${i===0?(app.op||''):''}</td>
         <td>${m.mat||''}</td>
         <td class="amnt">${m.qtyPer100||m.qty||''} ${m.unit||''}</td>
-        <td class="amnt" style="font-weight:700;color:#1a237e">${m.qty&&m.qty!==(m.qtyPer100||m.qty)?(m.qty%1===0?m.qty:m.qty.toFixed(2))+' '+(m.unit||''):''}</td>
+        <td class="amnt" style="font-weight:700;color:#1a237e">${(()=>{const tq=m.qty;return tq&&tq!==(m.qtyPer100)?(tq%1===0?tq:parseFloat(tq.toFixed(3)))+' '+(m.unit||''):''})()}</td>
         <td class="amnt">${m.unitPrice?'₪'+m.unitPrice.toFixed(2):''}</td>
         <td class="amnt" style="font-weight:600;color:#2e7d32">${m.totalCost?'₪'+Math.round(m.totalCost).toLocaleString():''}</td>
         <td class="amnt">${i===0?(app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank?app.tank+'L'+(app.numTanks>1?' × '+app.numTanks:''):''))  :''}</td>
@@ -8162,6 +8493,8 @@ refreshCustomSupDropdowns();
 renderDelList();
 renderInvList();
 searchPrices();
+initSalEmps();
+renderSalaries();
 
 // ══════════════════════════════════════════════════
 // תעודת החזרה/זיכוי
@@ -10088,15 +10421,17 @@ function generateReport(category, mode) {
     const appGroups = {};
     ss.forEach(s => {
       const key = s.appId || s.id;
-      if (!appGroups[key]) appGroups[key] = {date:s.date,op:s.op,tank:s.tank,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qty:s.qty,phytem:s.phytem||''});
+      if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
+      appGroups[key].mats.push({mat:s.mat,qtyPer100:s.qty,qty:s.totalQty||s.qty,unit:s.unit||'',unitPrice:s.unitPrice||0,totalCost:s.totalCost||0,phytem:s.phytem||''});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     title = mode==='summary'   ? 'דוח מסכם — ריסוסים' :
             mode==='materials' ? 'ריסוסים לפי חומר' :
                                  'דוח מפורט — ריסוסים';
     const totalArea = apps.reduce((s,a)=>s+(+a.area||0),0);
-    body += _sboxes([[apps.length,'יישומים'],[totalArea.toFixed(1),'שטח כולל (דונם)']]);
+    const totalCostAll = apps.reduce((s,a)=>s+a.mats.reduce((ss,m)=>ss+(m.totalCost||0),0),0);
+    body += _sboxes([[apps.length,'יישומים'],[totalArea.toFixed(1),'שטח כולל (דונם)'],
+      ...(totalCostAll>0?[['₪'+_fmt(totalCostAll,0),'עלות כוללת']]:[])]);
 
     if (mode === 'summary') {
       const byMo = {};
@@ -10113,15 +10448,18 @@ function generateReport(category, mode) {
       body += '</tbody></table>';
 
     } else if (mode === 'detailed') {
-      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">כמות</th><th class="amnt">מיכל (ל')</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
+      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">ל-100ל׳</th><th class="amnt">סה״כ כמות</th><th class="amnt">עלות</th><th class="amnt">ליטרים</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
       apps.forEach(app => {
         app.mats.forEach((m,i) => {
+          const tq = m.qty&&m.qty!==m.qtyPer100?(m.qty%1===0?m.qty:parseFloat(m.qty.toFixed(3)))+' '+(m.unit||''):'';
           body += `<tr>
-            <td>${i===0?app.date:''}</td>
+            <td>${i===0?(app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:''):''}</td>
             <td>${i===0?(app.op||''):''}</td>
             <td>${m.mat||''}</td>
-            <td class="amnt">${m.qty||''}</td>
-            <td class="amnt">${i===0?(app.tank||''):''}</td>
+            <td class="amnt">${m.qtyPer100||m.qty||''} ${m.unit||''}</td>
+            <td class="amnt" style="font-weight:700;color:#1a237e">${tq}</td>
+            <td class="amnt" style="color:#2e7d32">${m.totalCost?'₪'+_fmt(m.totalCost,0):''}</td>
+            <td class="amnt">${i===0?(app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank||''))  :''}</td>
             <td class="amnt">${i===0?(app.area||''):''}</td>
             <td>${i===0?(app.notes||''):''}</td>
           </tr>`;
