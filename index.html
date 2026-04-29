@@ -7609,7 +7609,7 @@ function generatePDFFiltered(type) {
     else {
       const sprHdr = `<tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>כמות</th><th>מחיר יח'</th><th>עלות</th><th>מיכל</th><th>שטח</th><th>ישום פיטם</th><th>הערות</th></tr>`;
       const sprRow = (app, m, i) => `<tr>
-        <td>${i===0?(app.date||''):''}</td>
+        <td>${i===0?(app.date||'')+(app.date?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${toHebrewDateWords(app.date)}</span>` : ''):''}</td>
         <td>${i===0?(app.op||''):''}</td>
         <td>${m.mat||''}</td>
         <td class="amnt">${m.qty||''} ${m.unit||''}</td>
@@ -8064,7 +8064,7 @@ function generatePDF(type) {
     apps.forEach(app => {
       app.mats.forEach((m,i) => {
         body += `<tr>
-          <td>${i===0 ? (app.date||'') : ''}</td>
+          <td>${i===0 ? (app.date||'')+(app.date?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${toHebrewDateWords(app.date)}</span>`:'') : ''}</td>
           <td>${i===0 ? (app.op||'') : ''}</td>
           <td>${m.mat||''}</td>
           <td class="amnt">${m.qty||''}</td>
