@@ -929,7 +929,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="ctitle">➕ ישום חדש</div>
     <!-- פרטים כלליים לישום -->
     <div class="fr fr2">
-      <div class="fg"><label class="flabel">תאריך</label><input type="date" class="finput" id="spr-date" oninput="updateSprHeDate()"><div id="spr-hedate" style="font-size:12px;color:#558b2f;margin-top:4px;font-weight:700;min-height:16px;letter-spacing:0.3px"></div></div>
+      <div class="fg"><label class="flabel">תאריך</label><input type="date" class="finput" id="spr-date" oninput="updateSprHeDate()" onchange="updateSprHeDate()"><div id="spr-hedate" style="font-size:12px;color:#558b2f;margin-top:4px;font-weight:700;min-height:16px;letter-spacing:0.3px"></div></div>
       <div class="fg"><label class="flabel">מרסס</label><input type="text" class="finput" id="spr-op" placeholder="שם המרסס"></div>
     </div>
     <div class="fr fr2">
@@ -5137,9 +5137,42 @@ function smUpdateCostDisplay(mid, m){
 function toHebrewDateWords(dateStr){
   if(!dateStr) return '';
   try{
-    const d=new Date(dateStr+'T12:00:00');
-    return new Intl.DateTimeFormat('he-u-ca-hebrew',{day:'numeric',month:'long',year:'long'}).format(d);
-  }catch(e){return '';}
+    const r=new Intl.DateTimeFormat('he-u-ca-hebrew',{day:'numeric',month:'long',year:'long'}).format(new Date(dateStr+'T12:00:00'));
+    if(/[\u05D0-\u05EA]/.test(r)) return r;
+  }catch(e){}
+  try{ return _hebDateManual(dateStr); }catch(e){ return ''; }
+}
+function _hebDateManual(gs){
+  const MN={1:'ניסן',2:'אייר',3:'סיון',4:'תמוז',5:'אב',6:'אלול',7:'תשרי',8:'חשוון',9:'כסלו',10:'טבת',11:'שבט',12:'אדר',13:'אדר ב׳'};
+  const DH=['','א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ז׳','ח׳','ט׳','י׳','י״א','י״ב','י״ג','י״ד','ט״ו','ט״ז','י״ז','י״ח','י״ט','כ׳','כ״א','כ״ב','כ״ג','כ״ד','כ״ה','כ״ו','כ״ז','כ״ח','כ״ט','ל׳'];
+  function hY(y){
+    const H=['','א','ב','ג','ד','ה','ו','ז','ח','ט'],T=['','י','כ','ל','מ','נ','ס','ע','פ','צ'],C=['','ק','ר','ש','ת','תק','תר','תש','תת','תתק'];
+    let n=y%1000,s=C[Math.floor(n/100)];n%=100;
+    if(n===16)s+='טז';else if(n===15)s+='טו';
+    else{s+=T[Math.floor(n/10)];s+=H[n%10];}
+    return s.length>1?s.slice(0,-1)+'״'+s.slice(-1):s+'׳';
+  }
+  function gA(y,m,d){
+    const lp=y=>y%4===0&&(y%100!==0||y%400===0),md=[0,31,28,31,30,31,30,31,31,30,31,30,31];
+    let n=d;for(let i=1;i<m;i++)n+=md[i]+(i===2&&lp(y)?1:0);
+    return n+365*(y-1)+Math.floor((y-1)/4)-Math.floor((y-1)/100)+Math.floor((y-1)/400);
+  }
+  function isLp(y){return(7*y+1)%19<7;}
+  function el(y){const m=Math.floor((235*y-234)/19),p=12084+13753*m;let d=m*29+Math.floor(p/25920);if((3*(d+1))%7<3)d++;return d;}
+  function yD(y){return el(y+1)-el(y);}
+  function mL(m,y){if(m===8)return yD(y)%10===5?30:29;if(m===9)return yD(y)%10===3?29:30;if(m===12)return isLp(y)?30:29;return{1:30,2:29,3:30,4:29,5:30,6:29,7:30,10:29,11:30,13:29}[m]||29;}
+  function nx(m,y){if(m===6)return 7;if(m===12&&!isLp(y))return 1;if(m===13)return 1;return m+1;}
+  const EP=-1373427;
+  const [gy,gm,gd]=gs.split('-').map(Number);
+  const abs=gA(gy,gm,gd);
+  let hy=Math.round((abs-EP)/365.2468);
+  while(el(hy+1)+EP<=abs)hy++;
+  while(el(hy)+EP>abs)hy--;
+  let di=abs-(el(hy)+EP);
+  let hm=7;
+  while(di>=mL(hm,hy)){di-=mL(hm,hy);hm=nx(hm,hy);}
+  const hd=di+1;
+  return DH[hd]+' ב'+MN[hm]+' '+hY(hy);
 }
 function updateSprHeDate(){
   const v=document.getElementById('spr-date')?.value;
