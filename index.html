@@ -945,6 +945,9 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fg"><label class="flabel">ליטרים במיכל האחרון (אם חלקי)</label>
         <input type="text" class="finput" id="spr-last-liters" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="מלא = ריק" oninput="calcSprayTotals()">
       </div>
+      <div class="fg"><label class="flabel">🚜 מספר טרקטורים</label>
+        <input type="number" class="finput" id="spr-num-tractors" min="1" step="1" value="1" placeholder="1" oninput="calcSprayTotals()">
+      </div>
       <div class="fg"><label class="flabel">מהירות נסיעה (קמ"ש)</label>
         <input type="number" class="finput" id="spr-speed" min="0" step="0.5" placeholder="קמ&quot;ש">
       </div>
@@ -4953,18 +4956,21 @@ function calcSprayTotals(){
   const _pf2 = v => parseFloat((v||'').toString().replace(',','.')) || 0;
   const numTanks = _pf2(document.getElementById('spr-num-tanks')?.value);
   const lastLiters = _pf2(document.getElementById('spr-last-liters')?.value);
+  const numTractors = parseInt(document.getElementById('spr-num-tractors')?.value||1)||1;
   const el = document.getElementById('spr-tanks-summary');
   if(!el) return;
   if(!numTanks){el.style.display='none';return;}
   const fullTanks = lastLiters > 0 ? numTanks - 1 : numTanks;
-  const totalLiters = lastLiters > 0
+  const litersPerTractor = lastLiters > 0
     ? (fullTanks * tankVol) + lastLiters
     : numTanks * tankVol;
+  const totalLiters = litersPerTractor * numTractors;
   el.style.display='block';
+  const tractorStr = numTractors > 1 ? ` × <strong style="color:#1565c0">🚜 ${numTractors} טרקטורים</strong>` : '';
   if(lastLiters > 0){
-    el.innerHTML = `🪣 ${numTanks} מיכלים | ${fullTanks} מלאים (${tankVol}ל׳) + מיכל חלקי ${lastLiters}ל׳ = <strong>${totalLiters.toLocaleString()} ליטר סה״כ</strong>`;
+    el.innerHTML = `🪣 ${numTanks} מיכלים | ${fullTanks} מלאים (${tankVol}ל׳) + חלקי ${lastLiters}ל׳ = ${litersPerTractor.toLocaleString()}ל׳${tractorStr} = <strong>${totalLiters.toLocaleString()} ליטר סה״כ</strong>`;
   } else {
-    el.innerHTML = `🪣 ${numTanks} מיכלים × ${tankVol}ל׳ = <strong>${totalLiters.toLocaleString()} ליטר סה״כ</strong>`;
+    el.innerHTML = `🪣 ${numTanks} × ${tankVol}ל׳ = ${litersPerTractor.toLocaleString()}ל׳${tractorStr} = <strong>${totalLiters.toLocaleString()} ליטר סה״כ</strong>`;
   }
 }
 
@@ -5189,6 +5195,7 @@ function saveSpray(){
   const numTanks=pf(document.getElementById('spr-num-tanks')?.value);
   const lastLiters=pf(document.getElementById('spr-last-liters')?.value);
   const speed=document.getElementById('spr-speed')?.value.trim()||'';
+  const numTractors=parseInt(document.getElementById('spr-num-tractors')?.value||1)||1;
   const dunam=pf(document.getElementById('spr-dunam')?.value);
   const notes=document.getElementById('spr-notes').value.trim();
   // calc total liters
@@ -5196,7 +5203,8 @@ function saveSpray(){
   let totalLiters=0;
   if(numTanks>0){
     const fullTanks=lastLiters>0?numTanks-1:numTanks;
-    totalLiters=lastLiters>0?(fullTanks*tankVol)+lastLiters:numTanks*tankVol;
+    const litersPerTractor=lastLiters>0?(fullTanks*tankVol)+lastLiters:numTanks*tankVol;
+    totalLiters=litersPerTractor*numTractors;
   }
   // read current values from DOM
   sprayMats.forEach(m=>{
@@ -5210,12 +5218,12 @@ function saveSpray(){
   // Save each chemical as a separate spray record, linked by appId
   const appId=Date.now();
   validMats.forEach(m=>{
-    const totalQty=numTanks>0&&m.qty>0?m.qty*numTanks:m.qty;
+    const totalQty=numTanks>0&&m.qty>0?m.qty*numTanks*numTractors:m.qty*numTractors;
     const info=m.priceInfo||getLastPrice(m.mat);
     const unitPrice=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
     const unit=info.unit||'יח׳';
     const totalCost=unitPrice*(totalQty||m.qty);
-    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,dunam,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',notes});
+    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,dunam,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',notes,numTractors});
   });
   save(K.S,sprs);
   const totalSprayCost=validMats.reduce((s,m)=>{
@@ -5234,6 +5242,7 @@ function saveSpray(){
   if(fsum) fsum.style.display='none';
   if(document.getElementById('spr-num-tanks')) document.getElementById('spr-num-tanks').value='';
   if(document.getElementById('spr-last-liters')) document.getElementById('spr-last-liters').value='';
+  if(document.getElementById('spr-num-tractors')) document.getElementById('spr-num-tractors').value='1';
   if(document.getElementById('spr-speed')) document.getElementById('spr-speed').value='';
   if(document.getElementById('spr-tanks-summary')) document.getElementById('spr-tanks-summary').style.display='none';
   sprayMats=[{id:Date.now(),mat:'',qty:0,phytem:''}];
@@ -5250,7 +5259,7 @@ function renderSprays(){
   const groups={};
   filtered.forEach(s=>{
     const key=s.appId||s.id;
-    if(!groups[key]) groups[key]={appId:key,date:s.date,op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters,area:s.area,dunam:s.dunam,speed:s.speed,notes:s.notes,mats:[]};
+    if(!groups[key]) groups[key]={appId:key,date:s.date,op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters,area:s.area,dunam:s.dunam,speed:s.speed,notes:s.notes,numTractors:s.numTractors||1,mats:[]};
     groups[key].mats.push(s);
   });
   const badge=document.getElementById('spr-last-badge');
@@ -5277,7 +5286,7 @@ function renderSprays(){
       <td>${g.date||'—'}${g.date?'<br><span style="font-size:11px;color:#558b2f;font-weight:700">'+toHebrewDateWords(g.date)+'</span>':''}</td>
       <td>${g.op||'—'}</td>
       <td style="min-width:220px;font-size:13px">${matsHtml}${updateBtn}</td>
-      <td>${g.tank?g.tank+'L':'—'}${g.numTanks?` × ${g.numTanks}`:''}</td>
+      <td>${g.tank?g.tank+'L':'—'}${g.numTanks?` × ${g.numTanks}`:''}${g.numTractors>1?` <span style="color:#1565c0;font-weight:700">🚜×${g.numTractors}</span>`:''}</td>
       <td>${g.totalLiters?g.totalLiters.toLocaleString()+'L':'—'}</td>
       <td>${g.area||'—'}</td>
       <td>${g.dunam?g.dunam+' ד':'—'}</td>
