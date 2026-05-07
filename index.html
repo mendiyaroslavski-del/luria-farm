@@ -1017,9 +1017,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fr fr2" style="gap:8px;margin-bottom:8px">
         <div class="fg">
           <label class="flabel">🌿 שטח / חלקה</label>
-          <select class="fsel" id="spr-f-area" onchange="renderSprays()" style="direction:rtl">
-            <option value="">כל השטחים</option>
-          </select>
+          <input class="finput" id="spr-f-area" placeholder="לדוגמא: בית דגן" oninput="renderSprays()">
         </div>
         <div class="fg">
           <label class="flabel">🧪 חומר מרוסס</label>
@@ -5464,32 +5462,12 @@ function saveSpray(){
   renderSprays();renderSpraySummary();
 }
 
-function populateSprAreaSelect(){
-  var sel=document.getElementById('spr-f-area');
-  if(!sel) return;
-  var cur=sel.value;
-  // collect from customFields
-  var names={};
-  (customFields||[]).forEach(function(f){if(f.name) names[f.name]=1;});
-  // collect from spray records
-  (sprs||[]).forEach(function(s){if(s.area && s.area.trim()) names[s.area.trim()]=1;});
-  var sorted=Object.keys(names).sort(function(a,b){return a.localeCompare(b,'he');});
-  sel.innerHTML='<option value="">כל השטחים</option>';
-  sorted.forEach(function(n){
-    var o=document.createElement('option');
-    o.value=n; o.textContent=n;
-    sel.appendChild(o);
-  });
-  if(cur) sel.value=cur;
-}
-
 function toggleSprAdvanced(){
   const panel=document.getElementById('spr-adv-panel');
   const btn=document.getElementById('spr-adv-btn');
   const open=panel.style.display==='none';
   panel.style.display=open?'block':'none';
   btn.textContent=open?'⚙️ חיפוש מתקדם ▴':'⚙️ חיפוש מתקדם ▾';
-  if(open) populateSprAreaSelect();
 }
 
 function clearSprFilters(){
@@ -5594,7 +5572,10 @@ function renderSprays(){
       <td>${(totalCost&&g.dunam)?'<span style="color:#1565c0;font-weight:600">₪'+Math.round(totalCost/g.dunam).toLocaleString()+'/ד</span>':'<span style="color:#aaa">—</span>'}</td>
       <td>${g.speed?g.speed+' קמ"ש':'—'}</td>
       <td>${phytems||'—'}</td>
-      <td><button onclick="deleteApp(${g.appId})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 6px" title="מחק ישום">🗑</button></td>
+      <td style="white-space:nowrap">
+        <button onclick="openEditSpr(${g.appId})" style="background:none;border:none;cursor:pointer;color:#1565c0;font-size:16px;padding:2px 4px" title="ערוך ישום">✏️</button>
+        <button onclick="deleteApp(${g.appId})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 4px" title="מחק ישום">🗑</button>
+      </td>
     </tr>`;
   }).join('')||'<tr><td colspan="10" style="text-align:center;padding:16px;color:var(--grayM)">אין ריסוסים</td></tr>';
 }
@@ -5605,6 +5586,85 @@ function deleteApp(appId){
   save(K.S,sprs);
   renderSprays();renderSpraySummary();
   toast('🗑 ישום נמחק');
+}
+
+var _editSprAppId=null;
+
+function openEditSpr(appId){
+  _editSprAppId=appId;
+  var group=sprs.filter(function(s){return (s.appId||s.id)===appId;});
+  if(!group.length) return;
+  var g0=group[0];
+  document.getElementById('espr-date').value=g0.date||'';
+  document.getElementById('espr-op').value=g0.op||'';
+  document.getElementById('espr-area').value=g0.area||'';
+  document.getElementById('espr-dunam').value=g0.dunam||'';
+  document.getElementById('espr-speed').value=g0.speed||'';
+  document.getElementById('espr-notes').value=g0.notes||'';
+  var html='';
+  group.forEach(function(s,i){
+    var dq=s.basisLiters===1000?(s.qty||''):(s.qty?parseFloat((s.qty*10).toPrecision(4)):'');
+    var dpq=s.basisLiters===1000?(s.phytemQty||''):(s.phytemQty?parseFloat((s.phytemQty*10).toPrecision(4)):'');
+    html+='<div style="background:#f9fdf9;border:1px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:8px" data-spr-id="'+s.id+'">'+
+      '<div style="font-size:12px;font-weight:700;color:#1a237e;margin-bottom:8px">חומר '+(i+1)+'</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+
+        '<div style="grid-column:1/-1"><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">שם חומר</label>'+
+          '<input type="text" class="finput espr-mat-name" value="'+(s.mat||'')+'" placeholder="שם חומר" style="font-size:13px"></div>'+
+        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות ל-1000ל׳</label>'+
+          '<input type="number" class="finput espr-mat-qty" value="'+dq+'" step="0.001" placeholder="כמות" style="font-size:13px"></div>'+
+        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>'+
+          '<input type="text" class="finput espr-mat-unit" value="'+(s.unit||'')+'" placeholder="יח׳" style="font-size:13px"></div>'+
+        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">מחיר ליחידה (₪)</label>'+
+          '<input type="number" class="finput espr-mat-price" value="'+(s.unitPrice||'')+'" step="0.01" placeholder="₪" style="font-size:13px"></div>'+
+        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">פיטם</label>'+
+          '<input type="text" class="finput espr-mat-phytem" value="'+(s.phytem||'')+'" placeholder="שם פיטם (אם יש)" style="font-size:13px"></div>'+
+        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות פיטם ל-1000ל׳</label>'+
+          '<input type="number" class="finput espr-mat-phyqty" value="'+dpq+'" step="0.1" placeholder="מל" style="font-size:13px"></div>'+
+      '</div></div>';
+  });
+  document.getElementById('espr-mats').innerHTML=html;
+  document.getElementById('modal-edit-spr').style.display='block';
+}
+
+function saveEditSpr(){
+  if(!_editSprAppId) return;
+  var date=document.getElementById('espr-date').value;
+  var op=document.getElementById('espr-op').value.trim();
+  var area=document.getElementById('espr-area').value.trim();
+  var dunam=parseFloat(document.getElementById('espr-dunam').value)||0;
+  var speed=parseFloat(document.getElementById('espr-speed').value)||0;
+  var notes=document.getElementById('espr-notes').value.trim();
+  var matRows=document.querySelectorAll('#espr-mats [data-spr-id]');
+  sprs.forEach(function(s){
+    if((s.appId||s.id)!==_editSprAppId) return;
+    s.date=date; s.op=op; s.area=area; s.dunam=dunam;
+    if(speed) s.speed=speed; else delete s.speed;
+    if(notes) s.notes=notes; else delete s.notes;
+    matRows.forEach(function(row){
+      if(String(row.dataset.sprId)!==String(s.id)) return;
+      var nMat=row.querySelector('.espr-mat-name').value.trim();
+      var nQty=parseFloat(row.querySelector('.espr-mat-qty').value)||0;
+      var nUnit=row.querySelector('.espr-mat-unit').value.trim();
+      var nPrice=parseFloat(row.querySelector('.espr-mat-price').value)||0;
+      var nPhy=row.querySelector('.espr-mat-phytem').value.trim();
+      var nPhyQty=parseFloat(row.querySelector('.espr-mat-phyqty').value)||0;
+      s.mat=nMat; s.qty=nQty; s.basisLiters=1000;
+      if(nUnit) s.unit=nUnit;
+      if(nPrice) s.unitPrice=nPrice; else delete s.unitPrice;
+      if(nPhy) s.phytem=nPhy; else delete s.phytem;
+      if(nPhyQty) s.phytemQty=nPhyQty; else delete s.phytemQty;
+      // חישוב מחדש של סה"כ
+      var tl=s.totalLiters||0;
+      if(nQty&&tl){ s.totalQty=parseFloat((nQty*tl/1000).toFixed(3)); }
+      if(nPhyQty&&tl){ s.totalPhytemQty=parseFloat((nPhyQty*tl/1000).toFixed(3)); }
+      if(nPrice&&s.totalQty){ s.totalCost=parseFloat((s.totalQty*nPrice).toFixed(2)); }
+      else if(!nPrice) delete s.totalCost;
+    });
+  });
+  save(K.S,sprs);
+  document.getElementById('modal-edit-spr').style.display='none';
+  renderSprays(); renderSpraySummary();
+  toast('✅ ישום עודכן בהצלחה');
 }
 
 function updateSprayPrices(appId){
@@ -11275,6 +11335,35 @@ function applyAuditFix() {
     <div id="offline-reader-actions" style="display:none;margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
       <button onclick="offlineApplyToForm()" class="btn btnP" style="flex:1">✅ מלא טופס</button>
       <button onclick="document.getElementById('modal-offline-reader').style.display='none'" class="btn btnS">סגור</button>
+    </div>
+  </div>
+</div>
+<!-- מודל עריכת ישום ריסוס -->
+<div id="modal-edit-spr" style="display:none;position:fixed;inset:0;background:#0009;z-index:9999;overflow-y:auto;padding:16px">
+  <div style="background:#fff;border-radius:12px;max-width:540px;margin:0 auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong style="font-size:16px">✏️ עריכת ישום ריסוס</strong>
+      <button onclick="document.getElementById('modal-edit-spr').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#555">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">תאריך</label>
+        <input type="date" id="espr-date" class="finput"></div>
+      <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">מרסס</label>
+        <input type="text" id="espr-op" class="finput" placeholder="שם המרסס"></div>
+      <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">שטח</label>
+        <input type="text" id="espr-area" class="finput" placeholder="שם השטח"></div>
+      <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">דונם</label>
+        <input type="number" id="espr-dunam" class="finput" step="0.01" placeholder="דונם"></div>
+      <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">מהירות (קמ"ש)</label>
+        <input type="number" id="espr-speed" class="finput" step="0.5" placeholder="קמ&quot;ש"></div>
+      <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">הערות</label>
+        <input type="text" id="espr-notes" class="finput" placeholder="הערות"></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:#2e7d32;margin-bottom:8px;border-top:1px solid #e8f5e9;padding-top:12px">🧪 חומרים</div>
+    <div id="espr-mats"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="saveEditSpr()" class="btn btnP" style="flex:1;padding:10px">💾 שמור שינויים</button>
+      <button onclick="document.getElementById('modal-edit-spr').style.display='none'" class="btn btnS">ביטול</button>
     </div>
   </div>
 </div>
