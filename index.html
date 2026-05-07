@@ -1017,7 +1017,9 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fr fr2" style="gap:8px;margin-bottom:8px">
         <div class="fg">
           <label class="flabel">🌿 שטח / חלקה</label>
-          <input class="finput" id="spr-f-area" placeholder="לדוגמא: בית דגן" oninput="renderSprays()">
+          <select class="fsel" id="spr-f-area" onchange="renderSprays()" style="direction:rtl">
+            <option value="">כל השטחים</option>
+          </select>
         </div>
         <div class="fg">
           <label class="flabel">🧪 חומר מרוסס</label>
@@ -5462,12 +5464,32 @@ function saveSpray(){
   renderSprays();renderSpraySummary();
 }
 
+function populateSprAreaSelect(){
+  var sel=document.getElementById('spr-f-area');
+  if(!sel) return;
+  var cur=sel.value;
+  // collect from customFields
+  var names={};
+  (customFields||[]).forEach(function(f){if(f.name) names[f.name]=1;});
+  // collect from spray records
+  (sprs||[]).forEach(function(s){if(s.area && s.area.trim()) names[s.area.trim()]=1;});
+  var sorted=Object.keys(names).sort(function(a,b){return a.localeCompare(b,'he');});
+  sel.innerHTML='<option value="">כל השטחים</option>';
+  sorted.forEach(function(n){
+    var o=document.createElement('option');
+    o.value=n; o.textContent=n;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+}
+
 function toggleSprAdvanced(){
   const panel=document.getElementById('spr-adv-panel');
   const btn=document.getElementById('spr-adv-btn');
   const open=panel.style.display==='none';
   panel.style.display=open?'block':'none';
   btn.textContent=open?'⚙️ חיפוש מתקדם ▴':'⚙️ חיפוש מתקדם ▾';
+  if(open) populateSprAreaSelect();
 }
 
 function clearSprFilters(){
@@ -5539,13 +5561,17 @@ function renderSprays(){
     const totalCost=g.mats.reduce((s,m)=>s+(m.totalCost||0),0);
     const missingPrice=g.mats.some(m=>!m.unitPrice||!m.totalCost);
     const matsHtml=g.mats.map(m=>{
-      const basis = m.basisLiters||100;
-      const qtyStr=m.qty
-        ? `${m.qty}/${basis}ל׳${(m.totalQty&&m.totalQty!==m.qty)?` → <strong style="color:#1a237e">${m.totalQty%1===0?m.totalQty:parseFloat(m.totalQty.toFixed(2))} ${m.unit||''}</strong>`:''}`
+      // Normalize display to 1000L basis:
+      // Old records (no basisLiters) were saved per 100L → multiply by 10 for display
+      // New records (basisLiters=1000) are already per 1000L
+      const displayQty = m.basisLiters===1000 ? m.qty : (m.qty ? parseFloat((m.qty*10).toPrecision(4)) : 0);
+      const qtyStr=displayQty
+        ? `${displayQty}/1000ל׳${(m.totalQty&&m.totalQty!==m.qty)?` → <strong style="color:#1a237e">${m.totalQty%1===0?m.totalQty:parseFloat(m.totalQty.toFixed(2))} ${m.unit||''}</strong>`:''}`
         : '';
       const priceStr=m.unitPrice?` — ₪${m.unitPrice.toFixed?m.unitPrice.toFixed(2):m.unitPrice}/${m.unit||'יח׳'}`:'';
       const costStr=m.totalCost?` = <span style="color:#388e3c;font-weight:600">₪${Math.round(m.totalCost).toLocaleString()}</span>`:'';
-      const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}${m.phytemQty?` — ${m.phytemQty} מל/${basis}ל׳${(m.totalPhytemQty&&m.totalPhytemQty!==m.phytemQty)?` → ${m.totalPhytemQty%1===0?m.totalPhytemQty:m.totalPhytemQty.toFixed(1)} מל`:''}`:'' }]</span>`:'';
+      const displayPhyQty = m.basisLiters===1000 ? m.phytemQty : (m.phytemQty ? parseFloat((m.phytemQty*10).toPrecision(4)) : 0);
+      const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}${displayPhyQty?` — ${displayPhyQty} מל/1000ל׳${(m.totalPhytemQty&&m.totalPhytemQty!==m.phytemQty)?` → ${m.totalPhytemQty%1===0?m.totalPhytemQty:m.totalPhytemQty.toFixed(1)} מל`:''}`:'' }]</span>`:'';
       const noPriceTag=(!m.unitPrice&&m.mat)?`<span style="color:#e65100;font-size:11px"> ⚠️ חסר מחיר</span>`:'';
       return `<div style="padding:1px 0"><strong>${m.mat}</strong>${qtyStr?' — '+qtyStr:''}${priceStr}${costStr}${phyStr}${noPriceTag}</div>`;
     }).join('');
@@ -8042,7 +8068,7 @@ function generatePDFFiltered(type) {
     filtered.forEach(s => {
       const key = s.appId || s.id;
       if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qtyPer1000:s.qty,qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||'',basis:s.basisLiters||100});
+      appGroups[key].mats.push({mat:s.mat,qtyPer1000:s.basisLiters===1000?s.qty:parseFloat((s.qty*10).toPrecision(4)),qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||'',basis:1000});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const totalArea = apps.reduce((s,a)=>s+(parseFloat(a.area)||0),0);
@@ -8517,7 +8543,7 @@ function generatePDF(type) {
     sprs.forEach(s => {
       const key = s.appId || s.id;
       if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qty:s.qty,totalQty:s.totalQty||s.qty,unit:s.unit||'',phytem:s.phytem||'',basis:s.basisLiters||100});
+      appGroups[key].mats.push({mat:s.mat,qty:s.basisLiters===1000?s.qty:parseFloat((s.qty*10).toPrecision(4)),totalQty:s.totalQty||s.qty,unit:s.unit||'',phytem:s.phytem||'',basis:1000});
     });
     const apps = Object.values(appGroups);
     body += `<div class="summary-box">
@@ -10552,7 +10578,7 @@ function generateReport(category, mode) {
     ss.forEach(s => {
       const key = s.appId || s.id;
       if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qtyPer1000:s.qty,qty:s.totalQty||s.qty,unit:s.unit||'',unitPrice:s.unitPrice||0,totalCost:s.totalCost||0,phytem:s.phytem||'',basis:s.basisLiters||100});
+      appGroups[key].mats.push({mat:s.mat,qtyPer1000:s.basisLiters===1000?s.qty:parseFloat((s.qty*10).toPrecision(4)),qty:s.totalQty||s.qty,unit:s.unit||'',unitPrice:s.unitPrice||0,totalCost:s.totalCost||0,phytem:s.phytem||'',basis:1000});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     title = mode==='summary'   ? 'דוח מסכם — ריסוסים' :
