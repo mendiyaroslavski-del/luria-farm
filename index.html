@@ -7042,11 +7042,6 @@ async function backupNow(){
 }
 
 async function shareBackup(){
-  if(!navigator.share){
-    toast('⚠️ הדפדפן לא תומך בשיתוף — נשמר כקובץ רגיל');
-    backupNow();
-    return;
-  }
   const now=new Date();
   const d=now.toISOString().split('T')[0];
   const fname=`גיבוי_לוריא_${d}.xlsx`;
@@ -7054,24 +7049,32 @@ async function shareBackup(){
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const file=new File([blob],fname,{type:blob.type});
-  if(navigator.canShare&&!navigator.canShare({files:[file]})){
-    toast('⚠️ שיתוף קבצים לא נתמך — נשמר כקובץ רגיל');
-    backupNow();
-    return;
+
+  // נסה שיתוף עם קובץ
+  if(navigator.share){
+    try{
+      const data={files:[file],title:'גיבוי לוריא פארם',text:'גיבוי נתונים — '+d};
+      if(!navigator.canShare||navigator.canShare(data)){
+        await navigator.share(data);
+        // הצלחה
+        localStorage.setItem('luria_last_backup',Date.now());
+        const el=document.getElementById('db-backup-reminder');
+        if(el) el.style.display='none';
+        toast('✅ הקובץ שותף — שמור ב-Drive!');
+        return;
+      }
+    }catch(e){
+      if(e.name==='AbortError') return; // המשתמש ביטל — שקט
+      // כל שגיאה אחרת — נמשיך להורדה רגילה
+    }
   }
-  try{
-    await navigator.share({
-      title:'גיבוי לוריא פארם',
-      text:`גיבוי נתונים — ${d}`,
-      files:[file]
-    });
-    localStorage.setItem('luria_last_backup',Date.now());
-    const el=document.getElementById('db-backup-reminder');
-    if(el) el.style.display='none';
-    toast('✅ הקובץ שותף — שמור ב-Drive!');
-  }catch(e){
-    if(e.name!=='AbortError') toast('⚠️ שיתוף בוטל');
-  }
+
+  // Fallback — הורדה רגילה לטלפון
+  XLSX.writeFile(wb,fname);
+  localStorage.setItem('luria_last_backup',Date.now());
+  const el=document.getElementById('db-backup-reminder');
+  if(el) el.style.display='none';
+  toast('💾 הקובץ נשמר בטלפון — שלח ל-Drive ידנית');
 }
 
 // ═══ קליטת חשבונית מ-PDF ═══
