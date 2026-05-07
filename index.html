@@ -5623,8 +5623,10 @@ function _buildEsprMatRow(sprId,mat,qty,unit,price,phytem,phyQty,idx){
       '<button type="button" onclick="removeEditSprMat(this)" style="background:none;border:none;color:#e53935;font-size:16px;cursor:pointer;padding:0 4px" title="הסר חומר">🗑</button>'+
     '</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+
-      '<div style="grid-column:1/-1"><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">שם חומר</label>'+
-        '<input type="text" class="finput espr-mat-name" value="'+(mat||'')+'" placeholder="שם חומר" style="font-size:13px"></div>'+
+      '<div style="grid-column:1/-1" class="acw"><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">שם חומר</label>'+
+        '<input type="text" class="finput espr-mat-name" value="'+(mat||'')+'" placeholder="שם חומר" '+
+          'oninput="esprMatAC(this)" autocomplete="off" style="font-size:13px">'+
+        '<div class="aclist"></div></div>'+
       '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות ל-1000ל׳</label>'+
         '<input type="number" class="finput espr-mat-qty" value="'+(qty||'')+'" step="0.001" placeholder="כמות" style="font-size:13px"></div>'+
       '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>'+
@@ -5636,6 +5638,34 @@ function _buildEsprMatRow(sprId,mat,qty,unit,price,phytem,phyQty,idx){
       '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות פיטם ל-1000ל׳</label>'+
         '<input type="number" class="finput espr-mat-phyqty" value="'+(phyQty||'')+'" step="0.1" placeholder="מל" style="font-size:13px"></div>'+
     '</div></div>';
+}
+
+function esprMatAC(inp){
+  var val=inp.value.trim();
+  var list=inp.parentElement.querySelector('.aclist');
+  if(!list) return;
+  if(!val){list.classList.remove('open');return;}
+  var ms=(PRODUCTS||[]).filter(function(p){return p.toLowerCase().includes(val.toLowerCase());}).slice(0,10);
+  list.innerHTML=ms.map(function(p){
+    var info=getLastPrice(p);
+    var hint=info.pricePerUnit>0?'<span style="font-size:10px;color:var(--gm)">₪'+info.pricePerUnit.toFixed(1)+'/'+(info.unit||'יח׳')+'</span>':'';
+    return '<div class="acitem" onmousedown="esprMatSel(this,\''+p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+(p||'')+(hint?'  '+hint:'')+'</div>';
+  }).join('');
+  list.classList.toggle('open',ms.length>0);
+}
+
+function esprMatSel(item,prod){
+  var row=item.closest('[data-spr-id]');
+  var nameInp=row.querySelector('.espr-mat-name');
+  var priceInp=row.querySelector('.espr-mat-price');
+  var unitInp=row.querySelector('.espr-mat-unit');
+  var qtyInp=row.querySelector('.espr-mat-qty');
+  nameInp.value=prod;
+  var info=getLastPrice(prod);
+  if(info.pricePerUnit>0) priceInp.value=info.pricePerUnit.toFixed(2);
+  if(info.unit) unitInp.value=info.unit;
+  row.querySelector('.aclist').classList.remove('open');
+  if(qtyInp) setTimeout(function(){qtyInp.focus();},50);
 }
 
 function removeEditSprMat(btn){
