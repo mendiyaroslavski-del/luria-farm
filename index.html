@@ -302,6 +302,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div id="db-backup-reminder" style="display:none;background:#fff3e0;border:1px solid #ffb74d;border-radius:10px;padding:12px 14px;margin-top:4px;font-size:13px">
     ⚠️ <strong>תזכורת גיבוי</strong> — עברו יותר מ-7 ימים מהגיבוי האחרון.
     <button class="btn btnP" style="margin-right:10px;padding:5px 12px;font-size:12px" onclick="backupNow()">💾 גבה עכשיו</button>
+    <button class="btn" style="background:#0f9d58;color:#fff;border:none;padding:5px 12px;font-size:12px" onclick="shareBackup()">📤 שתף ל-Drive</button>
   </div>
   <!-- פעילות אחרונה -->
   <div class="card">
@@ -320,6 +321,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <span>📁</span>
     <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל לקובץ אחד</button>
     <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
+    <button class="btn" style="background:#0f9d58;color:#fff;border:none" onclick="shareBackup()">📤 שתף ל-Drive</button>
     <button class="btn btnS" onclick="importWithHandle()">📥 ייבא מקובץ אחד</button>
     <input type="file" id="imp-all" accept=".xlsx,.xls" style="display:none" onchange="importAll(this)">
     <input type="file" id="imp-reset" accept=".xlsx,.xls" style="display:none" onchange="importReset(this)">
@@ -459,6 +461,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <span>📁</span>
     <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל לקובץ אחד</button>
     <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
+    <button class="btn" style="background:#0f9d58;color:#fff;border:none" onclick="shareBackup()">📤 שתף ל-Drive</button>
     <button class="btn btnS" onclick="importWithHandle()">📥 ייבא מקובץ אחד</button>
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
   </div>
@@ -920,6 +923,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <span>📁</span>
     <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל לקובץ אחד</button>
     <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
+    <button class="btn" style="background:#0f9d58;color:#fff;border:none" onclick="shareBackup()">📤 שתף ל-Drive</button>
     <button class="btn btnS" onclick="importWithHandle()">📥 ייבא מקובץ אחד</button>
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
     <button class="btn btnS" onclick="exportSprayTemplate()">📋 תבנית ריקה</button>
@@ -1017,7 +1021,9 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="fr fr2" style="gap:8px;margin-bottom:8px">
         <div class="fg">
           <label class="flabel">🌿 שטח / חלקה</label>
-          <input class="finput" id="spr-f-area" placeholder="לדוגמא: בית דגן" oninput="renderSprays()">
+          <select class="fsel" id="spr-f-area" onchange="renderSprays()" style="direction:rtl">
+            <option value="">כל השטחים</option>
+          </select>
         </div>
         <div class="fg">
           <label class="flabel">🧪 חומר מרוסס</label>
@@ -1082,6 +1088,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <span>📁</span>
     <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל לקובץ אחד</button>
     <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
+    <button class="btn" style="background:#0f9d58;color:#fff;border:none" onclick="shareBackup()">📤 שתף ל-Drive</button>
     <button class="btn btnS" onclick="importWithHandle()">📥 ייבא מקובץ אחד</button>
     <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
   </div>
@@ -2021,6 +2028,7 @@ function switchCtrlTab(tab) {
     <span>📁</span>
     <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל</button>
     <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
+    <button class="btn" style="background:#0f9d58;color:#fff;border:none" onclick="shareBackup()">📤 שתף ל-Drive</button>
   </div>
   <div class="card">
     <div class="ctitle">➕ הוצאה חדשה</div>
@@ -5462,12 +5470,30 @@ function saveSpray(){
   renderSprays();renderSpraySummary();
 }
 
+function populateSprAreaSelect(){
+  var sel=document.getElementById('spr-f-area');
+  if(!sel) return;
+  var cur=sel.value;
+  var names={};
+  (customFields||[]).forEach(function(f){if(f.name) names[f.name]=1;});
+  (sprs||[]).forEach(function(s){if(s.area&&s.area.trim()) names[s.area.trim()]=1;});
+  var sorted=Object.keys(names).sort(function(a,b){return a.localeCompare(b,'he');});
+  sel.innerHTML='<option value="">כל השטחים</option>';
+  sorted.forEach(function(n){
+    var o=document.createElement('option');
+    o.value=n; o.textContent=n;
+    sel.appendChild(o);
+  });
+  if(cur) sel.value=cur;
+}
+
 function toggleSprAdvanced(){
   const panel=document.getElementById('spr-adv-panel');
   const btn=document.getElementById('spr-adv-btn');
   const open=panel.style.display==='none';
   panel.style.display=open?'block':'none';
   btn.textContent=open?'⚙️ חיפוש מתקדם ▴':'⚙️ חיפוש מתקדם ▾';
+  if(open) populateSprAreaSelect();
 }
 
 function clearSprFilters(){
@@ -5653,7 +5679,6 @@ function saveEditSpr(){
       if(nPrice) s.unitPrice=nPrice; else delete s.unitPrice;
       if(nPhy) s.phytem=nPhy; else delete s.phytem;
       if(nPhyQty) s.phytemQty=nPhyQty; else delete s.phytemQty;
-      // חישוב מחדש של סה"כ
       var tl=s.totalLiters||0;
       if(nQty&&tl){ s.totalQty=parseFloat((nQty*tl/1000).toFixed(3)); }
       if(nPhyQty&&tl){ s.totalPhytemQty=parseFloat((nPhyQty*tl/1000).toFixed(3)); }
@@ -7014,6 +7039,39 @@ async function backupNow(){
   const wb = buildWorkbook();
   XLSX.writeFile(wb, fname);
   toast('💾 גיבוי מלא נשמר: ' + fname);
+}
+
+async function shareBackup(){
+  if(!navigator.share){
+    toast('⚠️ הדפדפן לא תומך בשיתוף — נשמר כקובץ רגיל');
+    backupNow();
+    return;
+  }
+  const now=new Date();
+  const d=now.toISOString().split('T')[0];
+  const fname=`גיבוי_לוריא_${d}.xlsx`;
+  const wb=buildWorkbook();
+  const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const file=new File([blob],fname,{type:blob.type});
+  if(navigator.canShare&&!navigator.canShare({files:[file]})){
+    toast('⚠️ שיתוף קבצים לא נתמך — נשמר כקובץ רגיל');
+    backupNow();
+    return;
+  }
+  try{
+    await navigator.share({
+      title:'גיבוי לוריא פארם',
+      text:`גיבוי נתונים — ${d}`,
+      files:[file]
+    });
+    localStorage.setItem('luria_last_backup',Date.now());
+    const el=document.getElementById('db-backup-reminder');
+    if(el) el.style.display='none';
+    toast('✅ הקובץ שותף — שמור ב-Drive!');
+  }catch(e){
+    if(e.name!=='AbortError') toast('⚠️ שיתוף בוטל');
+  }
 }
 
 // ═══ קליטת חשבונית מ-PDF ═══
