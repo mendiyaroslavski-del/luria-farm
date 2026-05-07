@@ -5007,7 +5007,7 @@ function drawSprayChart(){
 }
 
 // ═══ SPRAY: MULTI-CHEMICAL ═══
-let sprayMats = []; // [{id, mat, qty, phytem}]
+let sprayMats = []; // [{id, mat, qty, phytem, phytemQty}]
 
 function applyFieldDunam(){
   const wrap = document.getElementById('spr-fields-wrap');
@@ -5101,7 +5101,7 @@ function initSprayMats(){
 }
 
 function addSprayMat(){
-  sprayMats.push({id:Date.now()+Math.random(), mat:'', qty:0, phytem:''});
+  sprayMats.push({id:Date.now()+Math.random(), mat:'', qty:0, phytem:'', phytemQty:0});
   renderSprayMats();
   setTimeout(()=>{
     const last=sprayMats[sprayMats.length-1];
@@ -5132,7 +5132,9 @@ function getLastPrice(matName){
   if(!matName) return {price:0,pricePerUnit:0,unit:'',packageSize:1,productName:''};
   const q=matName.trim().toLowerCase();
   let best={price:0,date:'',productName:''};
-  HIST.forEach(d=>{
+  // Search both HIST (embedded) and dels (localStorage) - use most recent
+  const allSources=[...HIST, ...dels];
+  allSources.forEach(d=>{
     (d.items||[]).forEach(it=>{
       if(!it.product||!it.price||it.price<=0) return;
       const pName=it.product.trim();
@@ -5161,13 +5163,18 @@ function renderSprayMats(){
     const info = m.priceInfo || getLastPrice(m.mat);
     const pricePerUnit = m.pricePerUnit !== undefined ? m.pricePerUnit : info.pricePerUnit;
     const unit = info.unit || 'יח׳';
-    const qty = m.qty||0; // qty per 100L
-    const totalQty = totalLiters>0 ? (qty/100)*totalLiters : qty;
+    const qty = m.qty||0; // qty per 1000L
+    const totalQty = totalLiters>0 ? (qty/1000)*totalLiters : qty;
     const totalCost = pricePerUnit>0&&totalQty>0 ? pricePerUnit*totalQty : 0;
     const priceColor = pricePerUnit>0 ? 'color:var(--gm)' : 'color:#aaa';
+    const phytemQty = m.phytemQty||0;
+    const totalPhytemQty = totalLiters>0&&phytemQty>0 ? (phytemQty/1000)*totalLiters : phytemQty;
 
     const costHtml2 = (pricePerUnit>0 && qty>0)
-      ? `💰 ${qty} ${unit}/100ל׳${totalLiters>0?` × ${totalLiters.toLocaleString()}ל׳ ÷ 100 = <strong>${totalQty%1===0?totalQty:totalQty.toFixed(2)} ${unit}</strong> × ₪${pricePerUnit.toFixed(2)} = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}`
+      ? `💰 ${qty} ${unit}/1000ל׳${totalLiters>0?` × ${totalLiters.toLocaleString()}ל׳ ÷ 1000 = <strong>${totalQty%1===0?totalQty:totalQty.toFixed(2)} ${unit}</strong> × ₪${pricePerUnit.toFixed(2)} = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>`:''}`
+      : '';
+    const phytemHtml = (m.phytem&&phytemQty>0&&totalLiters>0)
+      ? ` | 🌸 פיטם: ${phytemQty} מל/1000ל׳ → <strong>${totalPhytemQty%1===0?totalPhytemQty:totalPhytemQty.toFixed(1)} מל</strong>`
       : '';
 
     return `
@@ -5182,7 +5189,7 @@ function renderSprayMats(){
           <div class="aclist" id="sm-ac-${m.id}"></div>
         </div>
         <div class="fg">
-          <label class="flabel">כמות ל-100ל׳ (${unit||'יח׳'})</label>
+          <label class="flabel">כמות ל-1000ל׳ (${unit||'יח׳'})</label>
           <input type="text" class="finput" id="sm-qty-${m.id}" value="${qty||''}"
             inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="0" oninput="smUpdate(${m.id})">
         </div>
@@ -5197,10 +5204,12 @@ function renderSprayMats(){
         <div class="fg">
           <label class="flabel">ישום פיטם</label>
           <input type="text" class="finput" id="sm-phy-${m.id}" value="${esc(m.phytem||'')}"
-            placeholder="ישום פיטם אם יש" oninput="smUpdate(${m.id})">
+            placeholder="שם / תיאור" oninput="smUpdate(${m.id})" style="margin-bottom:4px">
+          <input type="text" class="finput" id="sm-phyqty-${m.id}" value="${phytemQty||''}"
+            inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="כמות מל/1000ל׳" oninput="smUpdate(${m.id})">
         </div>
       </div>
-      <div id="sm-cost-${m.id}" style="font-size:12px;color:var(--gm);margin-top:4px;padding:4px 8px;background:#f0faf0;border-radius:6px;display:${pricePerUnit>0&&qty>0?'block':'none'}">${costHtml2}</div>
+      <div id="sm-cost-${m.id}" style="font-size:12px;color:var(--gm);margin-top:4px;padding:4px 8px;background:#f0faf0;border-radius:6px;display:${(pricePerUnit>0&&qty>0)||(m.phytem&&phytemQty>0)?'block':'none'}">${costHtml2}${phytemHtml}</div>
     </div>`;
   }).join('');
 }
@@ -5246,6 +5255,8 @@ function smUpdate(mid){
   m.pricePerUnit=parseFloat((document.getElementById('sm-price-'+mid)?.value||'').replace(',','.'))||0;
   if(!m.priceInfo||!m.priceInfo.pricePerUnit) m.priceInfo=getLastPrice(m.mat);
   m.phytem=document.getElementById('sm-phy-'+mid)?.value||'';
+  const rawPhyQty=(document.getElementById('sm-phyqty-'+mid)?.value||'').replace(',','.');
+  m.phytemQty=parseFloat(rawPhyQty)||0;
   // Update cost display only — do NOT re-render inputs (breaks decimal typing)
   smUpdateCostDisplay(mid, m);
 }
@@ -5262,13 +5273,24 @@ function smUpdateCostDisplay(mid, m){
     totalLiters += t.lastLiters>0?(ft*t.tank)+t.lastLiters:t.numTanks*t.tank;
   });
   const qty = m.qty||0;
-  const totalQty = totalLiters>0 ? (qty/100)*totalLiters : qty;
+  const totalQty = totalLiters>0 ? (qty/1000)*totalLiters : qty;
   const totalCost = pricePerUnit>0&&totalQty>0 ? pricePerUnit*totalQty : 0;
+  const phytemQty = m.phytemQty||0;
+  const totalPhytemQty = totalLiters>0&&phytemQty>0 ? (phytemQty/1000)*totalLiters : phytemQty;
   const costEl = document.getElementById('sm-cost-'+mid);
   if(!costEl) return;
-  if(pricePerUnit>0 && qty>0){
-    costEl.innerHTML = `💰 ${qty} ${unit}/100ל׳`
-      + (totalLiters>0 ? ` × ${totalLiters.toLocaleString()}ל׳ ÷ 100 = <strong>${totalQty%1===0?totalQty:totalQty.toFixed(2)} ${unit}</strong> × ₪${pricePerUnit.toFixed(2)} = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>` : '');
+  const showCost = pricePerUnit>0 && qty>0;
+  const showPhytem = m.phytem && phytemQty>0;
+  if(showCost || showPhytem){
+    let html = '';
+    if(showCost){
+      html += `💰 ${qty} ${unit}/1000ל׳`
+        + (totalLiters>0 ? ` × ${totalLiters.toLocaleString()}ל׳ ÷ 1000 = <strong>${totalQty%1===0?totalQty:totalQty.toFixed(2)} ${unit}</strong> × ₪${pricePerUnit.toFixed(2)} = <strong>₪${Math.round(totalCost).toLocaleString()}</strong>` : '');
+    }
+    if(showPhytem && totalLiters>0){
+      html += (showCost?' | ':'') + `🌸 פיטם: ${phytemQty} מל/1000ל׳ → <strong>${totalPhytemQty%1===0?totalPhytemQty:totalPhytemQty.toFixed(1)} מל</strong>`;
+    }
+    costEl.innerHTML = html;
     costEl.style.display='block';
   } else {
     costEl.style.display='none';
@@ -5351,24 +5373,26 @@ function saveSpray(){
     m.qty=parseFloat(document.getElementById('sm-qty-'+m.id)?.value||0);
     m.price=parseFloat(document.getElementById('sm-price-'+m.id)?.value||0)||m.price||0;
     m.phytem=document.getElementById('sm-phy-'+m.id)?.value||m.phytem;
+    m.phytemQty=parseFloat(document.getElementById('sm-phyqty-'+m.id)?.value||0)||m.phytemQty||0;
   });
   const validMats=sprayMats.filter(m=>m.mat.trim());
   if(!validMats.length){toast('⚠️ הזן לפחות חומר אחד');return}
   // Save each chemical as a separate spray record, linked by appId
   const appId=Date.now();
   validMats.forEach(m=>{
-    const totalQty = totalLiters>0&&m.qty>0 ? (m.qty/100)*totalLiters : m.qty;
+    const totalQty = totalLiters>0&&m.qty>0 ? (m.qty/1000)*totalLiters : m.qty;
     const info=m.priceInfo||getLastPrice(m.mat);
     const unitPrice=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
     const unit=info.unit||'יח׳';
     const totalCost=unitPrice*(totalQty||m.qty);
-    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,dunam,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',notes,numTractors,tractorsData});
+    const totalPhytemQty=totalLiters>0&&m.phytemQty>0?(m.phytemQty/1000)*totalLiters:m.phytemQty||0;
+    sprs.push({id:Date.now()+Math.random(),appId,date,op,mat:m.mat,tank,numTanks,lastLiters,totalLiters,speed,area,dunam,qty:m.qty,totalQty,unitPrice,unit,totalCost,phytem:m.phytem||'',phytemQty:m.phytemQty||0,totalPhytemQty,notes,numTractors,tractorsData});
   });
   save(K.S,sprs);
   const totalSprayCost=validMats.reduce((s,m)=>{
     const info=m.priceInfo||getLastPrice(m.mat);
     const u=m.pricePerUnit!==undefined?m.pricePerUnit:info.pricePerUnit||0;
-    const tq=totalLiters>0&&m.qty>0?(m.qty/100)*totalLiters:m.qty;
+    const tq=totalLiters>0&&m.qty>0?(m.qty/1000)*totalLiters:m.qty;
     return s+u*tq;
   },0);
   document.getElementById('spr-notes').value='';
@@ -5382,7 +5406,7 @@ function saveSpray(){
   if(document.getElementById('spr-speed')) document.getElementById('spr-speed').value='';
   if(document.getElementById('spr-tanks-summary')) document.getElementById('spr-tanks-summary').style.display='none';
   initTractorConfigs();
-  sprayMats=[{id:Date.now(),mat:'',qty:0,phytem:''}];
+  sprayMats=[{id:Date.now(),mat:'',qty:0,phytem:'',phytemQty:0}];
   renderSprayMats();
   const costStr=totalSprayCost>0?` | עלות: ${totalSprayCost.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}₪`:'';
   toast(`✅ ישום נשמר — ${validMats.length} חומרים${totalLiters?', '+totalLiters.toLocaleString()+' ל׳ סה״כ':''}${costStr}`);
@@ -5411,11 +5435,11 @@ function renderSprays(){
     const missingPrice=g.mats.some(m=>!m.unitPrice||!m.totalCost);
     const matsHtml=g.mats.map(m=>{
       const qtyStr=m.qty
-        ? `${m.qty}/100ל׳${(m.totalQty&&m.totalQty!==m.qty)?` → <strong style="color:#1a237e">${m.totalQty%1===0?m.totalQty:parseFloat(m.totalQty.toFixed(2))} ${m.unit||''}</strong>`:''}`
+        ? `${m.qty}/1000ל׳${(m.totalQty&&m.totalQty!==m.qty)?` → <strong style="color:#1a237e">${m.totalQty%1===0?m.totalQty:parseFloat(m.totalQty.toFixed(2))} ${m.unit||''}</strong>`:''}`
         : '';
       const priceStr=m.unitPrice?` — ₪${m.unitPrice.toFixed?m.unitPrice.toFixed(2):m.unitPrice}/${m.unit||'יח׳'}`:'';
       const costStr=m.totalCost?` = <span style="color:#388e3c;font-weight:600">₪${Math.round(m.totalCost).toLocaleString()}</span>`:'';
-      const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}]</span>`:'';
+      const phyStr=m.phytem?` <span style="color:#888;font-size:11px">[פיטם: ${m.phytem}${m.phytemQty?` — ${m.phytemQty} מל/1000ל׳${(m.totalPhytemQty&&m.totalPhytemQty!==m.phytemQty)?` → ${m.totalPhytemQty%1===0?m.totalPhytemQty:m.totalPhytemQty.toFixed(1)} מל`:''}`:'' }]</span>`:'';
       const noPriceTag=(!m.unitPrice&&m.mat)?`<span style="color:#e65100;font-size:11px"> ⚠️ חסר מחיר</span>`:'';
       return `<div style="padding:1px 0"><strong>${m.mat}</strong>${qtyStr?' — '+qtyStr:''}${priceStr}${costStr}${phyStr}${noPriceTag}</div>`;
     }).join('');
@@ -7912,7 +7936,7 @@ function generatePDFFiltered(type) {
     filtered.forEach(s => {
       const key = s.appId || s.id;
       if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qtyPer100:s.qty,qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||''});
+      appGroups[key].mats.push({mat:s.mat,qtyPer1000:s.qty,qty:s.totalQty||s.qty,unitPrice:s.unitPrice||0,unit:s.unit||'',totalCost:s.totalCost||0,phytem:s.phytem||''});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const totalArea = apps.reduce((s,a)=>s+(parseFloat(a.area)||0),0);
@@ -7940,13 +7964,13 @@ function generatePDFFiltered(type) {
 
     if (apps.length === 0) { body += '<div style="text-align:center;padding:40px;color:#999">לא נמצאו ריסוסים לפי הסינון</div>'; }
     else {
-      const sprHdr = `<tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>ל-100ל׳</th><th>סה״כ כמות</th><th>מחיר יח'</th><th>עלות</th><th>ליטרים</th><th>שטח</th><th>ישום פיטם</th><th>הערות</th></tr>`;
+      const sprHdr = `<tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th>ל-1000ל׳</th><th>סה״כ כמות</th><th>מחיר יח'</th><th>עלות</th><th>ליטרים</th><th>שטח</th><th>ישום פיטם</th><th>הערות</th></tr>`;
       const sprRow = (app, m, i) => `<tr>
         <td>${i===0?(app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:''):''}</td>
         <td>${i===0?(app.op||''):''}</td>
         <td>${m.mat||''}</td>
-        <td class="amnt">${m.qtyPer100||m.qty||''} ${m.unit||''}</td>
-        <td class="amnt" style="font-weight:700;color:#1a237e">${(()=>{const tq=m.qty;return tq&&tq!==(m.qtyPer100)?(tq%1===0?tq:parseFloat(tq.toFixed(3)))+' '+(m.unit||''):''})()}</td>
+        <td class="amnt">${m.qtyPer1000||m.qty||''} ${m.unit||''}</td>
+        <td class="amnt" style="font-weight:700;color:#1a237e">${(()=>{const tq=m.qty;return tq&&tq!==(m.qtyPer1000)?(tq%1===0?tq:parseFloat(tq.toFixed(3)))+' '+(m.unit||''):''})()}</td>
         <td class="amnt">${m.unitPrice?'₪'+m.unitPrice.toFixed(2):''}</td>
         <td class="amnt" style="font-weight:600;color:#2e7d32">${m.totalCost?'₪'+Math.round(m.totalCost).toLocaleString():''}</td>
         <td class="amnt">${i===0?(app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank?app.tank+'L'+(app.numTanks>1?' × '+app.numTanks:''):''))  :''}</td>
@@ -8394,7 +8418,7 @@ function generatePDF(type) {
       <div class="sbox"><div class="sbox-num">${apps.length}</div><div class="sbox-lbl">יישומים</div></div>
       <div class="sbox"><div class="sbox-num">${apps.reduce((s,a)=>s+(a.area||0),0).toLocaleString()}</div><div class="sbox-lbl">שטח כולל</div></div>
     </div>
-    <table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר מרוסס</th><th>כמות ל-100ל׳</th><th>סה״כ כמות</th><th>מיכל (ל')</th><th>שטח</th><th>הערות</th></tr></thead><tbody>`;
+    <table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר מרוסס</th><th>כמות ל-1000ל׳</th><th>סה״כ כמות</th><th>מיכל (ל')</th><th>שטח</th><th>הערות</th></tr></thead><tbody>`;
     apps.forEach(app => {
       app.mats.forEach((m,i) => {
         const tq = m.totalQty!==undefined?m.totalQty:m.qty;
@@ -8403,7 +8427,7 @@ function generatePDF(type) {
           <td>${i===0 ? (app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:'') : ''}</td>
           <td>${i===0 ? (app.op||'') : ''}</td>
           <td>${m.mat||''}</td>
-          <td class="amnt">${m.qty||''} ${m.unit||''}/100ל׳</td>
+          <td class="amnt">${m.qty||''} ${m.unit||''}/1000ל׳</td>
           <td class="amnt" style="font-weight:600;color:#1a237e">${tqStr}</td>
           <td class="amnt">${i===0 ? (app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank||'')) : ''}</td>
           <td class="amnt">${i===0 ? (app.area||'') : ''}</td>
@@ -8485,7 +8509,7 @@ document.getElementById('inv-month').value=new Date().getMonth()+1;
 document.getElementById('cmp-mo').value=new Date().getMonth()+1;
 
 // Init spray mats
-sprayMats=[{id:Date.now(),mat:'',qty:0,phytem:''}];
+sprayMats=[{id:Date.now(),mat:'',qty:0,phytem:'',phytemQty:0}];
 renderSprayMats();
 initTractorConfigs();
 
@@ -10422,7 +10446,7 @@ function generateReport(category, mode) {
     ss.forEach(s => {
       const key = s.appId || s.id;
       if (!appGroups[key]) appGroups[key] = {date:s.date,heDate:toHebrewDateWords(s.date),op:s.op,tank:s.tank,totalLiters:s.totalLiters||0,area:s.area,notes:s.notes,mats:[]};
-      appGroups[key].mats.push({mat:s.mat,qtyPer100:s.qty,qty:s.totalQty||s.qty,unit:s.unit||'',unitPrice:s.unitPrice||0,totalCost:s.totalCost||0,phytem:s.phytem||''});
+      appGroups[key].mats.push({mat:s.mat,qtyPer1000:s.qty,qty:s.totalQty||s.qty,unit:s.unit||'',unitPrice:s.unitPrice||0,totalCost:s.totalCost||0,phytem:s.phytem||''});
     });
     const apps = Object.values(appGroups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     title = mode==='summary'   ? 'דוח מסכם — ריסוסים' :
@@ -10448,15 +10472,15 @@ function generateReport(category, mode) {
       body += '</tbody></table>';
 
     } else if (mode === 'detailed') {
-      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">ל-100ל׳</th><th class="amnt">סה״כ כמות</th><th class="amnt">עלות</th><th class="amnt">ליטרים</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
+      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">ל-1000ל׳</th><th class="amnt">סה״כ כמות</th><th class="amnt">עלות</th><th class="amnt">ליטרים</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
       apps.forEach(app => {
         app.mats.forEach((m,i) => {
-          const tq = m.qty&&m.qty!==m.qtyPer100?(m.qty%1===0?m.qty:parseFloat(m.qty.toFixed(3)))+' '+(m.unit||''):'';
+          const tq = m.qty&&m.qty!==m.qtyPer1000?(m.qty%1===0?m.qty:parseFloat(m.qty.toFixed(3)))+' '+(m.unit||''):'';
           body += `<tr>
             <td>${i===0?(app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:''):''}</td>
             <td>${i===0?(app.op||''):''}</td>
             <td>${m.mat||''}</td>
-            <td class="amnt">${m.qtyPer100||m.qty||''} ${m.unit||''}</td>
+            <td class="amnt">${m.qtyPer1000||m.qty||''} ${m.unit||''}</td>
             <td class="amnt" style="font-weight:700;color:#1a237e">${tq}</td>
             <td class="amnt" style="color:#2e7d32">${m.totalCost?'₪'+_fmt(m.totalCost,0):''}</td>
             <td class="amnt">${i===0?(app.totalLiters?app.totalLiters.toLocaleString()+'ל׳':(app.tank||''))  :''}</td>
