@@ -5616,6 +5616,48 @@ function deleteApp(appId){
 
 var _editSprAppId=null;
 
+function _buildEsprMatRow(sprId,mat,qty,unit,price,phytem,phyQty,idx){
+  return '<div style="background:#f9fdf9;border:1px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:8px;position:relative" data-spr-id="'+sprId+'">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
+      '<span style="font-size:12px;font-weight:700;color:#1a237e">חומר '+(idx+1)+'</span>'+
+      '<button type="button" onclick="removeEditSprMat(this)" style="background:none;border:none;color:#e53935;font-size:16px;cursor:pointer;padding:0 4px" title="הסר חומר">🗑</button>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+
+      '<div style="grid-column:1/-1"><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">שם חומר</label>'+
+        '<input type="text" class="finput espr-mat-name" value="'+(mat||'')+'" placeholder="שם חומר" style="font-size:13px"></div>'+
+      '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות ל-1000ל׳</label>'+
+        '<input type="number" class="finput espr-mat-qty" value="'+(qty||'')+'" step="0.001" placeholder="כמות" style="font-size:13px"></div>'+
+      '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>'+
+        '<input type="text" class="finput espr-mat-unit" value="'+(unit||'')+'" placeholder="יח׳" style="font-size:13px"></div>'+
+      '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">מחיר ליחידה (₪)</label>'+
+        '<input type="number" class="finput espr-mat-price" value="'+(price||'')+'" step="0.01" placeholder="₪" style="font-size:13px"></div>'+
+      '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">פיטם</label>'+
+        '<input type="text" class="finput espr-mat-phytem" value="'+(phytem||'')+'" placeholder="שם פיטם (אם יש)" style="font-size:13px"></div>'+
+      '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות פיטם ל-1000ל׳</label>'+
+        '<input type="number" class="finput espr-mat-phyqty" value="'+(phyQty||'')+'" step="0.1" placeholder="מל" style="font-size:13px"></div>'+
+    '</div></div>';
+}
+
+function removeEditSprMat(btn){
+  var rows=document.querySelectorAll('#espr-mats [data-spr-id]');
+  if(rows.length<=1){toast('⚠️ חייב להישאר לפחות חומר אחד');return;}
+  btn.closest('[data-spr-id]').remove();
+  // עדכן מספרי חומרים
+  document.querySelectorAll('#espr-mats [data-spr-id]').forEach(function(r,i){
+    r.querySelector('span').textContent='חומר '+(i+1);
+  });
+}
+
+function addEditSprMat(){
+  var rows=document.querySelectorAll('#espr-mats [data-spr-id]');
+  var idx=rows.length;
+  var newId='new_'+Date.now();
+  var wrap=document.getElementById('espr-mats');
+  var div=document.createElement('div');
+  div.innerHTML=_buildEsprMatRow(newId,'','','','','','',idx);
+  wrap.appendChild(div.firstChild);
+}
+
 function openEditSpr(appId){
   _editSprAppId=appId;
   var group=sprs.filter(function(s){return (s.appId||s.id)===appId;});
@@ -5631,22 +5673,7 @@ function openEditSpr(appId){
   group.forEach(function(s,i){
     var dq=s.basisLiters===1000?(s.qty||''):(s.qty?parseFloat((s.qty*10).toPrecision(4)):'');
     var dpq=s.basisLiters===1000?(s.phytemQty||''):(s.phytemQty?parseFloat((s.phytemQty*10).toPrecision(4)):'');
-    html+='<div style="background:#f9fdf9;border:1px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:8px" data-spr-id="'+s.id+'">'+
-      '<div style="font-size:12px;font-weight:700;color:#1a237e;margin-bottom:8px">חומר '+(i+1)+'</div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+
-        '<div style="grid-column:1/-1"><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">שם חומר</label>'+
-          '<input type="text" class="finput espr-mat-name" value="'+(s.mat||'')+'" placeholder="שם חומר" style="font-size:13px"></div>'+
-        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות ל-1000ל׳</label>'+
-          '<input type="number" class="finput espr-mat-qty" value="'+dq+'" step="0.001" placeholder="כמות" style="font-size:13px"></div>'+
-        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>'+
-          '<input type="text" class="finput espr-mat-unit" value="'+(s.unit||'')+'" placeholder="יח׳" style="font-size:13px"></div>'+
-        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">מחיר ליחידה (₪)</label>'+
-          '<input type="number" class="finput espr-mat-price" value="'+(s.unitPrice||'')+'" step="0.01" placeholder="₪" style="font-size:13px"></div>'+
-        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">פיטם</label>'+
-          '<input type="text" class="finput espr-mat-phytem" value="'+(s.phytem||'')+'" placeholder="שם פיטם (אם יש)" style="font-size:13px"></div>'+
-        '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות פיטם ל-1000ל׳</label>'+
-          '<input type="number" class="finput espr-mat-phyqty" value="'+dpq+'" step="0.1" placeholder="מל" style="font-size:13px"></div>'+
-      '</div></div>';
+    html+=_buildEsprMatRow(s.id,s.mat,dq,s.unit,s.unitPrice,s.phytem,dpq,i);
   });
   document.getElementById('espr-mats').innerHTML=html;
   document.getElementById('modal-edit-spr').style.display='block';
@@ -5660,7 +5687,13 @@ function saveEditSpr(){
   var dunam=parseFloat(document.getElementById('espr-dunam').value)||0;
   var speed=parseFloat(document.getElementById('espr-speed').value)||0;
   var notes=document.getElementById('espr-notes').value.trim();
+
+  // מצא רשומת בסיס להעתקת שדות כלליים לחומרים חדשים
+  var base=sprs.find(function(s){return (s.appId||s.id)===_editSprAppId;})||{};
+
   var matRows=document.querySelectorAll('#espr-mats [data-spr-id]');
+
+  // עדכן רשומות קיימות
   sprs.forEach(function(s){
     if((s.appId||s.id)!==_editSprAppId) return;
     s.date=date; s.op=op; s.area=area; s.dunam=dunam;
@@ -5686,6 +5719,48 @@ function saveEditSpr(){
       else if(!nPrice) delete s.totalCost;
     });
   });
+
+  // הסר רשומות שנמחקו מהטופס
+  var visibleIds=new Set();
+  matRows.forEach(function(row){
+    if(!row.dataset.sprId.startsWith('new_')) visibleIds.add(String(row.dataset.sprId));
+  });
+  sprs=sprs.filter(function(s){
+    if((s.appId||s.id)!==_editSprAppId) return true;
+    return visibleIds.has(String(s.id));
+  });
+
+  // הוסף חומרים חדשים
+  matRows.forEach(function(row){
+    if(!row.dataset.sprId.startsWith('new_')) return;
+    var nMat=row.querySelector('.espr-mat-name').value.trim();
+    if(!nMat) return; // דלג על שורות ריקות
+    var nQty=parseFloat(row.querySelector('.espr-mat-qty').value)||0;
+    var nUnit=row.querySelector('.espr-mat-unit').value.trim();
+    var nPrice=parseFloat(row.querySelector('.espr-mat-price').value)||0;
+    var nPhy=row.querySelector('.espr-mat-phytem').value.trim();
+    var nPhyQty=parseFloat(row.querySelector('.espr-mat-phyqty').value)||0;
+    var tl=base.totalLiters||0;
+    var newRec={
+      id:Date.now()+Math.random(),
+      appId:_editSprAppId,
+      date:date,op:op,area:area,dunam:dunam,
+      tank:base.tank,numTanks:base.numTanks,
+      lastLiters:base.lastLiters,totalLiters:tl,
+      speed:speed||undefined,notes:notes||undefined,
+      numTractors:base.numTractors,tractorsData:base.tractorsData,
+      mat:nMat,qty:nQty,basisLiters:1000,
+      unit:nUnit||undefined,
+      unitPrice:nPrice||undefined,
+      totalQty:nQty&&tl?parseFloat((nQty*tl/1000).toFixed(3)):undefined,
+      totalCost:nPrice&&nQty&&tl?parseFloat((nQty*tl/1000*nPrice).toFixed(2)):undefined,
+      phytem:nPhy||undefined,
+      phytemQty:nPhyQty||undefined,
+      totalPhytemQty:nPhyQty&&tl?parseFloat((nPhyQty*tl/1000).toFixed(3)):undefined
+    };
+    sprs.push(newRec);
+  });
+
   save(K.S,sprs);
   document.getElementById('modal-edit-spr').style.display='none';
   renderSprays(); renderSpraySummary();
@@ -11420,7 +11495,10 @@ function applyAuditFix() {
       <div><label style="font-size:12px;color:#558b2f;font-weight:600;display:block;margin-bottom:3px">הערות</label>
         <input type="text" id="espr-notes" class="finput" placeholder="הערות"></div>
     </div>
-    <div style="font-size:13px;font-weight:700;color:#2e7d32;margin-bottom:8px;border-top:1px solid #e8f5e9;padding-top:12px">🧪 חומרים</div>
+    <div style="font-size:13px;font-weight:700;color:#2e7d32;margin-bottom:8px;border-top:1px solid #e8f5e9;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <span>🧪 חומרים</span>
+      <button type="button" onclick="addEditSprMat()" class="btn btnG" style="padding:4px 12px;font-size:12px">➕ הוסף חומר</button>
+    </div>
     <div id="espr-mats"></div>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button onclick="saveEditSpr()" class="btn btnP" style="flex:1;padding:10px">💾 שמור שינויים</button>
