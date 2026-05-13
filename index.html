@@ -3969,6 +3969,17 @@ async function importAmirInvoice(file) {
       fullText += tc.items.map(it => it.str).join(' ') + '\n';
     }
 
+    // ── ניתוח ישיר מטקסט (ללא Claude לעמיר) ──
+    if (/עמיר/.test(fullText) && /תעודה:/.test(fullText)) {
+      document.getElementById('amir-import-status').innerHTML = '⏳ מנתח מבנה תעודות...';
+      const direct = _parseAmirInvoiceDirect(fullText);
+      if (direct && direct.deliveries.length > 0) {
+        _amirImportData = direct;
+        renderAmirImportPreview(direct);
+        return;
+      }
+    }
+
     document.getElementById('amir-import-status').innerHTML = '⏳ מנתח תוכן עם Claude...';
 
     // שלח ל-Claude API לניתוח מלא
@@ -4317,6 +4328,136 @@ function _updateImportItem(di, ii, field, val) {
   const delTotalEl = document.getElementById(`imp-deltotal-${di}`);
   if (delTotalEl) delTotalEl.textContent = '₪' + delTotal.toFixed(2);
 }
+
+// ════ פירוס ישיר חשבוניות עמיר מטקסט PDF ════
+function _parseAmirInvoiceDirect(fullText) {
+  const text = fullText.replace(/\r/g, ' ');
+
+  // ── מטא-נתוני חשבונית ──
+  var invNum = '', invDate = '', totalBeforeVat = 0, vat = 0, totalWithVat = 0;
+
+  var invNumM = text.match(/(\d{5,}SI|SI\d{5,})/);
+  if (invNumM) invNum = invNumM[1];
+
+  var invDateM = text.match(/תאריך חשבונית[:\s]+(\d{2})\/(\d{2})\/(\d{2,4})/);
+  if (invDateM) {
+    var yr = invDateM[3].length === 2 ? '20' + invDateM[3] : invDateM[3];
+    invDate = yr + '-' + invDateM[2] + '-' + invDateM[1];
+  }
+
+  var totalM = text.match(/מחיר כולל\s+([\d,]+\.?\d*)/);
+  var vatM = text.match(/מע"מ\s*\([^)]+\)\s+([\d,]+\.?\d*)/);
+  var totalWithVatM = text.match(/סה"כ מחיר\s+([\d,]+\.?\d*)\s*ש"ח/);
+  if (totalM) totalBeforeVat = parseFloat(totalM[1].replace(/,/g,''));
+  if (vatM) vat = parseFloat(vatM[1].replace(/,/g,''));
+  if (totalWithVatM) totalWithVat = parseFloat(totalWithVatM[1].replace(/,/g,''));
+
+  // ── מיפוי תעודות ──
+  var HEADER_RE = /תעודה:\s*(\d+(?:SH|RT)\w*)[^,]*,\s*תאריך:\s*,?(\d{2})\/(\d{2})\/(\d{2,4})/g;
+  var positions = [];
+  var hm;
+  while ((hm = HEADER_RE.exec(text)) !== null) {
+    var doc = hm[1];
+    var yr2 = hm[4].length === 2 ? '20' + hm[4] : hm[4];
+    var date = yr2 + '-' + hm[3] + '-' + hm[2];
+    positions.push({ doc: doc, date: date, startIdx: hm.index, afterHeader: HEADER_RE.lastIndex });
+  }
+
+  if (!positions.length) return null;
+
+  // קבץ לפי מספר תעודה
+  var delMap = {};
+  for (var i = 0; i < positions.length; i++) {
+    var p = positions[i];
+    var nextStart = i + 1 < positions.length ? positions[i+1].startIdx : text.length;
+    var segText = text.slice(p.afterHeader, nextStart);
+    if (!delMap[p.doc]) delMap[p.doc] = { doc: p.doc, date: p.date, items: [] };
+    var items = _parseSegItems(segText);
+    items.forEach(function(it){ delMap[p.doc].items.push(it); });
+  }
+
+  var deliveries = Object.values(delMap).filter(function(d){ return d.items.length > 0; });
+  if (!deliveries.length) return null;
+
+  return {
+    supplier: 'עמיר',
+    invoice: { num: invNum, date: invDate, total_before_vat: totalBeforeVat, vat: vat, total_with_vat: totalWithVat },
+    deliveries: deliveries
+  };
+}
+
+function _parseSegItems(seg) {
+  var items = [];
+  // מצא כל קוד מוצר 7-8 ספרות (לא 191 = שירות)
+  var codeRe = /(?<!\d)(\d{7,8})(?!\d)/g;
+  var positions = [];
+  var cm;
+  while ((cm = codeRe.exec(seg)) !== null) {
+    positions.push({ pos: cm.index, endPos: codeRe.lastIndex });
+  }
+  for (var i = 0; i < positions.length; i++) {
+    var start = positions[i].endPos; // אחרי קוד המוצר
+    var end = i + 1 < positions.length ? positions[i+1].pos - 8 : seg.length;
+    if (end < start) end = seg.length;
+    var itemText = seg.slice(positions[i].pos, end);
+    var parsed = _parseSingleItem(itemText);
+    if (parsed) items.push(parsed);
+  }
+  return items;
+}
+
+function _parseSingleItem(text) {
+  // הסר קוד מוצר מהתחלה
+  var afterCode = text.replace(/^\d{7,8}\s*/, '').trim();
+
+  // מצא כמות: N.NNN לפני יח/שק/חב
+  var qtyM = afterCode.match(/(-?\d+\.\d{3})\s*(יח'?|שק|חב|ק'?ג)/);
+  if (!qtyM) return null;
+
+  var productName = afterCode.slice(0, qtyM.index).trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[+\-]?\d+שוטף.*$/g,'')
+    .trim();
+  if (!productName) return null;
+
+  var qty = parseFloat(qtyM[1]);
+  var rest = afterCode.slice(qtyM.index + qtyM[0].length);
+
+  // מחיר בסיס: N,NNN.NNN ש"ח
+  var priceM = rest.match(/([\d,]+\.\d{3})\s*ש"ח/);
+  if (!priceM) return null;
+  var basePrice = parseFloat(priceM[1].replace(/,/g,''));
+  var afterBase = rest.slice(priceM.index + priceM[0].length);
+
+  var price = basePrice, discount = 0;
+
+  // הנחה בפורמט 2025: 15.00% 110.500 ש"ח
+  var disc25 = afterBase.match(/^\s*(\d+\.\d{1,2})%\s*([\d,]+\.\d{3})\s*ש"ח/);
+  // הנחה בפורמט 2026: 50.00 9.322 (אחוז לא מסומן)
+  var disc26 = afterBase.match(/^\s*(\d{1,2}\.\d{2})\s+([\d,]+\.\d{3})\s/);
+
+  if (disc25) {
+    discount = parseFloat(disc25[1]);
+    price = parseFloat(disc25[2].replace(/,/g,''));
+    afterBase = afterBase.slice(disc25.index + disc25[0].length);
+  } else if (disc26 && parseFloat(disc26[1]) > 0 && parseFloat(disc26[1]) < 100) {
+    discount = parseFloat(disc26[1]);
+    price = parseFloat(disc26[2].replace(/,/g,''));
+    afterBase = afterBase.slice(disc26.index + disc26[0].length);
+  }
+
+  // סכום כולל: המספר האחרון לפני סוף הטקסט או '+90' 
+  var cleanRest = afterBase.replace(/\+90שוטף.*/g,'').replace(/[א-ת\s"']+/g,' ');
+  var nums = [...cleanRest.matchAll(/(-?[\d,]+\.\d{1,2})/g)];
+  var total = 0;
+  if (nums.length) {
+    total = parseFloat(nums[nums.length-1][1].replace(/,/g,''));
+  }
+  if (!total) total = +(price * qty).toFixed(2);
+
+  return { product: productName, qty: qty, price: price, discount: discount, total: total };
+}
+// ════════════════════════════════════════
 
 function confirmAmirImport() {
   if (!_amirImportData) return;
