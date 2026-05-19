@@ -41,8 +41,8 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 /* HEADER */
 .hdr{background:linear-gradient(160deg,#0e2410,#2d5a27 60%,#3d7235);box-shadow:var(--shd);position:sticky;top:0;z-index:100}
 .hdr-top{display:flex;align-items:center;gap:10px;padding:10px 14px 8px;border-bottom:1px solid rgba(200,164,74,.22)}
-.logo-box{background:#fff;border-radius:9px;padding:5px 11px;box-shadow:0 2px 8px rgba(0,0,0,.25);flex-shrink:0}
-.logo-img{height:42px;display:block;object-fit:contain}
+.logo-box{background:rgba(0,0,0,.18);border-radius:10px;padding:4px 7px;box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 0 1.5px rgba(240,208,122,.45);flex-shrink:0;line-height:0}
+.logo-img{height:50px;display:block;object-fit:contain;border-radius:7px}
 .hdr-txt{flex:1;text-align:center}
 .hdr-title{font-family:'Frank Ruhl Libre',serif;color:var(--goldl);font-size:17px;font-weight:700;line-height:1.2}
 .hdr-sub{color:rgba(255,255,255,.55);font-size:11px;margin-top:2px}
@@ -8840,7 +8840,9 @@ function pdfStyles() {
       }
       .pdf-footer { position: fixed; bottom: 0; }
       thead { display: table-header-group; }
-      .page { padding: 52mm 12mm 28mm; }
+      .page { padding: 52mm 12mm 32mm; }
+      tr { page-break-inside: avoid; break-inside: avoid-page; }
+      td { word-break: break-word; overflow-wrap: break-word; }
     }
     @page { margin: 0; size: A4; }
     /* מספור עמודים */
@@ -8854,7 +8856,7 @@ function pdfStyles() {
     }
     @media print {
       .pdf-page-counter::before {
-        content: "עמוד " counter(page) " / " counter(pages);
+        content: "עמוד " counter(page);
       }
     }
   </style>`;
