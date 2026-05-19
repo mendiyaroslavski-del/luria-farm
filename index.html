@@ -10996,7 +10996,7 @@ function generateReport(category, mode) {
       body += '</tbody></table>';
 
     } else if (mode === 'detailed') {
-      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">כמות/ליטר</th><th class="amnt">סה״כ כמות</th><th class="amnt">עלות</th><th class="amnt">ליטרים</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
+      body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">כמות/ליטר</th><th class="amnt">סה״כ כמות</th><th class="amnt" style="min-width:52px">עלות</th><th class="amnt">ליטרים</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
       apps.forEach(app => {
         app.mats.forEach((m,i) => {
           const tq = m.qty&&m.qty!==m.qtyPer1000?(m.qty%1===0?m.qty:parseFloat(m.qty.toFixed(3)))+' '+(m.unit||''):'';
