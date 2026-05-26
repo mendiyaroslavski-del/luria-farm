@@ -5423,11 +5423,16 @@ function renderSprayMats(){
             style="${priceColor}">
         </div>
         <div class="fg">
-          <label class="flabel">ישום פיטם</label>
-          <input type="text" class="finput" id="sm-phy-${m.id}" value="${esc(m.phytem||'')}"
-            placeholder="שם / תיאור" oninput="smUpdate(${m.id})" style="margin-bottom:4px">
-          <input type="text" class="finput" id="sm-phyqty-${m.id}" value="${phytemQty||''}"
-            inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="כמות מל/1000ל׳" oninput="smUpdate(${m.id})">
+          <label class="flabel" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="sm-phy-cb-${m.id}" ${m.phytem?'checked':''}
+              onchange="togglePhytemField(${m.id})" style="width:16px;height:16px;cursor:pointer;accent-color:var(--gm)">
+            <span>ישום פיטם</span>
+          </label>
+          <input type="hidden" id="sm-phy-${m.id}" value="${esc(m.phytem||'פיטם')}">
+          <div id="sm-phy-qty-wrap-${m.id}" style="display:${m.phytem?'block':'none'};margin-top:6px">
+            <input type="text" class="finput" id="sm-phyqty-${m.id}" value="${phytemQty||''}"
+              inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="כמות מל/1000ל׳" oninput="smUpdate(${m.id})">
+          </div>
         </div>
       </div>
       <div id="sm-cost-${m.id}" style="font-size:12px;color:var(--gm);margin-top:4px;padding:4px 8px;background:#f0faf0;border-radius:6px;display:${(pricePerUnit>0&&qty>0)||(m.phytem&&phytemQty>0)?'block':'none'}">${costHtml2}${phytemHtml}</div>
@@ -5467,6 +5472,20 @@ function selSM(mid,prod){
   document.getElementById('sm-qty-'+mid)?.focus();
 }
 
+function togglePhytemField(mid){
+  const cb=document.getElementById('sm-phy-cb-'+mid);
+  const wrap=document.getElementById('sm-phy-qty-wrap-'+mid);
+  const hid=document.getElementById('sm-phy-'+mid);
+  if(!cb||!wrap||!hid) return;
+  wrap.style.display=cb.checked?'block':'none';
+  hid.value=cb.checked?'פיטם':'';
+  if(!cb.checked){
+    const qtyEl=document.getElementById('sm-phyqty-'+mid);
+    if(qtyEl) qtyEl.value='';
+  }
+  smUpdate(mid);
+}
+
 function smUpdate(mid){
   const m=sprayMats.find(x=>x.id===mid);
   if(!m)return;
@@ -5475,7 +5494,8 @@ function smUpdate(mid){
   m.qty=parseFloat(rawQty)||0;
   m.pricePerUnit=parseFloat((document.getElementById('sm-price-'+mid)?.value||'').replace(',','.'))||0;
   if(!m.priceInfo||!m.priceInfo.pricePerUnit) m.priceInfo=getLastPrice(m.mat);
-  m.phytem=document.getElementById('sm-phy-'+mid)?.value||'';
+  const cb=document.getElementById('sm-phy-cb-'+mid);
+  m.phytem=cb&&cb.checked?(document.getElementById('sm-phy-'+mid)?.value||'פיטם'):'';
   const rawPhyQty=(document.getElementById('sm-phyqty-'+mid)?.value||'').replace(',','.');
   m.phytemQty=parseFloat(rawPhyQty)||0;
   // Update cost display only — do NOT re-render inputs (breaks decimal typing)
@@ -5593,7 +5613,8 @@ function saveSpray(){
     m.mat=document.getElementById('sm-mat-'+m.id)?.value||m.mat;
     m.qty=parseFloat(document.getElementById('sm-qty-'+m.id)?.value||0);
     m.price=parseFloat(document.getElementById('sm-price-'+m.id)?.value||0)||m.price||0;
-    m.phytem=document.getElementById('sm-phy-'+m.id)?.value||m.phytem;
+    const cb=document.getElementById('sm-phy-cb-'+m.id);
+    m.phytem=cb&&cb.checked?(document.getElementById('sm-phy-'+m.id)?.value||'פיטם'):'';
     m.phytemQty=parseFloat(document.getElementById('sm-phyqty-'+m.id)?.value||0)||m.phytemQty||0;
   });
   const validMats=sprayMats.filter(m=>m.mat.trim());
@@ -5618,6 +5639,9 @@ function saveSpray(){
   },0);
   document.getElementById('spr-notes').value='';
   document.getElementById('spr-area').value='';
+  const todayStr = new Date().toISOString().split('T')[0];
+  document.getElementById('spr-date').value = todayStr;
+  updateSprHeDate();
   if(document.getElementById('spr-dunam')) document.getElementById('spr-dunam').value='';
   // נקה כל ה-checkboxes של חלקות
   const fwrap = document.getElementById('spr-fields-wrap');
@@ -6011,12 +6035,39 @@ function renderSpraySummary(){
     matSummary[k].qty+=s.qty||0;
     matSummary[k].totalCost+=(s.totalCost||0);
   });
+  // Monthly/yearly cost summary
+  const monthlyCost={};
+  Object.values(appGroups).forEach(a=>{
+    if(!a.date) return;
+    const d=new Date(a.date);
+    const yr=d.getFullYear();
+    const mo=(d.getMonth()+1).toString().padStart(2,'0');
+    const yKey=String(yr);
+    const mKey=yr+'-'+mo;
+    if(!monthlyCost[yKey]) monthlyCost[yKey]={year:yr,total:0,months:{}};
+    if(!monthlyCost[yKey].months[mKey]) monthlyCost[yKey].months[mKey]={mo,total:0};
+    monthlyCost[yKey].total+=(a.totalCost||0);
+    monthlyCost[yKey].months[mKey].total+=(a.totalCost||0);
+  });
+  const HM=['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const el=document.getElementById('spr-summary');
   const appCount=Object.keys(appGroups).length;
   if(!appCount){el.innerHTML='<p style="color:var(--grayM);font-size:12px">עדיין לא נרשמו ריסוסים</p>';return}
   const vals=Object.values(matSummary);
+  const grandCost=vals.reduce((s,v)=>s+(v.totalCost||0),0);
+
+  // build monthly table HTML
+  let moHtml='';
+  Object.values(monthlyCost).sort((a,b)=>b.year-a.year).forEach(yr=>{
+    moHtml+=`<tr style="background:#e8f5e3;font-weight:700"><td colspan="2">${yr.year}</td><td style="text-align:left;direction:ltr">₪${Math.round(yr.total).toLocaleString()}</td></tr>`;
+    Object.values(yr.months).sort((a,b)=>a.mo.localeCompare(b.mo)).forEach(m=>{
+      const moIdx=parseInt(m.mo,10);
+      moHtml+=`<tr><td style="padding-right:20px">${HM[moIdx]||m.mo}</td><td></td><td style="text-align:left;direction:ltr">₪${Math.round(m.total).toLocaleString()}</td></tr>`;
+    });
+  });
+
   el.innerHTML=`
-  <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים</p>
+  <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים${grandCost?' | עלות כוללת: <strong>₪'+Math.round(grandCost).toLocaleString()+'</strong>':''}</p>
   <div class="tblw"><table class="dtbl"><thead><tr><th>חומר</th><th>מס׳ ישומים</th><th>כמות כוללת</th><th>עלות כוללת</th></tr></thead><tbody>
     ${vals.sort((a,b)=>b.apps.size-a.apps.size).map(s=>`<tr>
       <td><strong>${s.mat}</strong></td>
@@ -6024,7 +6075,9 @@ function renderSpraySummary(){
       <td>${s.qty%1===0?s.qty:s.qty.toFixed(2)}</td>
       <td>${s.totalCost?'₪'+Math.round(s.totalCost).toLocaleString():'—'}</td>
     </tr>`).join('')}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  ${moHtml?`<div class="ctitle" style="margin-top:14px">💰 עלות ריסוסים לפי חודש</div>
+  <div class="tblw"><table class="dtbl"><thead><tr><th>חודש</th><th></th><th>עלות</th></tr></thead><tbody>${moHtml}</tbody></table></div>`:''}`;
 }
 
 // ═══ INVENTORY ═══
@@ -10998,11 +11051,15 @@ function generateReport(category, mode) {
     } else if (mode === 'detailed') {
       body += `<table><thead><tr><th>תאריך</th><th>מרסס</th><th>חומר</th><th class="amnt">כמות/ליטר</th><th class="amnt">סה״כ כמות</th><th class="amnt" style="min-width:52px">עלות</th><th class="amnt">ליטרים</th><th class="amnt">שטח</th><th>הערות</th></tr></thead><tbody>`;
       apps.forEach(app => {
+        // collect phytem once per application (first mat that has it)
+        const appPhytem = app.mats.map(m=>m.phytem).filter(Boolean);
+        const phytemStr = [...new Set(appPhytem)].join(', ');
         app.mats.forEach((m,i) => {
           const tq = m.qty&&m.qty!==m.qtyPer1000?(m.qty%1===0?m.qty:parseFloat(m.qty.toFixed(3)))+' '+(m.unit||''):'';
+          const phytemCell = (i===0 && phytemStr) ? `<br><span style="font-size:10px;color:#7b1fa2">🌸 פיטם: ${phytemStr}</span>` : '';
           body += `<tr>
             <td>${i===0?(app.date||'')+(app.heDate?`<br><span style="font-size:10px;color:#558b2f;font-weight:600">${app.heDate}</span>`:''):''}</td>
-            <td>${i===0?(app.op||''):''}</td>
+            <td>${i===0?(app.op||'')+phytemCell:''}</td>
             <td>${m.mat||''}</td>
             <td class="amnt">${m.qtyPer1000||m.qty||''} ${m.unit||''}${m.qtyPer1000?`/${m.basis||100}ל׳`:''}</td>
             <td class="amnt" style="font-weight:700;color:#1a237e">${tq}</td>
