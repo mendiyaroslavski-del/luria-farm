@@ -770,13 +770,40 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 <div id="tab-stats" class="sec">
   <div class="shtitle">📊 סטטיסטיקה</div>
   <div class="sgrid">
-    <div class="scard p"><div class="snum" id="s2026">—</div><div class="slbl">סה"כ 2026</div></div>
-    <div class="scard g"><div class="snum" id="s2025">—</div><div class="slbl">סה"כ 2025</div></div>
-    <div class="scard o"><div class="snum" id="s2024">—</div><div class="slbl">סה"כ 2024</div></div>
-    <div class="scard b"><div class="snum" id="s2023">—</div><div class="slbl">סה"כ 2023</div></div>
-    <div class="scard g"><div class="snum" id="s2022">—</div><div class="slbl">סה"כ 2022</div></div>
+    <div class="scard p"><div class="snum" id="s2026">—</div><div class="slbl">רכישות 2026</div></div>
+    <div class="scard g"><div class="snum" id="s2025">—</div><div class="slbl">רכישות 2025</div></div>
+    <div class="scard o"><div class="snum" id="s2024">—</div><div class="slbl">רכישות 2024</div></div>
+    <div class="scard b"><div class="snum" id="s2023">—</div><div class="slbl">רכישות 2023</div></div>
+    <div class="scard g"><div class="snum" id="s2022">—</div><div class="slbl">רכישות 2022</div></div>
     <div class="scard r"><div class="snum" id="s-docs">—</div><div class="slbl">תעודות שמורות</div></div>
+    <div class="scard p"><div class="snum" id="s-sal-cur">—</div><div class="slbl">שכר עלות מעסיק 2026</div></div>
+    <div class="scard g"><div class="snum" id="s-spr-cur">—</div><div class="slbl">ריסוסים 2026</div></div>
+    <div class="scard o"><div class="snum" id="s-exp-cur">—</div><div class="slbl">הוצאות כלליות 2026</div></div>
+    <div class="scard b"><div class="snum" id="s-total-cur">—</div><div class="slbl">סה"כ עלויות 2026</div></div>
   </div>
+
+  <!-- פירוק הוצאות כולל -->
+  <div class="card">
+    <div class="ctitle">🥧 פירוק עלויות כולל</div>
+    <div class="fr fr2" style="gap:8px;margin-bottom:10px">
+      <div class="fg">
+        <label class="flabel">שנה</label>
+        <select class="fsel" id="breakdown-yr" onchange="renderTotalBreakdown()">
+          <option value="all">כל השנים</option>
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:200px;max-width:280px;margin:0 auto"><canvas id="chart-breakdown"></canvas></div>
+      <div id="breakdown-table" style="flex:1;min-width:180px;font-size:13px"></div>
+    </div>
+  </div>
+
+  <!-- רכישות חודשיות -->
   <div class="card">
     <div class="ctitle">📈 רכישות חודשיות</div>
     <div class="chips" id="ychips">
@@ -795,6 +822,52 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="chwrap"><canvas id="chart-main"></canvas></div>
   </div>
+
+  <!-- שכר -->
+  <div class="card">
+    <div class="ctitle">👷 שכר — סיכום שנתי</div>
+    <div class="fr fr2" style="gap:8px;margin-bottom:10px">
+      <div class="fg">
+        <label class="flabel">שנה</label>
+        <select class="fsel" id="sal-stat-yr" onchange="renderSalStats()">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="all">כל השנים</option>
+        </select>
+      </div>
+    </div>
+    <div class="chwrap"><canvas id="chart-sal"></canvas></div>
+    <div id="sal-stat-summary" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px"></div>
+  </div>
+
+  <!-- ריסוסים -->
+  <div class="card">
+    <div class="ctitle">🌿 ריסוסים — סיכום שנתי</div>
+    <div class="fr fr2" style="gap:8px;margin-bottom:10px">
+      <div class="fg">
+        <label class="flabel">שנה</label>
+        <select class="fsel" id="spr-stat-yr" onchange="renderSprStats()">
+          <option value="2026" selected>2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="all">כל השנים</option>
+        </select>
+      </div>
+    </div>
+    <div class="chwrap"><canvas id="chart-spr-stat"></canvas></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;align-items:flex-start">
+      <div style="flex:1;min-width:160px">
+        <div style="font-size:12px;font-weight:700;color:#2e7d32;margin-bottom:6px">🏆 חומרים מובילים (עלות)</div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tbody id="spr-top-mats"></tbody>
+        </table>
+      </div>
+      <div id="spr-stat-summary" style="flex:1;min-width:160px;font-size:13px"></div>
+    </div>
+  </div>
+
+  <!-- השוואה שנה מול שנה -->
   <div class="card">
     <div class="ctitle">📅 השוואה שנה מול שנה</div>
     <div class="fr fr2">
@@ -819,6 +892,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div class="cmpcard"><div class="cmpyr" id="cy2l">—</div><div class="cmpamt" id="cy2a">—</div></div>
     </div>
   </div>
+
   <!-- קטגוריות -->
   <div class="card">
     <div class="ctitle">🏷️ הוצאות לפי קטגוריה</div>
@@ -5116,7 +5190,6 @@ function getDirectInvAsDels(){
 function initStats(){
   const itemsSum=items=>items.filter(it=>!it.iclExclude).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
   const allDels = [...dels, ...getDirectInvAsDels()];
-  // ICL מוחרג מסיכום כללי — סכומיו כלולים כבר בחשבוניות עמיר
   const filtDels=statSupFilter==='all'?allDels.filter(d=>d.sup!=='דשנים ICL'):allDels.filter(d=>d.sup===statSupFilter);
   const sum=yr=>filtDels.reduce((acc,d)=>parseInt(d.year)===yr?acc+itemsSum(d.items):acc,0);
   document.getElementById('s2026').textContent='₪'+Math.round(sum(2026)).toLocaleString();
@@ -5125,7 +5198,136 @@ function initStats(){
   document.getElementById('s2023').textContent='₪'+Math.round(sum(2023)).toLocaleString();
   document.getElementById('s2022').textContent='₪'+Math.round(sum(2022)).toLocaleString();
   document.getElementById('s-docs').textContent=filtDels.filter(d=>!d._directInv).length+' + '+getDirectInvAsDels().length+' ישירות';
+
+  // כרטיסי שכר, ריסוסים, הוצאות
+  const sals = load(K.SAL)||[];
+  const salCur = sals.filter(s=>s.year===2026).reduce((a,s)=>a+(s.totalEmpCost||s.totalGross||0),0);
+  document.getElementById('s-sal-cur').textContent='₪'+Math.round(salCur).toLocaleString();
+
+  const sprCur = sprs.filter(s=>s.date&&new Date(s.date).getFullYear()===2026)
+    .reduce((a,s)=>a+(s.totalCost||0),0);
+  document.getElementById('s-spr-cur').textContent='₪'+Math.round(sprCur).toLocaleString();
+
+  const exps = load(K.EX)||[];
+  const expCur = exps.filter(e=>e.date&&new Date(e.date).getFullYear()===2026)
+    .reduce((a,e)=>a+(e.amount||0),0);
+  document.getElementById('s-exp-cur').textContent='₪'+Math.round(expCur).toLocaleString();
+
+  const totalCur = sum(2026)+salCur+sprCur+expCur;
+  document.getElementById('s-total-cur').textContent='₪'+Math.round(totalCur).toLocaleString();
+
   drawChart('all');updateCmp();
+  setTimeout(()=>{renderSalStats();renderSprStats();renderTotalBreakdown();},100);
+}
+
+function renderSalStats(){
+  const yr = document.getElementById('sal-stat-yr')?.value||'2026';
+  const sals = load(K.SAL)||[];
+  const MO = ['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצ'];
+  const filtered = yr==='all' ? sals : sals.filter(s=>s.year===+yr);
+  const gross=new Array(12).fill(0), net=new Array(12).fill(0), emp=new Array(12).fill(0);
+  filtered.forEach(s=>{
+    const mi=(s.month||1)-1;
+    if(mi>=0&&mi<12){ gross[mi]+=(s.totalGross||0); net[mi]+=(s.totalNet||0); emp[mi]+=(s.totalEmpCost||0); }
+  });
+  const ctx=document.getElementById('chart-sal');
+  if(!ctx) return;
+  if(window.salChartInst) window.salChartInst.destroy();
+  window.salChartInst=new Chart(ctx.getContext('2d'),{
+    type:'bar',
+    data:{labels:MO,datasets:[
+      {label:'ברוטו',data:gross,backgroundColor:'#1565c0aa'},
+      {label:'נטו',data:net,backgroundColor:'#2e7d32aa'},
+      {label:'עלות מעסיק',data:emp,backgroundColor:'#c62828aa'}
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'₪'+v.toLocaleString()}}}}
+  });
+  const tg=filtered.reduce((a,s)=>a+(s.totalGross||0),0);
+  const tn=filtered.reduce((a,s)=>a+(s.totalNet||0),0);
+  const te=filtered.reduce((a,s)=>a+(s.totalEmpCost||0),0);
+  const el=document.getElementById('sal-stat-summary');
+  if(el) el.innerHTML=`
+    <div style="background:#e3f2fd;border-radius:8px;padding:8px 14px"><div style="font-size:11px;color:#666">ברוטו</div><strong>₪${Math.round(tg).toLocaleString()}</strong></div>
+    <div style="background:#e8f5e9;border-radius:8px;padding:8px 14px"><div style="font-size:11px;color:#666">נטו</div><strong>₪${Math.round(tn).toLocaleString()}</strong></div>
+    <div style="background:#ffebee;border-radius:8px;padding:8px 14px"><div style="font-size:11px;color:#666">עלות מעסיק</div><strong>₪${Math.round(te).toLocaleString()}</strong></div>
+    <div style="background:#fff3e0;border-radius:8px;padding:8px 14px"><div style="font-size:11px;color:#666">חודשים מוזנים</div><strong>${filtered.length}</strong></div>`;
+}
+
+function renderSprStats(){
+  const yr = document.getElementById('spr-stat-yr')?.value||'2026';
+  const MO = ['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצ'];
+  const filtered = yr==='all' ? sprs : sprs.filter(s=>s.date&&new Date(s.date).getFullYear()===+yr);
+  const monthlyCost=new Array(12).fill(0);
+  const matCosts={};
+  let totalDunam=0, totalCostV=0;
+  filtered.forEach(s=>{
+    if(s.date){ const mi=new Date(s.date).getMonth(); monthlyCost[mi]+=(s.totalCost||0); }
+    if(s.mat&&s.totalCost) matCosts[s.mat]=(matCosts[s.mat]||0)+(s.totalCost||0);
+    totalCostV+=(s.totalCost||0);
+  });
+  // חישוב דונם ייחודי לפי appId
+  const appIds=new Set(); 
+  filtered.forEach(s=>{
+    const aid=s.appId||s.id;
+    if(!appIds.has(aid)){ appIds.add(aid); totalDunam+=(s.dunam||0); }
+  });
+  const ctx=document.getElementById('chart-spr-stat');
+  if(!ctx) return;
+  if(window.sprStatChartInst) window.sprStatChartInst.destroy();
+  window.sprStatChartInst=new Chart(ctx.getContext('2d'),{
+    type:'bar',
+    data:{labels:MO,datasets:[{label:'עלות ריסוסים',data:monthlyCost,backgroundColor:'#2e7d32aa'}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'₪'+v.toLocaleString()}}}}
+  });
+  const topMats=Object.entries(matCosts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const tbody=document.getElementById('spr-top-mats');
+  if(tbody) tbody.innerHTML=topMats.map(([mat,cost],i)=>`
+    <tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:3px 6px;direction:rtl">${i+1}. ${mat}</td>
+      <td style="padding:3px 6px;text-align:left;font-weight:600;color:#2e7d32">₪${Math.round(cost).toLocaleString()}</td>
+    </tr>`).join('');
+  const perDunam = totalDunam>0 ? (totalCostV/totalDunam).toFixed(1) : '—';
+  const el=document.getElementById('spr-stat-summary');
+  if(el) el.innerHTML=`
+    <div style="background:#e8f5e9;border-radius:8px;padding:8px 14px;margin-bottom:8px"><div style="font-size:11px;color:#666">סה"כ עלות ריסוסים</div><strong>₪${Math.round(totalCostV).toLocaleString()}</strong></div>
+    <div style="background:#f1f8e9;border-radius:8px;padding:8px 14px;margin-bottom:8px"><div style="font-size:11px;color:#666">ממוצע לדונם</div><strong>₪${perDunam}</strong></div>
+    <div style="background:#f9fbe7;border-radius:8px;padding:8px 14px"><div style="font-size:11px;color:#666">סה"כ דונמים</div><strong>${totalDunam.toFixed(1)}</strong></div>`;
+}
+
+function renderTotalBreakdown(){
+  const yr = document.getElementById('breakdown-yr')?.value||'2026';
+  const yrN=+yr, isAll=yr==='all';
+  const itemsSum=items=>(items||[]).filter(it=>!it.iclExclude).reduce((s,it)=>s+(isNaN(it.totalV)?0:it.totalV),0);
+  const allDels=[...dels,...getDirectInvAsDels()].filter(d=>d.sup!=='דשנים ICL');
+  const purTotal=allDels.filter(d=>isAll||parseInt(d.year)===yrN).reduce((a,d)=>a+itemsSum(d.items),0);
+  const sals=load(K.SAL)||[];
+  const salTotal=sals.filter(s=>isAll||s.year===yrN).reduce((a,s)=>a+(s.totalEmpCost||s.totalGross||0),0);
+  const sprTotal=sprs.filter(s=>s.date&&(isAll||new Date(s.date).getFullYear()===yrN)).reduce((a,s)=>a+(s.totalCost||0),0);
+  const exps=load(K.EX)||[];
+  const expTotal=exps.filter(e=>e.date&&(isAll||new Date(e.date).getFullYear()===yrN)).reduce((a,e)=>a+(e.amount||0),0);
+  const grandTotal=purTotal+salTotal+sprTotal+expTotal;
+  const ctx=document.getElementById('chart-breakdown');
+  if(!ctx) return;
+  if(window.breakdownChartInst) window.breakdownChartInst.destroy();
+  const data=[purTotal,salTotal,sprTotal,expTotal];
+  window.breakdownChartInst=new Chart(ctx.getContext('2d'),{
+    type:'doughnut',
+    data:{labels:['רכישות','שכר (עלות מעסיק)','ריסוסים','הוצאות'],
+      datasets:[{data,backgroundColor:['#1565c0','#c62828','#2e7d32','#f57c00']}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}
+  });
+  const pct=v=>grandTotal>0?(v/grandTotal*100).toFixed(1)+'%':'—';
+  const el=document.getElementById('breakdown-table');
+  if(el) el.innerHTML=`
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <tr style="border-bottom:2px solid #e0e0e0"><th style="text-align:right;padding:4px 8px">קטגוריה</th><th style="padding:4px 8px">סכום</th><th style="padding:4px 8px">%</th></tr>
+      ${[['🛒 רכישות','#1565c0',purTotal],['👷 שכר','#c62828',salTotal],['🌿 ריסוסים','#2e7d32',sprTotal],['💰 הוצאות','#f57c00',expTotal]]
+        .map(([n,c,v])=>`<tr style="border-bottom:1px solid #f5f5f5">
+          <td style="padding:4px 8px;direction:rtl"><span style="color:${c}">●</span> ${n}</td>
+          <td style="padding:4px 8px;font-weight:600">₪${Math.round(v).toLocaleString()}</td>
+          <td style="padding:4px 8px;color:#888">${pct(v)}</td></tr>`).join('')}
+      <tr style="font-weight:700;background:#f9f9f9"><td style="padding:4px 8px">סה"כ</td><td style="padding:4px 8px">₪${Math.round(grandTotal).toLocaleString()}</td><td></td></tr>
+    </table>`;
 }
 function setYF(btn,yr){document.querySelectorAll('#ychips .chip').forEach(b=>b.classList.remove('on'));btn.classList.add('on');drawChart(yr)}
 function setSF(btn,sf){
