@@ -5544,6 +5544,33 @@ function removeSprayMat(id){
   renderSprayMats();
 }
 
+// ── נרמול שם מוצר/חומר להשוואה: הסרת גרשיים/גרש שגורמים לאי-התאמה (מנצ׳ידן ↔ מנצידן) ──
+function _normMatName(s){
+  return (s||'').trim().toLowerCase().replace(/[׳'"״]/g,'').replace(/\s+/g,' ');
+}
+
+const _UNIT_WORDS=new Set(['ליטר','קג','ק"ג',"ק'ג",'גרם','מל','מ"ל','יחידות','יח','ל','גרגירי','אבקה']);
+
+// ── האם שם המוצר בחשבונית (pName) תואם לשם החומר שנרשם בריסוס (matQuery)? ──
+// תומך בשמות מקוצרים/חלקיים — לדוגמא "מנצידן 10 קג" יתאים ל"מנצידן 75 גרגירי 10 קג",
+// ובטעויות כתיב/גרשיים — לדוגמא "מנצ׳ידן" יתאים ל"מנצידן".
+function productMatchesMat(pName, matQuery){
+  const p=_normMatName(pName), q=_normMatName(matQuery);
+  if(!p||!q) return false;
+  if(p===q||p.includes(q)) return true;
+  const pCore=_normMatName((pName||'').replace(/\s*\d+\s*(ליטר|ק(?:")?ג|קג|kg|l)\b.*/i,''));
+  if(pCore && (q.includes(pCore)||pCore.includes(q))) return true;
+  // התאמה לפי מילים מהותיות: כל מילה "אמיתית" ב-q (לא מספר/יחידה) חייבת להופיע ב-p
+  const qWords=q.split(' ').filter(w=>w.length>=2 && !/^\d+$/.test(w) && !_UNIT_WORDS.has(w));
+  if(qWords.length && qWords.every(w=>p.includes(w))) return true;
+  // השוואה מעומעמת (טעויות כתיב) — רק כשנשארה מילה משמעותית אחת
+  if(qWords.length===1 && !/\d/.test(q)){
+    const pWords=(pCore||p).split(' ').filter(w=>w.length>=2);
+    if(pWords.some(w=>strSim(qWords[0],w)>=0.8)) return true;
+  }
+  return false;
+}
+
 function parsePackageSize(productName){
   if(!productName) return {size:1,unit:''};
   // match patterns like "5 ליטר", "25 קג", "1 ליטר", "10 ק"ג" etc.
@@ -5559,7 +5586,6 @@ function parsePackageSize(productName){
 
 function getLastPrice(matName){
   if(!matName) return {price:0,pricePerUnit:0,unit:'',packageSize:1,productName:''};
-  const q=matName.trim().toLowerCase();
   let best={price:0,date:'',productName:''};
   // Search both HIST (embedded) and dels (localStorage) - use most recent
   const allSources=[...HIST, ...dels];
@@ -5567,8 +5593,7 @@ function getLastPrice(matName){
     (d.items||[]).forEach(it=>{
       if(!it.product||!it.price||it.price<=0) return;
       const pName=it.product.trim();
-      // exact match or contains match
-      if(pName.toLowerCase()===q||pName.toLowerCase().includes(q)||q.includes(pName.toLowerCase().replace(/\s*\d+\s*(ליטר|קג|ק"ג).*/i,'').trim())){
+      if(productMatchesMat(pName,matName)){
         if(!best.date||d.date>=best.date){best={price:it.price,date:d.date,productName:pName};}
       }
     });
@@ -5577,6 +5602,7 @@ function getLastPrice(matName){
   const pricePerUnit=best.price>0?best.price/pkg.size:0;
   return {price:best.price, pricePerUnit, unit:pkg.unit, packageSize:pkg.size, productName:best.productName};
 }
+
 
 function renderSprayMats(){
   // calc current totalLiters from tractorConfigs
