@@ -6264,15 +6264,29 @@ function renderSpraySummary(){
     appGroups[key].mats.push(s.mat);
     appGroups[key].totalCost+=(s.totalCost||0);
   });
-  // Summary per chemical
-  const matSummary={};
+  // Summary per chemical — מאחד שמות דומים (מנצידן / מנצידן 75 גרגירי 10 קג וכד')
+  // canonical = השם שמופיע הכי הרבה פעמים בישומים (tie-break: הארוך ביותר)
+  const matGroups=[];
   sprs.forEach(s=>{
-    const k=s.mat;
-    if(!matSummary[k]) matSummary[k]={mat:s.mat,apps:new Set(),qty:0,totalCost:0};
-    matSummary[k].apps.add(s.appId||s.id);
-    matSummary[k].qty+=s.qty||0;
-    matSummary[k].totalCost+=(s.totalCost||0);
+    if(!s.mat) return;
+    let grp=matGroups.find(g=>[...g.names].some(n=>productMatchesMat(n,s.mat)||productMatchesMat(s.mat,n)));
+    if(!grp){
+      grp={canonical:s.mat, nameCount:{}, names:new Set([s.mat]), apps:new Set(), qty:0, totalCost:0};
+      matGroups.push(grp);
+    }
+    grp.names.add(s.mat);
+    grp.nameCount[s.mat]=(grp.nameCount[s.mat]||0)+1;
+    // canonical = הכי נפוץ; שוויון — הארוך ביותר
+    const curCount=grp.nameCount[grp.canonical]||0;
+    const newCount=grp.nameCount[s.mat];
+    if(newCount>curCount||(newCount===curCount&&s.mat.length>grp.canonical.length)) grp.canonical=s.mat;
+    grp.apps.add(s.appId||s.id);
+    grp.qty+=s.qty||0;
+    grp.totalCost+=(s.totalCost||0);
   });
+  // המרה לפורמט כפי שהיה
+  const matSummary={};
+  matGroups.forEach(g=>{ matSummary[g.canonical]={mat:g.canonical,apps:g.apps,qty:g.qty,totalCost:g.totalCost,aliases:g.names.size>1?[...g.names].filter(n=>n!==g.canonical):[]}; });
   // Monthly/yearly cost summary
   const monthlyCost={};
   Object.values(appGroups).forEach(a=>{
@@ -6308,7 +6322,7 @@ function renderSpraySummary(){
   <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים${grandCost?' | עלות כוללת: <strong>₪'+Math.round(grandCost).toLocaleString()+'</strong>':''}</p>
   <div class="tblw"><table class="dtbl"><thead><tr><th>חומר</th><th>מס׳ ישומים</th><th>כמות כוללת</th><th>עלות כוללת</th></tr></thead><tbody>
     ${vals.sort((a,b)=>b.apps.size-a.apps.size).map(s=>`<tr>
-      <td><strong>${s.mat}</strong></td>
+      <td><strong>${s.mat}</strong>${s.aliases&&s.aliases.length?`<br><span style="font-size:10px;color:#888">גם: ${s.aliases.join(', ')}</span>`:''}</td>
       <td>${s.apps.size}</td>
       <td>${s.qty%1===0?s.qty:s.qty.toFixed(2)}</td>
       <td>${s.totalCost?'₪'+Math.round(s.totalCost).toLocaleString():'—'}</td>
