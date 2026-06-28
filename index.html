@@ -6319,13 +6319,13 @@ function renderSpraySummary(){
   });
 
   el.innerHTML=`
-  <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים${grandCost?' | עלות כוללת: <strong>₪'+Math.round(grandCost).toLocaleString()+'</strong>':''}</p>
+  <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים${grandCost?' | עלות כוללת: <strong>₪'+Math.round(grandCost).toLocaleString()+'</strong> <span style="color:#888;font-weight:400">(כולל מע״מ: ₪'+Math.round(grandCost*1.18).toLocaleString()+')</span>':''}</p>
   <div class="tblw"><table class="dtbl"><thead><tr><th>חומר</th><th>מס׳ ישומים</th><th>כמות כוללת</th><th>עלות כוללת</th></tr></thead><tbody>
     ${vals.sort((a,b)=>b.apps.size-a.apps.size).map(s=>`<tr>
       <td><strong>${s.mat}</strong>${s.aliases&&s.aliases.length?`<br><span style="font-size:10px;color:#888">גם: ${s.aliases.join(', ')}</span>`:''}</td>
       <td>${s.apps.size}</td>
       <td>${s.qty%1===0?s.qty:s.qty.toFixed(2)}</td>
-      <td>${s.totalCost?'₪'+Math.round(s.totalCost).toLocaleString():'—'}</td>
+      <td>${s.totalCost?'₪'+Math.round(s.totalCost).toLocaleString()+' <span style="color:#aaa;font-size:11px">(₪'+Math.round(s.totalCost*1.18).toLocaleString()+')</span>':'—'}</td>
     </tr>`).join('')}
   </tbody></table></div>
   ${moHtml?`<div class="ctitle" style="margin-top:14px">💰 עלות ריסוסים לפי חודש</div>
