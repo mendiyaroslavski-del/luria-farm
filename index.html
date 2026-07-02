@@ -217,6 +217,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <button class="navbtn" onclick="showTab(this,'stats')">📊 סטטיסטיקה</button>
     <button class="navbtn" onclick="showTab(this,'annual')">📅 דו"ח שנתי</button>
     <button class="navbtn" onclick="showTab(this,'spray')">🌿 ריסוסים</button>
+    <button class="navbtn" onclick="showTab(this,'receive')">📋 יומן קבלה</button>
     <button class="navbtn" onclick="showTab(this,'inventory')">📦 מלאי</button>
     <button class="navbtn" onclick="showTab(this,'expenses')">💰 הוצאות</button>
     <button class="navbtn" onclick="showTab(this,'salary')">👷 שכר</button>
@@ -989,6 +990,84 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- 5. ריסוסים - MULTI-CHEMICAL APPLICATION   -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="tab-receive" class="sec">
+  <div class="shtitle">📋 יומן קבלה בפועל</div>
+
+  <!-- טופס הוספת קבלה -->
+  <div style="background:#f9fbe7;border:1px solid #c5e1a5;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-weight:600;color:#33691e;margin-bottom:10px;font-size:14px">➕ רישום קבלה חדשה</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">תאריך קבלה</label>
+        <input type="date" id="rcv-date" class="inp" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">ספק</label>
+        <select id="rcv-sup" class="inp" style="width:100%">
+          <option value="">-- ספק --</option>
+          <option>עמיר</option>
+          <option>המשביר</option>
+          <option>דשנים ICL</option>
+          <option>טיב כימיקלים</option>
+          <option>אחר</option>
+        </select>
+      </div>
+    </div>
+    <div style="position:relative;margin-bottom:8px">
+      <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">מוצר</label>
+      <input type="text" id="rcv-prod" class="inp" placeholder="שם מוצר..." oninput="rcvAutoComplete(this.value)" autocomplete="off" style="width:100%">
+      <div id="rcv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:180px;overflow-y:auto;box-shadow:0 3px 8px rgba(0,0,0,.15)"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">כמות שהתקבלה</label>
+        <input type="text" inputmode="decimal" id="rcv-qty" class="inp" placeholder="0" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">יחידה</label>
+        <select id="rcv-unit" class="inp" style="width:100%">
+          <option>יח׳</option>
+          <option>ליטר</option>
+          <option>קג</option>
+          <option>מל</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">הערה (אופציונלי)</label>
+      <input type="text" id="rcv-note" class="inp" placeholder="לדוג: חסר חלק, הגיע פגום..." style="width:100%">
+    </div>
+    <button onclick="saveRcv()" class="btn btnP" style="width:100%;padding:10px">💾 שמור קבלה</button>
+  </div>
+
+  <!-- כפתור השוואה -->
+  <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:12px;margin-bottom:14px">
+    <div style="font-weight:600;color:#1b5e20;margin-bottom:8px;font-size:14px">🔍 בדיקת התאמה מול תעודות</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="rcv-cmp-month" class="inp" style="flex:1"></select>
+      <button onclick="runRcvCompare()" class="btn btnP" style="padding:8px 16px">בדוק</button>
+    </div>
+    <div id="rcv-compare-result" style="margin-top:10px"></div>
+  </div>
+
+  <!-- טבלת יומן -->
+  <div style="font-weight:600;color:#33691e;margin-bottom:6px;font-size:13px">📝 רשומות קבלה</div>
+  <div style="margin-bottom:8px;display:flex;gap:6px">
+    <select id="rcv-filter-month" class="inp" style="flex:1" onchange="renderRcvList()">
+      <option value="">כל החודשים</option>
+    </select>
+    <select id="rcv-filter-sup" class="inp" style="flex:1" onchange="renderRcvList()">
+      <option value="">כל הספקים</option>
+      <option>עמיר</option><option>המשביר</option><option>דשנים ICL</option><option>טיב כימיקלים</option><option>אחר</option>
+    </select>
+  </div>
+  <div class="tblw"><table class="dtbl">
+    <thead><tr><th>תאריך</th><th>ספק</th><th>מוצר</th><th>כמות</th><th>הערה</th><th></th></tr></thead>
+    <tbody id="rcv-list"></tbody>
+  </table></div>
+</div>
+
 <!-- ═══════════════════════════════════════════ -->
 <div id="tab-spray" class="sec">
   <div class="shtitle">🌿 ניהול ריסוסים</div>
@@ -2236,7 +2315,7 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2',SAL:'lsal2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2',SAL:'lsal2',RCV:'lrcv2'};
 const IDB_NAME  = 'luria-fh-db';
 const IDB_STORE = 'handles';
 const IDB_KEY   = 'main';
@@ -2564,6 +2643,7 @@ function showTab(btn, name) {
   if(name==='expenses'){ renderExpenses(); const ed=document.getElementById('exp-date'); if(ed&&!ed.value) ed.value=new Date().toISOString().split('T')[0]; }
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); setTimeout(drawSprayChart,100); }
+  if(name==='receive') { initRcvTab(); }
   if(name==='inventory') renderInventory();
   if(name==='audit') runAudit();
   if(name==='control') initControlTab();
@@ -5544,33 +5624,6 @@ function removeSprayMat(id){
   renderSprayMats();
 }
 
-// ── נרמול שם מוצר/חומר להשוואה: הסרת גרשיים/גרש שגורמים לאי-התאמה (מנצ׳ידן ↔ מנצידן) ──
-function _normMatName(s){
-  return (s||'').trim().toLowerCase().replace(/[׳'"״]/g,'').replace(/\s+/g,' ');
-}
-
-const _UNIT_WORDS=new Set(['ליטר','קג','ק"ג',"ק'ג",'גרם','מל','מ"ל','יחידות','יח','ל','גרגירי','אבקה']);
-
-// ── האם שם המוצר בחשבונית (pName) תואם לשם החומר שנרשם בריסוס (matQuery)? ──
-// תומך בשמות מקוצרים/חלקיים — לדוגמא "מנצידן 10 קג" יתאים ל"מנצידן 75 גרגירי 10 קג",
-// ובטעויות כתיב/גרשיים — לדוגמא "מנצ׳ידן" יתאים ל"מנצידן".
-function productMatchesMat(pName, matQuery){
-  const p=_normMatName(pName), q=_normMatName(matQuery);
-  if(!p||!q) return false;
-  if(p===q||p.includes(q)) return true;
-  const pCore=_normMatName((pName||'').replace(/\s*\d+\s*(ליטר|ק(?:")?ג|קג|kg|l)\b.*/i,''));
-  if(pCore && (q.includes(pCore)||pCore.includes(q))) return true;
-  // התאמה לפי מילים מהותיות: כל מילה "אמיתית" ב-q (לא מספר/יחידה) חייבת להופיע ב-p
-  const qWords=q.split(' ').filter(w=>w.length>=2 && !/^\d+$/.test(w) && !_UNIT_WORDS.has(w));
-  if(qWords.length && qWords.every(w=>p.includes(w))) return true;
-  // השוואה מעומעמת (טעויות כתיב) — רק כשנשארה מילה משמעותית אחת
-  if(qWords.length===1 && !/\d/.test(q)){
-    const pWords=(pCore||p).split(' ').filter(w=>w.length>=2);
-    if(pWords.some(w=>strSim(qWords[0],w)>=0.8)) return true;
-  }
-  return false;
-}
-
 function parsePackageSize(productName){
   if(!productName) return {size:1,unit:''};
   // match patterns like "5 ליטר", "25 קג", "1 ליטר", "10 ק"ג" etc.
@@ -5586,6 +5639,7 @@ function parsePackageSize(productName){
 
 function getLastPrice(matName){
   if(!matName) return {price:0,pricePerUnit:0,unit:'',packageSize:1,productName:''};
+  const q=matName.trim().toLowerCase();
   let best={price:0,date:'',productName:''};
   // Search both HIST (embedded) and dels (localStorage) - use most recent
   const allSources=[...HIST, ...dels];
@@ -5593,7 +5647,8 @@ function getLastPrice(matName){
     (d.items||[]).forEach(it=>{
       if(!it.product||!it.price||it.price<=0) return;
       const pName=it.product.trim();
-      if(productMatchesMat(pName,matName)){
+      // exact match or contains match
+      if(pName.toLowerCase()===q||pName.toLowerCase().includes(q)||q.includes(pName.toLowerCase().replace(/\s*\d+\s*(ליטר|קג|ק"ג).*/i,'').trim())){
         if(!best.date||d.date>=best.date){best={price:it.price,date:d.date,productName:pName};}
       }
     });
@@ -5602,7 +5657,6 @@ function getLastPrice(matName){
   const pricePerUnit=best.price>0?best.price/pkg.size:0;
   return {price:best.price, pricePerUnit, unit:pkg.unit, packageSize:pkg.size, productName:best.productName};
 }
-
 
 function renderSprayMats(){
   // calc current totalLiters from tractorConfigs
@@ -6264,29 +6318,15 @@ function renderSpraySummary(){
     appGroups[key].mats.push(s.mat);
     appGroups[key].totalCost+=(s.totalCost||0);
   });
-  // Summary per chemical — מאחד שמות דומים (מנצידן / מנצידן 75 גרגירי 10 קג וכד')
-  // canonical = השם שמופיע הכי הרבה פעמים בישומים (tie-break: הארוך ביותר)
-  const matGroups=[];
-  sprs.forEach(s=>{
-    if(!s.mat) return;
-    let grp=matGroups.find(g=>[...g.names].some(n=>productMatchesMat(n,s.mat)||productMatchesMat(s.mat,n)));
-    if(!grp){
-      grp={canonical:s.mat, nameCount:{}, names:new Set([s.mat]), apps:new Set(), qty:0, totalCost:0};
-      matGroups.push(grp);
-    }
-    grp.names.add(s.mat);
-    grp.nameCount[s.mat]=(grp.nameCount[s.mat]||0)+1;
-    // canonical = הכי נפוץ; שוויון — הארוך ביותר
-    const curCount=grp.nameCount[grp.canonical]||0;
-    const newCount=grp.nameCount[s.mat];
-    if(newCount>curCount||(newCount===curCount&&s.mat.length>grp.canonical.length)) grp.canonical=s.mat;
-    grp.apps.add(s.appId||s.id);
-    grp.qty+=s.qty||0;
-    grp.totalCost+=(s.totalCost||0);
-  });
-  // המרה לפורמט כפי שהיה
+  // Summary per chemical
   const matSummary={};
-  matGroups.forEach(g=>{ matSummary[g.canonical]={mat:g.canonical,apps:g.apps,qty:g.qty,totalCost:g.totalCost,aliases:g.names.size>1?[...g.names].filter(n=>n!==g.canonical):[]}; });
+  sprs.forEach(s=>{
+    const k=s.mat;
+    if(!matSummary[k]) matSummary[k]={mat:s.mat,apps:new Set(),qty:0,totalCost:0};
+    matSummary[k].apps.add(s.appId||s.id);
+    matSummary[k].qty+=s.qty||0;
+    matSummary[k].totalCost+=(s.totalCost||0);
+  });
   // Monthly/yearly cost summary
   const monthlyCost={};
   Object.values(appGroups).forEach(a=>{
@@ -6319,17 +6359,193 @@ function renderSpraySummary(){
   });
 
   el.innerHTML=`
-  <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים${grandCost?' | עלות כוללת: <strong>₪'+Math.round(grandCost).toLocaleString()+'</strong> <span style="color:#888;font-weight:400">(כולל מע״מ: ₪'+Math.round(grandCost*1.18).toLocaleString()+')</span>':''}</p>
+  <p style="font-size:13px;color:var(--gm);margin-bottom:8px">סה״כ <strong>${appCount}</strong> ישומים, <strong>${vals.length}</strong> חומרים שונים${grandCost?' | עלות כוללת: <strong>₪'+Math.round(grandCost).toLocaleString()+'</strong>':''}</p>
   <div class="tblw"><table class="dtbl"><thead><tr><th>חומר</th><th>מס׳ ישומים</th><th>כמות כוללת</th><th>עלות כוללת</th></tr></thead><tbody>
     ${vals.sort((a,b)=>b.apps.size-a.apps.size).map(s=>`<tr>
-      <td><strong>${s.mat}</strong>${s.aliases&&s.aliases.length?`<br><span style="font-size:10px;color:#888">גם: ${s.aliases.join(', ')}</span>`:''}</td>
+      <td><strong>${s.mat}</strong></td>
       <td>${s.apps.size}</td>
       <td>${s.qty%1===0?s.qty:s.qty.toFixed(2)}</td>
-      <td>${s.totalCost?'₪'+Math.round(s.totalCost).toLocaleString()+' <span style="color:#aaa;font-size:11px">(₪'+Math.round(s.totalCost*1.18).toLocaleString()+')</span>':'—'}</td>
+      <td>${s.totalCost?'₪'+Math.round(s.totalCost).toLocaleString():'—'}</td>
     </tr>`).join('')}
   </tbody></table></div>
   ${moHtml?`<div class="ctitle" style="margin-top:14px">💰 עלות ריסוסים לפי חודש</div>
   <div class="tblw"><table class="dtbl"><thead><tr><th>חודש</th><th></th><th>עלות</th></tr></thead><tbody>${moHtml}</tbody></table></div>`:''}`;
+}
+
+// ═══ RECEIPT JOURNAL — יומן קבלה ═══
+
+let rcvs = load(K.RCV);
+
+function initRcvTab(){
+  // הגדר תאריך ברירת מחדל
+  const dateEl=document.getElementById('rcv-date');
+  if(dateEl && !dateEl.value) dateEl.value=new Date().toISOString().split('T')[0];
+  // מלא חודשים לפילטר ולהשוואה
+  _fillRcvMonths();
+  renderRcvList();
+}
+
+function _fillRcvMonths(){
+  // איסוף חודשים מ-rcvs + dels
+  const months=new Set();
+  [...rcvs, ...dels].forEach(r=>{
+    const d=r.date||'';
+    if(d.length>=7) months.add(d.slice(0,7));
+  });
+  const sorted=[...months].sort().reverse();
+  ['rcv-filter-month','rcv-cmp-month'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const cur=el.value;
+    // שמור option ריק ראשון רק ל-filter-month
+    el.innerHTML = (id==='rcv-filter-month'?'<option value="">כל החודשים</option>':'');
+    sorted.forEach(m=>{
+      const [y,mo]=m.split('-');
+      const label=`${mo}/${y}`;
+      el.innerHTML+=`<option value="${m}">${label}</option>`;
+    });
+    if(cur) el.value=cur;
+    // ברירת מחדל לחודש השוואה — החודש הנוכחי
+    if(id==='rcv-cmp-month' && !el.value && sorted.length){
+      const now=new Date().toISOString().slice(0,7);
+      el.value=sorted.find(m=>m===now)||sorted[0];
+    }
+  });
+}
+
+function rcvAutoComplete(val){
+  const box=document.getElementById('rcv-ac');
+  if(!val||val.length<2){box.style.display='none';return;}
+  const matches=PRODUCTS.filter(p=>productMatchesMat(p,val)||p.toLowerCase().includes(val.toLowerCase())).slice(0,12);
+  if(!matches.length){box.style.display='none';return;}
+  box.innerHTML=matches.map(p=>`<div onclick="document.getElementById('rcv-prod').value='${p.replace(/'/g,"\\'")}';document.getElementById('rcv-ac').style.display='none'" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px">${p}</div>`).join('');
+  box.style.display='block';
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#rcv-ac')&&!e.target.matches('#rcv-prod')) {
+    const b=document.getElementById('rcv-ac'); if(b) b.style.display='none';
+  }
+});
+
+function saveRcv(){
+  const date=document.getElementById('rcv-date').value;
+  const sup=document.getElementById('rcv-sup').value;
+  const prod=document.getElementById('rcv-prod').value.trim();
+  const qty=parseFloat(document.getElementById('rcv-qty').value)||0;
+  const unit=document.getElementById('rcv-unit').value;
+  const note=document.getElementById('rcv-note').value.trim();
+  if(!date){toast('⚠️ חסר תאריך');return;}
+  if(!prod){toast('⚠️ חסר שם מוצר');return;}
+  if(!qty){toast('⚠️ חסרה כמות');return;}
+  rcvs.push({id:'r'+Date.now(), date, sup, prod, qty, unit, note});
+  save(K.RCV,rcvs);
+  // נקה שדות (חוץ מתאריך וספק)
+  document.getElementById('rcv-prod').value='';
+  document.getElementById('rcv-qty').value='';
+  document.getElementById('rcv-note').value='';
+  document.getElementById('rcv-ac').style.display='none';
+  _fillRcvMonths();
+  renderRcvList();
+  toast('✅ קבלה נשמרה');
+}
+
+function deleteRcv(id){
+  if(!confirm('למחוק רשומה זו?')) return;
+  rcvs=rcvs.filter(r=>r.id!==id);
+  save(K.RCV,rcvs);
+  renderRcvList();
+}
+
+function renderRcvList(){
+  const tbody=document.getElementById('rcv-list');
+  if(!tbody) return;
+  const mFilter=document.getElementById('rcv-filter-month')?.value||'';
+  const sFilter=document.getElementById('rcv-filter-sup')?.value||'';
+  let rows=rcvs.filter(r=>{
+    if(mFilter && !(r.date||'').startsWith(mFilter)) return false;
+    if(sFilter && r.sup!==sFilter) return false;
+    return true;
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#888;padding:16px">אין רשומות</td></tr>';return;}
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="white-space:nowrap">${(r.date||'').split('-').reverse().join('/')}</td>
+    <td style="font-size:12px">${r.sup||'—'}</td>
+    <td><strong>${r.prod}</strong></td>
+    <td style="white-space:nowrap">${r.qty} ${r.unit||''}</td>
+    <td style="font-size:11px;color:#666">${r.note||''}</td>
+    <td><button onclick="deleteRcv('${r.id}')" style="background:none;border:none;cursor:pointer;font-size:15px">🗑️</button></td>
+  </tr>`).join('');
+}
+
+// ── השוואה: יומן קבלה בפועל מול תעודות החודש ──
+function runRcvCompare(){
+  const month=document.getElementById('rcv-cmp-month').value;
+  if(!month){toast('⚠️ בחר חודש להשוואה');return;}
+  const res=document.getElementById('rcv-compare-result');
+
+  // סיכום קבלה בפועל לפי חומר מנורמל
+  const rcvMap={};
+  rcvs.filter(r=>(r.date||'').startsWith(month)).forEach(r=>{
+    const key=_rcvCanonical(r.prod);
+    if(!rcvMap[key]) rcvMap[key]={display:r.prod, qty:0, unit:r.unit||''};
+    if(r.prod.length>rcvMap[key].display.length) rcvMap[key].display=r.prod;
+    rcvMap[key].qty+=r.qty;
+  });
+
+  // סיכום תעודות של החודש לפי פריט מנורמל
+  const delMap={};
+  dels.filter(d=>(d.date||'').startsWith(month)).forEach(d=>{
+    (d.items||[]).forEach(it=>{
+      if(!it.product) return;
+      const key=_rcvCanonical(it.product);
+      if(!delMap[key]) delMap[key]={display:it.product, qty:0};
+      if(it.product.length>delMap[key].display.length) delMap[key].display=it.product;
+      delMap[key].qty+=parseFloat(it.qty||it.amount||0);
+    });
+  });
+
+  const allKeys=new Set([...Object.keys(rcvMap),...Object.keys(delMap)]);
+  if(!allKeys.size){res.innerHTML='<p style="color:#888;font-size:13px">אין נתונים לחודש זה</p>';return;}
+
+  const [y,mo]=month.split('-');
+  let ok=0,warn=0,missing=0;
+  const rows=[...allKeys].sort().map(k=>{
+    const r=rcvMap[k], d=delMap[k];
+    const rQty=r?.qty||0, dQty=d?.qty||0;
+    const name=(r?.display||d?.display||k);
+    const diff=rQty-dQty;
+    let icon,color;
+    if(!r){icon='📋';color='#1565c0';missing++; /* רק בתעודה, לא ביומן */}
+    else if(!d){icon='❓';color='#e65100';warn++; /* ביומן, לא בתעודה */}
+    else if(Math.abs(diff)<0.01){icon='✅';color='#2e7d32';ok++;}
+    else if(diff<0){icon='⚠️';color='#c62828';warn++;}
+    else{icon='ℹ️';color='#6a1b9a';warn++;}
+    return `<tr style="border-bottom:1px solid #eee">
+      <td style="padding:5px 4px;font-size:12px"><strong>${name}</strong></td>
+      <td style="padding:5px 4px;text-align:center;font-size:12px">${rQty||'—'}</td>
+      <td style="padding:5px 4px;text-align:center;font-size:12px">${dQty||'—'}</td>
+      <td style="padding:5px 4px;text-align:center;font-size:13px;color:${color}">${icon} ${diff===0?'':diff>0?'+'+diff.toFixed(2):diff.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  res.innerHTML=`
+    <div style="font-weight:600;color:#1b5e20;margin-bottom:6px;font-size:13px">תוצאות — ${mo}/${y}</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;font-size:12px">
+      <span style="background:#e8f5e9;padding:3px 8px;border-radius:12px">✅ ${ok} תקין</span>
+      <span style="background:#fff3e0;padding:3px 8px;border-radius:12px">⚠️ ${warn} אי-התאמה</span>
+      <span style="background:#e3f2fd;padding:3px 8px;border-radius:12px">📋 ${missing} רק בתעודה</span>
+    </div>
+    <div class="tblw"><table class="dtbl" style="font-size:12px">
+      <thead><tr><th>מוצר</th><th>קיבלת בפועל</th><th>לפי תעודות</th><th>הפרש</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <p style="font-size:10px;color:#aaa;margin-top:6px">📋 = מופיע בתעודות בלבד (לא נרשם ביומן) | ❓ = ביומן בלבד (לא בתעודות)</p>`;
+}
+
+// נרמול שם לצורך השוואה ביומן קבלה — שימוש ב-productMatchesMat בצד, וכאן canonical פשוט
+function _rcvCanonical(name){
+  return _normMatName(name).replace(/\s*\d+\s*(ליטר|קג|ק"ג|גרגירי|אבקה).*/,'').trim()||_normMatName(name);
 }
 
 // ═══ INVENTORY ═══
