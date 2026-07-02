@@ -994,10 +994,11 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 <div id="tab-receive" class="sec">
   <div class="shtitle">📋 יומן קבלה בפועל</div>
 
-  <!-- טופס הוספת קבלה -->
+  <!-- טופס רישום קבלה — מרובה מוצרים -->
   <div style="background:#f9fbe7;border:1px solid #c5e1a5;border-radius:10px;padding:14px;margin-bottom:14px">
     <div style="font-weight:600;color:#33691e;margin-bottom:10px;font-size:14px">➕ רישום קבלה חדשה</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+    <!-- תאריך + ספק — קבועים לכל המוצרים בקבלה -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div>
         <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">תאריך קבלה</label>
         <input type="date" id="rcv-date" class="inp" style="width:100%">
@@ -1014,31 +1015,35 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         </select>
       </div>
     </div>
-    <div style="position:relative;margin-bottom:8px">
-      <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">מוצר</label>
-      <input type="text" id="rcv-prod" class="inp" placeholder="שם מוצר..." oninput="rcvAutoComplete(this.value)" autocomplete="off" style="width:100%">
-      <div id="rcv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:180px;overflow-y:auto;box-shadow:0 3px 8px rgba(0,0,0,.15)"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div>
-        <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">כמות שהתקבלה</label>
-        <input type="text" inputmode="decimal" id="rcv-qty" class="inp" placeholder="0" style="width:100%">
+
+    <!-- רשימת מוצרים זמנית (לפני שמירה) -->
+    <div id="rcv-items-list" style="margin-bottom:10px"></div>
+
+    <!-- הוספת מוצר -->
+    <div style="background:#fff;border:1px solid #dcedc8;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:12px;color:#558b2f;font-weight:600;margin-bottom:6px">📦 הוסף מוצר לקבלה</div>
+      <div style="position:relative;margin-bottom:8px">
+        <input type="text" id="rcv-prod" class="inp" placeholder="שם מוצר..." oninput="rcvAutoComplete(this.value)" autocomplete="off" style="width:100%">
+        <div id="rcv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:180px;overflow-y:auto;box-shadow:0 3px 8px rgba(0,0,0,.15)"></div>
       </div>
-      <div>
-        <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">יחידה</label>
-        <select id="rcv-unit" class="inp" style="width:100%">
-          <option>יח׳</option>
-          <option>ליטר</option>
-          <option>קג</option>
-          <option>מל</option>
-        </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <input type="text" inputmode="decimal" id="rcv-qty" class="inp" placeholder="כמות" style="width:100%">
+        </div>
+        <div>
+          <select id="rcv-unit" class="inp" style="width:100%">
+            <option>יח׳</option>
+            <option>ליטר</option>
+            <option>קג</option>
+            <option>מל</option>
+          </select>
+        </div>
       </div>
+      <input type="text" id="rcv-note" class="inp" placeholder="הערה (אופציונלי)..." style="width:100%;margin-bottom:8px">
+      <button onclick="rcvAddItem()" class="btn btnS" style="width:100%;padding:8px">➕ הוסף מוצר לרשימה</button>
     </div>
-    <div style="margin-bottom:8px">
-      <label style="font-size:12px;color:#555;display:block;margin-bottom:3px">הערה (אופציונלי)</label>
-      <input type="text" id="rcv-note" class="inp" placeholder="לדוג: חסר חלק, הגיע פגום..." style="width:100%">
-    </div>
-    <button onclick="saveRcv()" class="btn btnP" style="width:100%;padding:10px">💾 שמור קבלה</button>
+
+    <button onclick="saveRcv()" class="btn btnP" style="width:100%;padding:10px" id="rcv-save-btn" disabled>💾 שמור קבלה</button>
   </div>
 
   <!-- כפתור השוואה -->
@@ -3458,6 +3463,8 @@ function saveInvoice(){
   save(K.I,invs);
   renderInvList();
   toast(`✅ חשבונית ${num} נשמרה`);
+  // בדיקת התאמה אוטומטית מול יומן קבלה
+  if(month) setTimeout(()=>rcvAutoCheck(year+'-'+String(month).padStart(2,'0')), 600);
   clearInvoice();
 }
 
@@ -4730,6 +4737,9 @@ function confirmAmirImport() {
   _amirImportData = null;
   // קדם לקובץ הבא בתור
   if (_pdfQueue.length > 1) _advanceQueue();
+  // בדיקת התאמה אוטומטית מול יומן קבלה
+  const impMonth = (invDate||'').slice(0,7);
+  if(impMonth) setTimeout(()=>rcvAutoCheck(impMonth), 600);
 }
 
 // ═══ IMPORT SUPPLIER CHANGE ═══
@@ -6375,18 +6385,18 @@ function renderSpraySummary(){
 // ═══ RECEIPT JOURNAL — יומן קבלה ═══
 
 let rcvs = load(K.RCV);
+let rcvPending = []; // מוצרים זמניים לפני שמירה
 
 function initRcvTab(){
-  // הגדר תאריך ברירת מחדל
   const dateEl=document.getElementById('rcv-date');
   if(dateEl && !dateEl.value) dateEl.value=new Date().toISOString().split('T')[0];
-  // מלא חודשים לפילטר ולהשוואה
+  rcvPending=[];
+  _renderRcvPending();
   _fillRcvMonths();
   renderRcvList();
 }
 
 function _fillRcvMonths(){
-  // איסוף חודשים מ-rcvs + dels
   const months=new Set();
   [...rcvs, ...dels].forEach(r=>{
     const d=r.date||'';
@@ -6397,15 +6407,12 @@ function _fillRcvMonths(){
     const el=document.getElementById(id);
     if(!el) return;
     const cur=el.value;
-    // שמור option ריק ראשון רק ל-filter-month
-    el.innerHTML = (id==='rcv-filter-month'?'<option value="">כל החודשים</option>':'');
+    el.innerHTML=(id==='rcv-filter-month'?'<option value="">כל החודשים</option>':'');
     sorted.forEach(m=>{
       const [y,mo]=m.split('-');
-      const label=`${mo}/${y}`;
-      el.innerHTML+=`<option value="${m}">${label}</option>`;
+      el.innerHTML+=`<option value="${m}">${mo}/${y}</option>`;
     });
     if(cur) el.value=cur;
-    // ברירת מחדל לחודש השוואה — החודש הנוכחי
     if(id==='rcv-cmp-month' && !el.value && sorted.length){
       const now=new Date().toISOString().slice(0,7);
       el.value=sorted.find(m=>m===now)||sorted[0];
@@ -6423,31 +6430,69 @@ function rcvAutoComplete(val){
 }
 
 document.addEventListener('click',e=>{
-  if(!e.target.closest('#rcv-ac')&&!e.target.matches('#rcv-prod')) {
+  if(!e.target.closest('#rcv-ac')&&!e.target.matches('#rcv-prod')){
     const b=document.getElementById('rcv-ac'); if(b) b.style.display='none';
   }
 });
 
-function saveRcv(){
-  const date=document.getElementById('rcv-date').value;
-  const sup=document.getElementById('rcv-sup').value;
+// הוספת מוצר לרשימה הזמנית
+function rcvAddItem(){
   const prod=document.getElementById('rcv-prod').value.trim();
   const qty=parseFloat(document.getElementById('rcv-qty').value)||0;
   const unit=document.getElementById('rcv-unit').value;
   const note=document.getElementById('rcv-note').value.trim();
-  if(!date){toast('⚠️ חסר תאריך');return;}
   if(!prod){toast('⚠️ חסר שם מוצר');return;}
   if(!qty){toast('⚠️ חסרה כמות');return;}
-  rcvs.push({id:'r'+Date.now(), date, sup, prod, qty, unit, note});
-  save(K.RCV,rcvs);
-  // נקה שדות (חוץ מתאריך וספק)
+  rcvPending.push({tmpId:'t'+Date.now(), prod, qty, unit, note});
+  // נקה שדות מוצר
   document.getElementById('rcv-prod').value='';
   document.getElementById('rcv-qty').value='';
   document.getElementById('rcv-note').value='';
   document.getElementById('rcv-ac').style.display='none';
+  document.getElementById('rcv-prod').focus();
+  _renderRcvPending();
+}
+
+function _renderRcvPending(){
+  const box=document.getElementById('rcv-items-list');
+  const saveBtn=document.getElementById('rcv-save-btn');
+  if(!box) return;
+  if(!rcvPending.length){
+    box.innerHTML='';
+    if(saveBtn) saveBtn.disabled=true;
+    return;
+  }
+  if(saveBtn) saveBtn.disabled=false;
+  box.innerHTML=`<div style="background:#fff;border:1px solid #c5e1a5;border-radius:8px;margin-bottom:8px;overflow:hidden">
+    <div style="background:#dcedc8;padding:6px 10px;font-size:12px;color:#33691e;font-weight:600">📦 ${rcvPending.length} מוצרים ברשימה</div>
+    ${rcvPending.map((it,i)=>`<div style="display:flex;align-items:center;padding:7px 10px;border-bottom:1px solid #f1f8e9;gap:8px">
+      <div style="flex:1;font-size:13px"><strong>${it.prod}</strong> — ${it.qty} ${it.unit}${it.note?' <span style="color:#888;font-size:11px">('+it.note+')</span>':''}</div>
+      <button onclick="rcvRemovePending(${i})" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0">🗑️</button>
+    </div>`).join('')}
+  </div>`;
+}
+
+function rcvRemovePending(i){
+  rcvPending.splice(i,1);
+  _renderRcvPending();
+}
+
+// שמירת כל הקבלה (תאריך+ספק קבועים, מוצרים מה-pending)
+function saveRcv(){
+  const date=document.getElementById('rcv-date').value;
+  const sup=document.getElementById('rcv-sup').value;
+  if(!date){toast('⚠️ חסר תאריך');return;}
+  if(!rcvPending.length){toast('⚠️ לא נוספו מוצרים');return;}
+  rcvPending.forEach(it=>{
+    rcvs.push({id:'r'+Date.now()+Math.random().toString(36).slice(2,6), date, sup, prod:it.prod, qty:it.qty, unit:it.unit, note:it.note});
+  });
+  save(K.RCV,rcvs);
+  rcvPending=[];
+  _renderRcvPending();
   _fillRcvMonths();
   renderRcvList();
-  toast('✅ קבלה נשמרה');
+  toast(`✅ נשמרו ${rcvPending.length||rcvs.slice(-rcvPending.length).length} פריטים`);
+  // אפס תאריך+ספק לקבלה הבאה
 }
 
 function deleteRcv(id){
@@ -6466,7 +6511,7 @@ function renderRcvList(){
     if(mFilter && !(r.date||'').startsWith(mFilter)) return false;
     if(sFilter && r.sup!==sFilter) return false;
     return true;
-  }).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  }).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.id||'').localeCompare(a.id||''));
   if(!rows.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#888;padding:16px">אין רשומות</td></tr>';return;}
   tbody.innerHTML=rows.map(r=>`<tr>
     <td style="white-space:nowrap">${(r.date||'').split('-').reverse().join('/')}</td>
@@ -6478,7 +6523,80 @@ function renderRcvList(){
   </tr>`).join('');
 }
 
-// ── השוואה: יומן קבלה בפועל מול תעודות החודש ──
+
+// ── בדיקה אוטומטית: יומן קבלה מול תעודות החודש ──
+// נקראת אחרי כל שמירת חשבונית/תעודות. מציגה התראה רק אם יש פערים ויש נתוני יומן לאותו חודש.
+function rcvAutoCheck(month){
+  if(!month) return;
+  // האם בכלל יש רשומות יומן לחודש זה?
+  const rcvMonth=rcvs.filter(r=>(r.date||'').startsWith(month));
+  if(!rcvMonth.length) return; // אין יומן — לא מתריעים
+
+  // סיכום קבלה בפועל
+  const rcvMap={};
+  rcvMonth.forEach(r=>{
+    const k=_rcvCanonical(r.prod);
+    if(!rcvMap[k]) rcvMap[k]={display:r.prod,qty:0};
+    if(r.prod.length>rcvMap[k].display.length) rcvMap[k].display=r.prod;
+    rcvMap[k].qty+=r.qty;
+  });
+
+  // סיכום תעודות
+  const delMap={};
+  dels.filter(d=>(d.date||'').startsWith(month)).forEach(d=>{
+    (d.items||[]).forEach(it=>{
+      if(!it.product) return;
+      const k=_rcvCanonical(it.product);
+      if(!delMap[k]) delMap[k]={display:it.product,qty:0};
+      if(it.product.length>delMap[k].display.length) delMap[k].display=it.product;
+      delMap[k].qty+=parseFloat(it.qty||it.amount||0);
+    });
+  });
+
+  // חישוב פערים
+  const gaps=[];
+  const allKeys=new Set([...Object.keys(rcvMap),...Object.keys(delMap)]);
+  allKeys.forEach(k=>{
+    const rQty=rcvMap[k]?.qty||0, dQty=delMap[k]?.qty||0;
+    const diff=rQty-dQty;
+    if(Math.abs(diff)<0.01) return; // תקין
+    const name=rcvMap[k]?.display||delMap[k]?.display||k;
+    let icon, label;
+    if(!rcvMap[k])       { icon='📋'; label=`${name}: בתעודות ${dQty} — לא נרשם ביומן`; }
+    else if(!delMap[k])  { icon='❓'; label=`${name}: ביומן ${rQty} — לא בתעודות`; }
+    else if(diff<0)      { icon='⚠️'; label=`${name}: קיבלת ${rQty} | תעודות ${dQty} | חסר ${Math.abs(diff).toFixed(2)}`; }
+    else                 { icon='ℹ️'; label=`${name}: קיבלת ${rQty} | תעודות ${dQty} | עודף ${diff.toFixed(2)}`; }
+    gaps.push({icon,label});
+  });
+
+  if(!gaps.length) return; // הכל תקין — שקט
+
+  // הצגת modal התראה
+  const [y,mo]=month.split('-');
+  const title=`📋 בדיקת יומן קבלה — ${mo}/${y}`;
+  const body=gaps.map(g=>`<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px">${g.icon} ${g.label}</div>`).join('');
+  const warnCount=gaps.filter(g=>g.icon==='⚠️'||g.icon==='❓').length;
+  const infoCount=gaps.filter(g=>g.icon==='📋'||g.icon==='ℹ️').length;
+
+  // שימוש ב-modal גנרי אם קיים, אחרת alert
+  const existing=document.getElementById('modal-rcv-check');
+  if(existing){ existing.remove(); }
+  const modal=document.createElement('div');
+  modal.id='modal-rcv-check';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+    <div style="font-weight:700;font-size:15px;color:#b71c1c;margin-bottom:4px">${title}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px">נמצאו ${gaps.length} אי-התאמות (${warnCount} חסרים/עודפים, ${infoCount} רק בצד אחד)</div>
+    <div style="margin-bottom:14px">${body}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('modal-rcv-check').remove()" class="btn btnP" style="flex:1;padding:9px">סגור</button>
+      <button onclick="document.getElementById('modal-rcv-check').remove();var b=document.querySelector('.navbtn[onclick*=receive]');if(b){showTab(b,'receive');}" class="btn btnS" style="flex:1;padding:9px">פתח יומן קבלה</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+
 function runRcvCompare(){
   const month=document.getElementById('rcv-cmp-month').value;
   if(!month){toast('⚠️ בחר חודש להשוואה');return;}
