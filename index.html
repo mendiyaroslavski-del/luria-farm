@@ -1025,6 +1025,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div style="position:relative;margin-bottom:8px">
         <input type="text" id="rcv-prod" class="inp" placeholder="שם מוצר..." oninput="rcvAutoComplete(this.value)" autocomplete="off" style="width:100%">
         <div id="rcv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:180px;overflow-y:auto;box-shadow:0 3px 8px rgba(0,0,0,.15)"></div>
+        <div id="rcv-last-price" style="display:none;font-size:11px;color:var(--gm);margin-top:3px;padding:2px 4px;background:#f1f8e9;border-radius:4px"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
@@ -1247,41 +1248,59 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 <!-- 6. מלאי -->
 <!-- ═══════════════════════════════════ -->
 <div id="tab-inventory" class="sec">
-  <div class="shtitle">📦 מלאי חומרים</div>
+  <div class="shtitle">📦 מלאי חומרי ריסוס</div>
+
+  <!-- כפתורי גיבוי/ייצא — נשמרים -->
   <div class="iobar">
     <span>📁</span>
-    <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל לקובץ אחד</button>
+    <button class="btn btnG" onclick="exportAll()">📤 ייצא הכל</button>
     <button class="btn" style="background:#1565c0;color:#fff;border:none" onclick="backupNow()">💾 גיבוי מהיר</button>
     <button class="btn" style="background:#0f9d58;color:#fff;border:none" onclick="shareBackup()">📤 שתף ל-Drive</button>
-    <button class="btn btnS" onclick="importWithHandle()">📥 ייבא מקובץ אחד</button>
-    <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש (החלף הכל)</button>
+    <button class="btn btnS" onclick="importWithHandle()">📥 ייבא</button>
+    <button class="btn" style="background:#e53935;color:#fff" onclick="trigFile('imp-reset')">🔄 ייבוא חדש</button>
   </div>
-  <div class="srow" style="flex-wrap:wrap;gap:6px">
-    <input class="sinput" id="inv-search" placeholder="חפש חומר..." oninput="renderInventory()" style="flex:1;min-width:120px">
-    <button class="btn btnP" onclick="openAddInv()">+ הוסף</button>
-    <button class="btn btnS" id="inv-edit-all-btn" onclick="toggleInvEditAll()">✏️ ערוך הכל</button>
-    <button class="btn" style="background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="openSyncModal()">🔄 סנכרן מרכישות</button>
-    <button class="btn" style="background:#7b1fa2;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="detectSimilarProducts()">🔀 זהה כפילויות שם</button>
+
+  <!-- התראות מלאי -->
+  <div id="sinv-alerts" style="display:none;margin-bottom:10px"></div>
+
+  <!-- מלאי פתיחה + הוספה ידנית -->
+  <div style="background:#f9fbe7;border:1px solid #c5e1a5;border-radius:10px;padding:12px;margin-bottom:12px">
+    <div style="font-weight:600;color:#33691e;font-size:14px;margin-bottom:8px">➕ הוסף / עדכן כמות במלאי</div>
+    <div style="position:relative;margin-bottom:8px">
+      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value)" autocomplete="off" style="width:100%">
+      <div id="sinv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:160px;overflow-y:auto;box-shadow:0 3px 8px rgba(0,0,0,.15)"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות</label>
+        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="0" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>
+        <select id="sinv-unit" class="inp" style="width:100%">
+          <option>ליטר</option><option>קג</option><option>יח׳</option><option>מל</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
+        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%" title="כמות מינימלית לפני התראה">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="sinvAdd('open')" class="btn btnP" style="flex:1;padding:8px">📦 מלאי פתיחה (הגדר)</button>
+      <button onclick="sinvAdd('add')" class="btn btnS" style="flex:1;padding:8px">➕ הוסף לקיים</button>
+    </div>
   </div>
-  <!-- Category filter tabs -->
-  <div style="display:flex;gap:6px;margin:6px 0;flex-wrap:wrap">
-    <button id="inv-cat-all"     class="btn" style="padding:5px 14px;font-size:13px;background:var(--gm);color:#fff;border:none;border-radius:20px" onclick="setInvCat('')">הכל</button>
-    <button id="inv-cat-spray"   class="btn" style="padding:5px 14px;font-size:13px;background:#555;color:#fff;border:none;border-radius:20px" onclick="setInvCat('spray')">🌿 ריסוס</button>
-    <button id="inv-cat-general" class="btn" style="padding:5px 14px;font-size:13px;background:#555;color:#fff;border:none;border-radius:20px" onclick="setInvCat('general')">📦 כללי</button>
-    <button id="inv-cat-none"    class="btn" style="padding:5px 14px;font-size:13px;background:#555;color:#fff;border:none;border-radius:20px" onclick="setInvCat('none')">❓ לא מסווג</button>
+
+  <!-- טבלת מלאי ריסוס -->
+  <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+    <input class="sinput" id="sinv-search" placeholder="חפש חומר..." oninput="renderSInv()" style="flex:1">
+    <button onclick="renderSInv()" class="btn btnS" style="padding:6px 10px">🔄</button>
   </div>
-  <div id="inv-auto-notice" style="display:none;background:rgba(46,125,50,0.15);border:1px solid rgba(46,125,50,0.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:var(--gm)"></div>
-  <div id="inv-edit-all-actions" style="display:none;gap:8px;margin-bottom:8px;padding:0 4px">
-    <button class="btn btnP" onclick="saveAllInvEdits()">💾 שמור שינויים</button>
-    <button class="btn btnS" onclick="cancelInvEditAll()">✕ ביטול</button>
-    <button class="btn" style="background:#e53935;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="deleteCheckedInv()">🗑 מחק מסומנים</button>
-  </div>
-  <div class="tblw">
-    <table class="dtbl">
-      <thead><tr><th id="inv-th-check" style="display:none;width:30px"></th><th>חומר</th><th>סוג</th><th>יחידה</th><th>נרכש</th><th>נוצל</th><th>מלאי</th></tr></thead>
-      <tbody id="inv-body"></tbody>
-    </table>
-  </div>
+  <div class="tblw"><table class="dtbl">
+    <thead><tr><th>חומר</th><th>במלאי</th><th>יח׳</th><th>סף</th><th>סטטוס</th><th></th></tr></thead>
+    <tbody id="sinv-body"></tbody>
+  </table></div>
 </div>
 
 <!-- מודל סנכרון מלאי -->
@@ -2320,7 +2339,7 @@ const HIST     = [{"id": "h0", "sup": "עמיר", "date": "2023-03-11", "doc": "
 const HM = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
 // ═══ STORAGE ═══
-const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2',SAL:'lsal2',RCV:'lrcv2'};
+const K = {D:'ld2',I:'li2',S:'ls2',IV:'linv2',C:'lc2',QA:'lqa2',EX:'lex2',CAT:'lcat2',FL:'lfields2',SAL:'lsal2',RCV:'lrcv2',SINV:'lsinv2'};
 const IDB_NAME  = 'luria-fh-db';
 const IDB_STORE = 'handles';
 const IDB_KEY   = 'main';
@@ -2647,6 +2666,7 @@ function showTab(btn, name) {
   if(name==='bot') setTimeout(()=>document.getElementById('bot-input')?.focus(),100);
   if(name==='expenses'){ renderExpenses(); const ed=document.getElementById('exp-date'); if(ed&&!ed.value) ed.value=new Date().toISOString().split('T')[0]; }
   if(name==='globsearch') { document.getElementById('glob-q').focus(); globalSearch(); }
+  if(name==='inventory') { initSInvTab(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); setTimeout(drawSprayChart,100); }
   if(name==='receive') { initRcvTab(); }
   if(name==='inventory') renderInventory();
@@ -5748,7 +5768,8 @@ function smAC(inp,mid){
   }
   const list=document.getElementById('sm-ac-'+mid);
   if(!val){list.classList.remove('open');return}
-  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(val.toLowerCase())).slice(0,10);
+  const q=val.toLowerCase();
+  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
   list.innerHTML=ms.map(p=>{
     const info=getLastPrice(p);
     const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm);float:left">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
@@ -5957,6 +5978,10 @@ function saveSpray(){
   const costStr=totalSprayCost>0?` | עלות: ${totalSprayCost.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}₪`:'';
   toast(`✅ ישום נשמר — ${validMats.length} חומרים${totalLiters?', '+totalLiters.toLocaleString()+' ל׳ סה״כ':''}${costStr}`);
   renderSprays();renderSpraySummary();
+  // גרע מהמלאי ובדוק התראות
+  const deductMats=validMats.map(m=>({mat:m.mat, qty:totalLiters>0&&m.qty>0?(m.qty/1000)*totalLiters:m.qty}));
+  sinvDeductSpray(deductMats, date);
+  setTimeout(()=>sinvAlertAfterSpray(deductMats), 400);
 }
 
 function populateSprAreaSelect(){
@@ -6135,7 +6160,8 @@ function esprMatAC(inp){
   var list=inp.parentElement.querySelector('.aclist');
   if(!list) return;
   if(!val){list.classList.remove('open');return;}
-  var ms=(PRODUCTS||[]).filter(function(p){return p.toLowerCase().includes(val.toLowerCase());}).slice(0,10);
+  var q=val.toLowerCase();
+  var ms=(PRODUCTS||[]).filter(function(p){return p.toLowerCase().includes(q)||productMatchesMat(p,val);}).slice(0,12);
   list.innerHTML=ms.map(function(p){
     var info=getLastPrice(p);
     var hint=info.pricePerUnit>0?'<span style="font-size:10px;color:var(--gm)">₪'+info.pricePerUnit.toFixed(1)+'/'+(info.unit||'יח׳')+'</span>':'';
@@ -6423,10 +6449,32 @@ function _fillRcvMonths(){
 function rcvAutoComplete(val){
   const box=document.getElementById('rcv-ac');
   if(!val||val.length<2){box.style.display='none';return;}
-  const matches=PRODUCTS.filter(p=>productMatchesMat(p,val)||p.toLowerCase().includes(val.toLowerCase())).slice(0,12);
+  const q=val.toLowerCase();
+  const matches=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
   if(!matches.length){box.style.display='none';return;}
-  box.innerHTML=matches.map(p=>`<div onclick="document.getElementById('rcv-prod').value='${p.replace(/'/g,"\\'")}';document.getElementById('rcv-ac').style.display='none'" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px">${p}</div>`).join('');
+  box.innerHTML=matches.map(p=>{
+    const info=getLastPrice(p);
+    const hint=info.pricePerUnit>0?` <span style="font-size:10px;color:var(--gm);float:left">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
+    return `<div onclick="rcvSelectProd('${p.replace(/'/g,"\\'")}')" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px;display:flex;justify-content:space-between">${p}${hint}</div>`;
+  }).join('');
   box.style.display='block';
+}
+
+function rcvSelectProd(prod){
+  document.getElementById('rcv-prod').value=prod;
+  document.getElementById('rcv-ac').style.display='none';
+  // הצג מחיר אחרון
+  const info=getLastPrice(prod);
+  const priceEl=document.getElementById('rcv-last-price');
+  if(priceEl){
+    if(info.pricePerUnit>0){
+      priceEl.textContent=`מחיר אחרון: ₪${info.pricePerUnit.toFixed(2)}/${info.unit||'יח׳'}`;
+      priceEl.style.display='block';
+    } else {
+      priceEl.style.display='none';
+    }
+  }
+  document.getElementById('rcv-qty').focus();
 }
 
 document.addEventListener('click',e=>{
@@ -6443,12 +6491,18 @@ function rcvAddItem(){
   const note=document.getElementById('rcv-note').value.trim();
   if(!prod){toast('⚠️ חסר שם מוצר');return;}
   if(!qty){toast('⚠️ חסרה כמות');return;}
-  rcvPending.push({tmpId:'t'+Date.now(), prod, qty, unit, note});
+
+  // שמור מחיר אחרון לייחוס עתידי
+  const priceInfo=getLastPrice(prod);
+  rcvPending.push({tmpId:'t'+Date.now(), prod, qty, unit, note,
+    lastPrice: priceInfo.pricePerUnit||0, lastPriceUnit: priceInfo.unit||unit});
+
   // נקה שדות מוצר
   document.getElementById('rcv-prod').value='';
   document.getElementById('rcv-qty').value='';
   document.getElementById('rcv-note').value='';
   document.getElementById('rcv-ac').style.display='none';
+  const prEl=document.getElementById('rcv-last-price'); if(prEl) prEl.style.display='none';
   document.getElementById('rcv-prod').focus();
   _renderRcvPending();
 }
@@ -6487,11 +6541,15 @@ function saveRcv(){
     rcvs.push({id:'r'+Date.now()+Math.random().toString(36).slice(2,6), date, sup, prod:it.prod, qty:it.qty, unit:it.unit, note:it.note});
   });
   save(K.RCV,rcvs);
+  const savedCount=rcvPending.length;
+  const savedItems=[...rcvPending];
   rcvPending=[];
   _renderRcvPending();
   _fillRcvMonths();
   renderRcvList();
-  toast(`✅ נשמרו ${rcvPending.length||rcvs.slice(-rcvPending.length).length} פריטים`);
+  // עדכן מלאי ריסוס אוטומטית
+  sinvAddFromReceipt(savedItems, date);
+  toast(`✅ נשמרו ${savedCount} פריטים`);
   // אפס תאריך+ספק לקבלה הבאה
 }
 
@@ -6528,15 +6586,14 @@ function renderRcvList(){
 // נקראת אחרי כל שמירת חשבונית/תעודות. מציגה התראה רק אם יש פערים ויש נתוני יומן לאותו חודש.
 function rcvAutoCheck(month){
   if(!month) return;
-  // האם בכלל יש רשומות יומן לחודש זה?
   const rcvMonth=rcvs.filter(r=>(r.date||'').startsWith(month));
-  if(!rcvMonth.length) return; // אין יומן — לא מתריעים
+  if(!rcvMonth.length) return;
 
   // סיכום קבלה בפועל
   const rcvMap={};
   rcvMonth.forEach(r=>{
     const k=_rcvCanonical(r.prod);
-    if(!rcvMap[k]) rcvMap[k]={display:r.prod,qty:0};
+    if(!rcvMap[k]) rcvMap[k]={display:r.prod,qty:0,lastPrice:r.lastPrice||0,lastPriceUnit:r.lastPriceUnit||''};
     if(r.prod.length>rcvMap[k].display.length) rcvMap[k].display=r.prod;
     rcvMap[k].qty+=r.qty;
   });
@@ -6547,20 +6604,33 @@ function rcvAutoCheck(month){
     (d.items||[]).forEach(it=>{
       if(!it.product) return;
       const k=_rcvCanonical(it.product);
-      if(!delMap[k]) delMap[k]={display:it.product,qty:0};
+      if(!delMap[k]) delMap[k]={display:it.product,qty:0,price:0};
       if(it.product.length>delMap[k].display.length) delMap[k].display=it.product;
       delMap[k].qty+=parseFloat(it.qty||it.amount||0);
+      if(it.price>0) delMap[k].price=it.price; // מחיר ליחידה-אריזה מהתעודה
     });
   });
 
-  // חישוב פערים
-  const gaps=[];
+  const gaps=[], priceChanges=[];
   const allKeys=new Set([...Object.keys(rcvMap),...Object.keys(delMap)]);
   allKeys.forEach(k=>{
     const rQty=rcvMap[k]?.qty||0, dQty=delMap[k]?.qty||0;
     const diff=rQty-dQty;
-    if(Math.abs(diff)<0.01) return; // תקין
     const name=rcvMap[k]?.display||delMap[k]?.display||k;
+
+    // בדיקת שינוי מחיר
+    if(rcvMap[k]?.lastPrice>0 && delMap[k]?.price>0){
+      const pkg=parsePackageSize(delMap[k].display);
+      const newPPU=delMap[k].price/pkg.size;
+      const oldPPU=rcvMap[k].lastPrice;
+      const pctChange=Math.abs(newPPU-oldPPU)/oldPPU;
+      if(pctChange>0.02){ // יותר מ-2% שינוי
+        const dir=newPPU>oldPPU?'↑ עלייה':'↓ ירידה';
+        priceChanges.push(`💰 ${name}: ${dir} ${(pctChange*100).toFixed(1)}% (היה ₪${oldPPU.toFixed(2)} → כעת ₪${newPPU.toFixed(2)})`);
+      }
+    }
+
+    if(Math.abs(diff)<0.01) return;
     let icon, label;
     if(!rcvMap[k])       { icon='📋'; label=`${name}: בתעודות ${dQty} — לא נרשם ביומן`; }
     else if(!delMap[k])  { icon='❓'; label=`${name}: ביומן ${rQty} — לא בתעודות`; }
@@ -6569,26 +6639,28 @@ function rcvAutoCheck(month){
     gaps.push({icon,label});
   });
 
-  if(!gaps.length) return; // הכל תקין — שקט
+  if(!gaps.length && !priceChanges.length) return;
 
-  // הצגת modal התראה
   const [y,mo]=month.split('-');
   const title=`📋 בדיקת יומן קבלה — ${mo}/${y}`;
-  const body=gaps.map(g=>`<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px">${g.icon} ${g.label}</div>`).join('');
+  const gapRows=gaps.map(g=>`<div style="padding:5px 0;border-bottom:1px solid #eee;font-size:13px">${g.icon} ${g.label}</div>`).join('');
+  const priceRows=priceChanges.length?`<div style="margin-top:8px;padding:8px;background:#fff8e1;border-radius:6px;border:1px solid #ffe082">
+    <div style="font-size:12px;font-weight:600;color:#e65100;margin-bottom:4px">שינויי מחיר מאז הרכישה האחרונה:</div>
+    ${priceChanges.map(p=>`<div style="font-size:12px;padding:3px 0">${p}</div>`).join('')}
+  </div>`:'';
   const warnCount=gaps.filter(g=>g.icon==='⚠️'||g.icon==='❓').length;
-  const infoCount=gaps.filter(g=>g.icon==='📋'||g.icon==='ℹ️').length;
 
-  // שימוש ב-modal גנרי אם קיים, אחרת alert
   const existing=document.getElementById('modal-rcv-check');
-  if(existing){ existing.remove(); }
+  if(existing) existing.remove();
   const modal=document.createElement('div');
   modal.id='modal-rcv-check';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px;max-width:420px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
     <div style="font-weight:700;font-size:15px;color:#b71c1c;margin-bottom:4px">${title}</div>
-    <div style="font-size:12px;color:#888;margin-bottom:12px">נמצאו ${gaps.length} אי-התאמות (${warnCount} חסרים/עודפים, ${infoCount} רק בצד אחד)</div>
-    <div style="margin-bottom:14px">${body}</div>
-    <div style="display:flex;gap:8px">
+    <div style="font-size:12px;color:#888;margin-bottom:12px">${gaps.length?`${gaps.length} אי-התאמות כמות (${warnCount} חסרים/עודפים)`:''}${gaps.length&&priceChanges.length?' | ':''}${priceChanges.length?`${priceChanges.length} שינויי מחיר`:''}</div>
+    ${gapRows}
+    ${priceRows}
+    <div style="display:flex;gap:8px;margin-top:14px">
       <button onclick="document.getElementById('modal-rcv-check').remove()" class="btn btnP" style="flex:1;padding:9px">סגור</button>
       <button onclick="document.getElementById('modal-rcv-check').remove();var b=document.querySelector('.navbtn[onclick*=receive]');if(b){showTab(b,'receive');}" class="btn btnS" style="flex:1;padding:9px">פתח יומן קבלה</button>
     </div>
@@ -6664,6 +6736,263 @@ function runRcvCompare(){
 // נרמול שם לצורך השוואה ביומן קבלה — שימוש ב-productMatchesMat בצד, וכאן canonical פשוט
 function _rcvCanonical(name){
   return _normMatName(name).replace(/\s*\d+\s*(ליטר|קג|ק"ג|גרגירי|אבקה).*/,'').trim()||_normMatName(name);
+}
+
+// ═══ SPRAY INVENTORY — מלאי חומרי ריסוס ═══
+
+let sinv = load(K.SINV); // [{name, unit, stock, threshold, lastUpdated}]
+
+// ── כניסה לטאב ──
+function initSInvTab(){
+  sinvCheckAlerts(false); // שקט בכניסה — רק הצג בלוק
+  renderSInv();
+}
+
+// ── השלמה אוטומטית ──
+function sinvAC(val){
+  const box=document.getElementById('sinv-ac');
+  if(!val||val.length<2){box.style.display='none';return;}
+  const q=val.toLowerCase();
+  // חומרים שכבר במלאי + חומרים מריסוסים
+  const known=new Set([...sinv.map(x=>x.name), ...sprs.map(s=>s.mat).filter(Boolean)]);
+  const matches=[...known].filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
+  if(!matches.length){box.style.display='none';return;}
+  box.innerHTML=matches.map(p=>{
+    const item=sinv.find(x=>productMatchesMat(x.name,p)||x.name===p);
+    const hint=item?` <span style="font-size:10px;color:#888">(מלאי: ${item.stock} ${item.unit||''})</span>`:'';
+    return `<div onclick="sinvSelect('${p.replace(/'/g,"\\'")}')" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px">${p}${hint}</div>`;
+  }).join('');
+  box.style.display='block';
+}
+
+function sinvSelect(prod){
+  document.getElementById('sinv-prod').value=prod;
+  document.getElementById('sinv-ac').style.display='none';
+  // מלא יחידה מהרשומה הקיימת
+  const item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
+  if(item && item.unit) document.getElementById('sinv-unit').value=item.unit;
+  if(item && item.threshold) document.getElementById('sinv-threshold').value=item.threshold;
+  document.getElementById('sinv-qty').focus();
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#sinv-ac')&&!e.target.matches('#sinv-prod')){
+    const b=document.getElementById('sinv-ac'); if(b) b.style.display='none';
+  }
+});
+
+// ── הוספה / עדכון מלאי ידני ──
+// mode: 'open' = מלאי פתיחה (מחליף), 'add' = מוסיף על הקיים
+function sinvAdd(mode){
+  const prod=document.getElementById('sinv-prod').value.trim();
+  const qty=parseFloat(document.getElementById('sinv-qty').value)||0;
+  const unit=document.getElementById('sinv-unit').value;
+  const threshold=parseFloat(document.getElementById('sinv-threshold').value)||0;
+  if(!prod){toast('⚠️ חסר שם חומר');return;}
+  if(!qty&&mode==='open'){toast('⚠️ הזן כמות');return;}
+
+  // חפש רשומה קיימת (fuzzy)
+  let item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
+  if(!item){
+    item={name:prod, unit, stock:0, threshold:0, lastUpdated:new Date().toISOString().slice(0,10)};
+    sinv.push(item);
+  }
+  if(mode==='open') item.stock=qty;
+  else item.stock=parseFloat(((item.stock||0)+qty).toFixed(3));
+  if(unit) item.unit=unit;
+  if(threshold>0) item.threshold=threshold;
+  item.lastUpdated=new Date().toISOString().slice(0,10);
+
+  save(K.SINV,sinv);
+  document.getElementById('sinv-prod').value='';
+  document.getElementById('sinv-qty').value='';
+  document.getElementById('sinv-threshold').value='';
+  document.getElementById('sinv-ac').style.display='none';
+  renderSInv();
+  sinvCheckAlerts(false);
+  toast(`✅ ${prod}: מלאי עודכן ל-${item.stock} ${item.unit||''}`);
+}
+
+// ── גריעה מהמלאי בעת שמירת ישום ריסוס ──
+// מקבל מערך מוצרי הישום [{mat, qty, unit}]
+function sinvDeductSpray(mats, appDate){
+  if(!mats||!mats.length) return;
+  let changed=false;
+  mats.forEach(m=>{
+    if(!m.mat||!m.qty) return;
+    const item=sinv.find(x=>x.name===m.mat||productMatchesMat(x.name,m.mat));
+    if(!item) return; // לא מנוהל במלאי — מדלג
+    item.stock=parseFloat(Math.max(0,(item.stock||0)-m.qty).toFixed(3));
+    item.lastUpdated=appDate||new Date().toISOString().slice(0,10);
+    changed=true;
+  });
+  if(changed){ save(K.SINV,sinv); renderSInv(); }
+}
+
+// ── הוספה מיומן קבלה ──
+// נקראת מ-saveRcv עם פריטי הקבלה
+function sinvAddFromReceipt(items, date){
+  if(!items||!items.length) return;
+  items.forEach(it=>{
+    if(!it.prod||!it.qty) return;
+    let item=sinv.find(x=>x.name===it.prod||productMatchesMat(x.name,it.prod));
+    // רק חומרים שכבר מנוהלים במלאי, או חומרי ריסוס ידועים
+    const isSprayMat=sprs.some(s=>s.mat===it.prod||productMatchesMat(s.mat||'',it.prod));
+    if(!item && !isSprayMat) return;
+    if(!item){
+      item={name:it.prod, unit:it.unit||'יח׳', stock:0, threshold:0, lastUpdated:date};
+      sinv.push(item);
+    }
+    item.stock=parseFloat(((item.stock||0)+it.qty).toFixed(3));
+    if(!item.unit && it.unit) item.unit=it.unit;
+    item.lastUpdated=date;
+  });
+  save(K.SINV,sinv);
+  renderSInv();
+}
+
+// ── מחיקת רשומה ──
+function sinvDelete(name){
+  if(!confirm(`למחוק "${name}" מהמלאי?`)) return;
+  sinv=sinv.filter(x=>x.name!==name);
+  save(K.SINV,sinv);
+  renderSInv();
+}
+
+// ── עריכת סף התראה בשורה ──
+function sinvEditThreshold(name){
+  const item=sinv.find(x=>x.name===name);
+  if(!item) return;
+  const val=prompt(`סף התראה עבור ${name} (${item.unit||'יח׳'}):`, item.threshold||'');
+  const n=parseFloat(val);
+  if(isNaN(n)) return;
+  item.threshold=n;
+  save(K.SINV,sinv);
+  renderSInv();
+  sinvCheckAlerts(false);
+}
+
+// ── תצוגת טבלת מלאי ──
+function renderSInv(){
+  const tbody=document.getElementById('sinv-body');
+  if(!tbody) return;
+  const q=(document.getElementById('sinv-search')?.value||'').toLowerCase();
+
+  // מיין: חסרים קודם, אחר כך לפי שם
+  const rows=[...sinv].filter(x=>!q||x.name.toLowerCase().includes(q)||productMatchesMat(x.name,q))
+    .sort((a,b)=>{
+      const aLow=(a.threshold>0&&(a.stock||0)<=a.threshold)?0:1;
+      const bLow=(b.threshold>0&&(b.stock||0)<=b.threshold)?0:1;
+      if(aLow!==bLow) return aLow-bLow;
+      return a.name.localeCompare(b.name,'he');
+    });
+
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#888;padding:16px">אין חומרים במלאי — הוסף מלאי פתיחה למעלה</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=rows.map(item=>{
+    const stock=item.stock||0;
+    const thr=item.threshold||0;
+    let icon='✅', color='#2e7d32', statusTxt='תקין';
+    if(stock<=0){icon='🔴';color='#c62828';statusTxt='אזל!';}
+    else if(thr>0 && stock<=thr){icon='⚠️';color='#e65100';statusTxt='נמוך';}
+
+    // חשב כמה ישומים אפשריים לפי ממוצע צריכה
+    let nextHint='';
+    const usagePerApp=_sinvAvgUsagePerApp(item.name);
+    if(usagePerApp>0 && stock>0){
+      const apps=Math.floor(stock/usagePerApp);
+      nextHint=`<div style="font-size:10px;color:#888">≈ ${apps} ישומים קדימה</div>`;
+    }
+
+    return `<tr>
+      <td><strong>${item.name}</strong>${nextHint}</td>
+      <td style="font-weight:700;color:${color}">${stock%1===0?stock:stock.toFixed(2)}</td>
+      <td style="font-size:12px">${item.unit||'—'}</td>
+      <td style="font-size:12px;cursor:pointer;color:#1565c0" onclick="sinvEditThreshold('${item.name.replace(/'/g,"\\'")}')">
+        ${thr>0?thr:'—'} <span style="font-size:10px">✏️</span>
+      </td>
+      <td style="color:${color};font-size:13px">${icon} ${statusTxt}</td>
+      <td><button onclick="sinvDelete('${item.name.replace(/'/g,"\\'")}') " style="background:none;border:none;cursor:pointer;font-size:14px">🗑️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── ממוצע צריכה לישום (לפי ישומי ריסוס היסטוריים) ──
+function _sinvAvgUsagePerApp(matName){
+  const relevant=sprs.filter(s=>s.mat===matName||productMatchesMat(s.mat||'',matName));
+  if(!relevant.length) return 0;
+  // קבץ לפי appId
+  const byApp={};
+  relevant.forEach(s=>{
+    const k=s.appId||s.id;
+    byApp[k]=(byApp[k]||0)+(s.totalQty||s.qty||0);
+  });
+  const vals=Object.values(byApp).filter(v=>v>0);
+  if(!vals.length) return 0;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+
+// ── בדיקת התראות מלאי ──
+// silent=true → רק מחזיר רשימה בלי להציג; silent=false → מציג בלוק
+function sinvCheckAlerts(silent){
+  const low=sinv.filter(x=>{
+    const stock=x.stock||0;
+    const thr=x.threshold||0;
+    return stock<=0||(thr>0&&stock<=thr);
+  });
+
+  if(!silent){
+    const box=document.getElementById('sinv-alerts');
+    if(!box) return low;
+    if(!low.length){box.style.display='none';return low;}
+    box.style.display='block';
+    box.innerHTML=`<div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:10px 12px">
+      <div style="font-weight:600;color:#e65100;margin-bottom:6px">⚠️ התראות מלאי (${low.length})</div>
+      ${low.map(x=>{
+        const stock=x.stock||0;
+        const icon=stock<=0?'🔴':'⚠️';
+        return `<div style="font-size:13px;padding:2px 0">${icon} <strong>${x.name}</strong>: ${stock<=0?'אזל!':stock+' '+( x.unit||'יח׳')+` (סף: ${x.threshold})`}</div>`;
+      }).join('')}
+    </div>`;
+  }
+  return low;
+}
+
+// ── התראה קופצת לאחר שמירת ישום ──
+function sinvAlertAfterSpray(mats){
+  const low=sinvCheckAlerts(true);
+  const affected=low.filter(x=>mats.some(m=>m.mat===x.name||productMatchesMat(x.name,m.mat||'')));
+  if(!affected.length) return;
+  const lines=affected.map(x=>{
+    const stock=x.stock||0;
+    const usagePerApp=_sinvAvgUsagePerApp(x.name);
+    const appsLeft=usagePerApp>0&&stock>0?` (≈ ${Math.floor(stock/usagePerApp)} ישומים קדימה)`:'';
+    return `${stock<=0?'🔴':'⚠️'} <strong>${x.name}</strong>: ${stock<=0?'אזל!':stock+' '+(x.unit||'יח׳')}${appsLeft}`;
+  }).join('<br>');
+
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+    <div style="font-weight:700;font-size:15px;color:#e65100;margin-bottom:8px">⚠️ התראת מלאי לאחר הריסוס</div>
+    <div style="font-size:13px;line-height:1.8;margin-bottom:14px">${lines}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="this.closest('div[style]').remove()" class="btn btnP" style="flex:1;padding:9px">סגור</button>
+      <button onclick="this.closest('div[style]').remove();var b=document.querySelector('.navbtn[onclick*=inventory]');if(b)showTab(b,'inventory');" class="btn btnS" style="flex:1;padding:9px">פתח מלאי</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+// ── בדיקת מלאי בכניסה לאפליקציה ──
+function sinvStartupCheck(){
+  const low=sinvCheckAlerts(true);
+  if(!low.length) return;
+  // toast לא חודרני — רק אם יש חוסר חמור (אזל)
+  const empty=low.filter(x=>(x.stock||0)<=0);
+  if(empty.length) toast(`🔴 חומרים שאזלו: ${empty.map(x=>x.name).join(', ')}`);
 }
 
 // ═══ INVENTORY ═══
@@ -7631,6 +7960,7 @@ async function autoBackupIfNeeded(){
 
 // Call on startup
 setTimeout(autoBackupIfNeeded, 2000);
+setTimeout(sinvStartupCheck, 3000);
 setTimeout(checkBackupReminder, 1500);
 
 // Patch backupNow to record timestamp
