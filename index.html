@@ -5767,15 +5767,19 @@ function smAC(inp,mid){
   }
   const list=document.getElementById('sm-ac-'+mid);
   if(!list) return;
-  if(val.length<2){list.classList.remove('open');return;}
+  if(val.length<2){list.classList.remove('open');list.style.cssText='';return;}
   const q=val.toLowerCase();
   const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
+  if(!ms.length){list.classList.remove('open');list.style.cssText='';return;}
   list.innerHTML=ms.map(p=>{
     const info=getLastPrice(p);
-    const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm);float:left">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
-    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')" ontouchend="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
+    const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm)">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
+    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')" ontouchstart="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
   }).join('');
-  list.classList.toggle('open',ms.length>0);
+  // מיקום fixed כדי לא להיחסם על ידי overflow של האב
+  const rect=inp.getBoundingClientRect();
+  list.style.cssText=`position:fixed;top:${rect.bottom}px;right:${window.innerWidth-rect.right}px;left:${rect.left}px;width:${rect.width}px;background:#fff;border:1.5px solid var(--gl);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:9000;box-shadow:0 6px 20px rgba(0,0,0,.18);display:block`;
+  list.classList.add('open');
 }
 
 function selSM(mid,prod){
@@ -5786,9 +5790,10 @@ function selSM(mid,prod){
     m.pricePerUnit=m.priceInfo.pricePerUnit;
   }
   document.getElementById('sm-mat-'+mid).value=prod;
-  document.getElementById('sm-ac-'+mid).classList.remove('open');
+  const list=document.getElementById('sm-ac-'+mid);
+  if(list){list.classList.remove('open');list.style.cssText='';}
   renderSprayMats();
-  document.getElementById('sm-qty-'+mid)?.focus();
+  setTimeout(()=>document.getElementById('sm-qty-'+mid)?.focus(),50);
 }
 
 function togglePhytemField(mid){
