@@ -1266,15 +1266,15 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <!-- מלאי פתיחה + הוספה ידנית -->
   <div style="background:#f9fbe7;border:1px solid #c5e1a5;border-radius:10px;padding:12px;margin-bottom:12px">
     <div style="font-weight:600;color:#33691e;font-size:14px;margin-bottom:8px">➕ הוסף / עדכן כמות במלאי</div>
-    <div style="position:relative;margin-bottom:8px">
-      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value)" autocomplete="off" style="width:100%">
-      <div id="sinv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:9999;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.2)"></div>
+    <div style="margin-bottom:8px">
+      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value)" onkeyup="sinvAC(this.value)" autocomplete="off" style="width:100%;font-size:16px;padding:10px">
+      <div id="sinv-ac" style="display:none;background:#fff;border:2px solid #2e7d32;border-radius:6px;max-height:220px;overflow-y:auto;margin-top:2px"></div>
     </div>
     <div id="sinv-pkginfo" style="display:none;font-size:11px;color:#558b2f;background:#f1f8e9;padding:4px 8px;border-radius:4px;margin-bottom:8px"></div>
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px">
       <div>
-        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות (ליטר/קג סה"כ)</label>
-        <input type="number" inputmode="decimal" id="sinv-qty" class="inp" placeholder="0" style="width:100%">
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות סה"כ</label>
+        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="לדוג׳ 40" style="width:100%;font-size:16px;padding:10px">
       </div>
       <div>
         <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>
@@ -1284,15 +1284,15 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </div>
       <div>
         <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
-        <input type="number" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%">
+        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%">
       </div>
     </div>
     <div style="background:#fff;border:1px solid #dcedc8;border-radius:6px;padding:8px;margin-bottom:8px;font-size:12px;color:#555">
       💡 לדוגמא: 8 בקבוקי ביומקטין 5 ליטר = <strong>40 ליטר</strong>
     </div>
     <div style="display:flex;gap:8px">
-      <button onclick="sinvAdd('open')" class="btn btnP" style="flex:1;padding:10px;font-size:14px">📦 מלאי פתיחה</button>
-      <button onclick="sinvAdd('add')" class="btn btnS" style="flex:1;padding:10px;font-size:14px">➕ הוסף לקיים</button>
+      <button onclick="sinvAdd('open')" class="btn btnP" style="flex:1;padding:12px;font-size:15px">📦 מלאי פתיחה</button>
+      <button onclick="sinvAdd('add')" class="btn btnS" style="flex:1;padding:12px;font-size:15px">➕ הוסף לקיים</button>
     </div>
   </div>
 
@@ -6752,6 +6752,7 @@ function initSInvTab(){
 
 function sinvAC(val){
   const box=document.getElementById('sinv-ac');
+  if(!box) return;
   if(!val||val.length<2){box.style.display='none';return;}
   const q=val.toLowerCase();
   const pmNames=(loadPM()||[]).map(p=>p.name||p.productName||'').filter(Boolean);
@@ -6762,9 +6763,10 @@ function sinvAC(val){
   box.innerHTML=hits.map(p=>{
     const it=sinv.find(x=>x.name===p);
     const badge=it?`<span style="font-size:10px;color:#2e7d32"> (${it.stock} ${it.unit||''})</span>`:'';
-    return `<div ontouchstart="sinvPickProd('${p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');event.preventDefault()"
-                 onmousedown="sinvPickProd('${p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"
-                 style="padding:11px 13px;border-bottom:1px solid #f0f0f0;font-size:14px;background:#fff">${p}${badge}</div>`;
+    const ps=p.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div ontouchstart="sinvPickProd('${ps}');event.preventDefault()"
+                 onmousedown="sinvPickProd('${ps}')"
+                 style="padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:14px;background:#fff;cursor:pointer">${p}${badge}</div>`;
   }).join('');
   box.style.display='block';
 }
@@ -6796,25 +6798,38 @@ document.addEventListener('click',e=>{
 });
 
 function sinvAdd(mode){
-  const prod=document.getElementById('sinv-prod').value.trim();
-  const qty=parseFloat(document.getElementById('sinv-qty').value);
-  const unit=document.getElementById('sinv-unit').value||'ליטר';
-  const thr=parseFloat(document.getElementById('sinv-threshold').value)||0;
+  const prodEl=document.getElementById('sinv-prod');
+  const qtyEl=document.getElementById('sinv-qty');
+  const unitEl=document.getElementById('sinv-unit');
+  const thrEl=document.getElementById('sinv-threshold');
+
+  const prod=(prodEl?.value||'').trim();
+  const qtyRaw=(qtyEl?.value||'').trim();
+  const qty=parseFloat(qtyRaw);
+  const unit=unitEl?.value||'ליטר';
+  const thr=parseFloat(thrEl?.value||'0')||0;
+
   if(!prod){alert('יש למלא שם חומר');return;}
-  if(isNaN(qty)||qty<=0){alert('יש למלא כמות גדולה מ-0');return;}
+  if(!qtyRaw||isNaN(qty)||qty<=0){alert('יש למלא כמות (מספר גדול מ-0)');return;}
+
   let it=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
   if(!it){ it={name:prod,unit,stock:0,threshold:0,lastUpdated:''}; sinv.push(it); }
   it.stock = mode==='open' ? qty : parseFloat(((it.stock||0)+qty).toFixed(3));
   it.unit=unit;
   if(thr>0) it.threshold=thr;
   it.lastUpdated=new Date().toISOString().slice(0,10);
+
   save(K.SINV,sinv);
-  ['sinv-prod','sinv-qty','sinv-threshold'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+
+  if(prodEl) prodEl.value='';
+  if(qtyEl) qtyEl.value='';
+  if(thrEl) thrEl.value='';
   const h=document.getElementById('sinv-pkginfo'); if(h) h.style.display='none';
-  document.getElementById('sinv-ac').style.display='none';
+  const ac=document.getElementById('sinv-ac'); if(ac) ac.style.display='none';
+
   renderSInv();
   _sinvShowAlerts();
-  toast(`\u2705 ${prod}: ${it.stock} ${it.unit}`);
+  toast('✅ ' + prod + ': ' + it.stock + ' ' + it.unit);
 }
 
 function sinvDel(name){
