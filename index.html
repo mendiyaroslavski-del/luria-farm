@@ -5676,7 +5676,6 @@ function removeSprayMat(id){
 
 function parsePackageSize(productName){
   if(!productName) return {size:1,unit:''};
-  // match patterns like "5 ליטר", "25 קג", "1 ליטר", "10 ק"ג" etc.
   const m=productName.match(/(\d+(?:\.\d+)?)\s*(ליטר|ק(?:")?ג|קג|kg|l)/i);
   if(m){
     const size=parseFloat(m[1]);
@@ -5685,6 +5684,29 @@ function parsePackageSize(productName){
     return {size:size||1, unit};
   }
   return {size:1, unit:''};
+}
+
+// ── נרמול שם להשוואה ──
+function _normMatName(s){
+  return (s||'').trim().toLowerCase().replace(/[׳'"״]/g,'').replace(/\s+/g,' ');
+}
+const _UNIT_WORDS=new Set(['ליטר','קג','ק"ג',"ק'ג",'גרם','מל','מ"ל','יחידות','יח','ל','גרגירי','אבקה']);
+
+// ── התאמת שמות מוצרים (fuzzy) ──
+// תומך בשמות חלקיים, גרשיים, וטעויות כתיב
+function productMatchesMat(pName, matQuery){
+  const p=_normMatName(pName), q=_normMatName(matQuery);
+  if(!p||!q) return false;
+  if(p===q||p.includes(q)) return true;
+  const pCore=_normMatName((pName||'').replace(/\s*\d+\s*(ליטר|ק(?:")?ג|קג|kg|l)\b.*/i,''));
+  if(pCore && (q.includes(pCore)||pCore.includes(q))) return true;
+  const qWords=q.split(' ').filter(w=>w.length>=2 && !/^\d+$/.test(w) && !_UNIT_WORDS.has(w));
+  if(qWords.length && qWords.every(w=>p.includes(w))) return true;
+  if(qWords.length===1 && !/\d/.test(q)){
+    const pWords=(pCore||p).split(' ').filter(w=>w.length>=2);
+    if(pWords.some(w=>strSim(qWords[0],w)>=0.8)) return true;
+  }
+  return false;
 }
 
 function getLastPrice(matName){
