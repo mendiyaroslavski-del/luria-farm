@@ -5724,7 +5724,7 @@ function renderSprayMats(){
         <div class="fg acw">
           <label class="flabel">שם החומר</label>
           <input type="text" class="finput" id="sm-mat-${m.id}" value="${esc(m.mat)}"
-            placeholder="שם חומר..." oninput="smAC(this,${m.id})" autocomplete="off">
+            placeholder="שם חומר..." oninput="smAC(this,${m.id})" onkeyup="smAC(this,${m.id})" oncompositionend="smAC(this,${m.id})" autocomplete="off">
           <div class="aclist" id="sm-ac-${m.id}"></div>
         </div>
         <div class="fg">
@@ -5759,21 +5759,21 @@ function renderSprayMats(){
 }
 
 function smAC(inp,mid){
-  const val=inp.value;
+  const val=inp.value||'';
   const m=sprayMats.find(x=>x.id===mid);
   if(m){
     m.mat=val;
-    m.priceInfo=getLastPrice(val);
-    m.pricePerUnit=m.priceInfo.pricePerUnit;
+    if(val.length>1){ m.priceInfo=getLastPrice(val); m.pricePerUnit=m.priceInfo.pricePerUnit; }
   }
   const list=document.getElementById('sm-ac-'+mid);
-  if(!val){list.classList.remove('open');return}
+  if(!list) return;
+  if(val.length<2){list.classList.remove('open');return;}
   const q=val.toLowerCase();
   const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
   list.innerHTML=ms.map(p=>{
     const info=getLastPrice(p);
     const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm);float:left">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
-    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
+    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')" ontouchend="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
   }).join('');
   list.classList.toggle('open',ms.length>0);
 }
@@ -6140,7 +6140,7 @@ function _buildEsprMatRow(sprId,mat,qty,unit,price,phytem,phyQty,idx){
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+
       '<div style="grid-column:1/-1" class="acw"><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">שם חומר</label>'+
         '<input type="text" class="finput espr-mat-name" value="'+(mat||'')+'" placeholder="שם חומר" '+
-          'oninput="esprMatAC(this)" autocomplete="off" style="font-size:13px">'+
+          'oninput="esprMatAC(this)" onkeyup="esprMatAC(this)" autocomplete="off" style="font-size:13px">'+
         '<div class="aclist"></div></div>'+
       '<div><label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות ל-1000ל׳</label>'+
         '<input type="number" class="finput espr-mat-qty" value="'+(qty||'')+'" step="0.001" placeholder="כמות" style="font-size:13px"></div>'+
@@ -6159,13 +6159,14 @@ function esprMatAC(inp){
   var val=inp.value.trim();
   var list=inp.parentElement.querySelector('.aclist');
   if(!list) return;
-  if(!val){list.classList.remove('open');return;}
+  if(val.length<2){list.classList.remove('open');return;}
   var q=val.toLowerCase();
   var ms=(PRODUCTS||[]).filter(function(p){return p.toLowerCase().includes(q)||productMatchesMat(p,val);}).slice(0,12);
   list.innerHTML=ms.map(function(p){
     var info=getLastPrice(p);
     var hint=info.pricePerUnit>0?'<span style="font-size:10px;color:var(--gm)">₪'+info.pricePerUnit.toFixed(1)+'/'+(info.unit||'יח׳')+'</span>':'';
-    return '<div class="acitem" onmousedown="esprMatSel(this,\''+p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+(p||'')+(hint?'  '+hint:'')+'</div>';
+    var sel="esprMatSel(this,'"+p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"')";
+    return '<div class="acitem" onmousedown="'+sel+'" ontouchend="'+sel+'">'+(p||'')+(hint?'  '+hint:'')+'</div>';
   }).join('');
   list.classList.toggle('open',ms.length>0);
 }
