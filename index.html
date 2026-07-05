@@ -1271,10 +1271,10 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       <div id="sinv-ac" style="display:none;background:#fff;border:2px solid #2e7d32;border-radius:6px;max-height:220px;overflow-y:auto;margin-top:2px"></div>
     </div>
     <div id="sinv-pkginfo" style="display:none;font-size:11px;color:#558b2f;background:#f1f8e9;padding:4px 8px;border-radius:4px;margin-bottom:8px"></div>
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px;margin-bottom:8px">
       <div>
-        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות סה"כ</label>
-        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="לדוג׳ 40" style="width:100%;font-size:16px;padding:10px">
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
+        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%">
       </div>
       <div>
         <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>
@@ -1283,8 +1283,8 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         </select>
       </div>
       <div>
-        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
-        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%">
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות סה"כ</label>
+        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="לדוג׳ 40" style="width:100%;font-size:16px;padding:10px">
       </div>
     </div>
     <div style="background:#fff;border:1px solid #dcedc8;border-radius:6px;padding:8px;margin-bottom:8px;font-size:12px;color:#555">
@@ -6809,8 +6809,8 @@ function sinvAdd(mode){
   const unit=unitEl?.value||'ליטר';
   const thr=parseFloat(thrEl?.value||'0')||0;
 
-  if(!prod){alert('יש למלא שם חומר');return;}
-  if(!qtyRaw||isNaN(qty)||qty<=0){alert('יש למלא כמות (מספר גדול מ-0)');return;}
+  if(!prod){toast('⚠️ יש למלא שם חומר');return;}
+  if(!qtyRaw||isNaN(qty)||qty<=0){toast('⚠️ יש למלא כמות גדולה מ-0');return;}
 
   let it=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
   if(!it){ it={name:prod,unit,stock:0,threshold:0,lastUpdated:''}; sinv.push(it); }
