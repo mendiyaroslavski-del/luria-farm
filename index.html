@@ -6759,10 +6759,30 @@ function _rcvCanonical(name){
 
 // ═══ SPRAY INVENTORY — מלאי חומרי ריסוס ═══
 
-let sinv = load(K.SINV);
+// שמירת מלאי — כפולה ל-localStorage וגם sessionStorage כגיבוי
+function saveSINV(data){
+  const json=JSON.stringify(data);
+  try{ localStorage.setItem('lsinv2',json); }catch(e){}
+  try{ sessionStorage.setItem('lsinv2',json); }catch(e){}
+}
+
+// טעינת מלאי — מנסה localStorage קודם, אחר כך sessionStorage
+function loadSINV(){
+  try{
+    const v=localStorage.getItem('lsinv2');
+    if(v) return JSON.parse(v);
+  }catch(e){}
+  try{
+    const v=sessionStorage.getItem('lsinv2');
+    if(v) return JSON.parse(v);
+  }catch(e){}
+  return [];
+}
+
+let sinv = loadSINV();
 
 function initSInvTab(){
-  sinv = load(K.SINV); // טען מחדש — מבטיח שהנתונים עדכניים
+  sinv = loadSINV(); // טען מחדש — מבטיח שהנתונים עדכניים
   renderSInv();
   _sinvShowAlerts();
 }
@@ -6871,7 +6891,7 @@ function sinvAdd(mode){
   if(thr>0) it.threshold=thr;
   it.lastUpdated=new Date().toISOString().slice(0,10);
 
-  save(K.SINV,sinv);
+  saveSINV(sinv);
 
   if(prodEl) prodEl.value='';
   if(qtyEl) qtyEl.value='';
@@ -6903,7 +6923,7 @@ function sinvAdd(mode){
 function sinvDel(name){
   if(!confirm(`מחק "${name}"?`)) return;
   sinv=sinv.filter(x=>x.name!==name);
-  save(K.SINV,sinv); renderSInv();
+  saveSINV(sinv); renderSInv();
 }
 
 function sinvSetThr(name){
@@ -6911,7 +6931,7 @@ function sinvSetThr(name){
   if(!it) return;
   const v=prompt(`סף התראה עבור ${name}:`,it.threshold||'');
   const n=parseFloat(v); if(isNaN(n)) return;
-  it.threshold=n; save(K.SINV,sinv); renderSInv();
+  it.threshold=n; saveSINV(sinv); renderSInv();
 }
 
 function sinvDeductSpray(mats, appDate){
@@ -6925,7 +6945,7 @@ function sinvDeductSpray(mats, appDate){
     it.lastUpdated=appDate||new Date().toISOString().slice(0,10);
     changed=true;
   });
-  if(changed){ save(K.SINV,sinv); renderSInv(); }
+  if(changed){ saveSINV(sinv); renderSInv(); }
 }
 
 function sinvAddFromReceipt(items, date){
@@ -6940,12 +6960,12 @@ function sinvAddFromReceipt(items, date){
     if(!rec.unit&&it.unit) rec.unit=it.unit;
     rec.lastUpdated=date;
   });
-  save(K.SINV,sinv); renderSInv();
+  saveSINV(sinv); renderSInv();
 }
 
 function renderSInv(){
   // תמיד טען מ-localStorage — מבטיח עדכניות גם אחרי רפרש
-  sinv = load(K.SINV);
+  sinv = loadSINV();
   const tbody=document.getElementById('sinv-body');
   if(!tbody) return;
   const q=(document.getElementById('sinv-search')?.value||'').toLowerCase();
@@ -7990,7 +8010,7 @@ setTimeout(autoBackupIfNeeded, 2000);
 setTimeout(sinvStartupCheck, 3000);
 // טען מלאי מחדש מ-localStorage בכל טעינה
 setTimeout(()=>{
-  sinv = load(K.SINV);
+  sinv = loadSINV();
   // אם הטאב מלאי פתוח — רנדר מחדש
   const tab=document.getElementById('tab-inventory');
   if(tab && tab.style.display!=='none') renderSInv();
