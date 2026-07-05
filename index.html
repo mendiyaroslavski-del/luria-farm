@@ -5724,7 +5724,7 @@ function renderSprayMats(){
         <div class="fg acw">
           <label class="flabel">שם החומר</label>
           <input type="text" class="finput" id="sm-mat-${m.id}" value="${esc(m.mat)}"
-            placeholder="שם חומר..." oninput="smAC(this,${m.id})" onkeyup="smAC(this,${m.id})" oncompositionend="smAC(this,${m.id})" autocomplete="off">
+            placeholder="שם חומר..." oninput="smAC(this,${m.id})" autocomplete="off">
           <div class="aclist" id="sm-ac-${m.id}"></div>
         </div>
         <div class="fg">
@@ -5759,28 +5759,22 @@ function renderSprayMats(){
 }
 
 function smAC(inp,mid){
-  const val=inp.value||'';
+  const val=inp.value;
   const m=sprayMats.find(x=>x.id===mid);
   if(m){
     m.mat=val;
-    if(val.length>1){ m.priceInfo=getLastPrice(val); m.pricePerUnit=m.priceInfo.pricePerUnit; }
+    m.priceInfo=getLastPrice(val);
+    m.pricePerUnit=m.priceInfo.pricePerUnit;
   }
   const list=document.getElementById('sm-ac-'+mid);
-  if(!list) return;
-  if(val.length<2){list.classList.remove('open');list.style.cssText='';return;}
-  const q=val.toLowerCase();
-  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,10);
-  if(!ms.length){list.classList.remove('open');list.style.cssText='';return;}
+  if(!val){list.classList.remove('open');return}
+  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(val.toLowerCase())||productMatchesMat(p,val)).slice(0,10);
   list.innerHTML=ms.map(p=>{
     const info=getLastPrice(p);
-    const hint=info.pricePerUnit>0?`<span style="font-size:11px;color:#2e7d32;margin-right:6px">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
-    return `<div class="acitem" style="padding:10px 12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;background:#fff" ontouchstart="event.preventDefault();selSM(${mid},'${esc(p)}')" onmousedown="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
+    const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm);float:left">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
+    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
   }).join('');
-  // הצג מעל השדה (לא מתחת) כדי שלא תכסה המקלדת
-  const rect=inp.getBoundingClientRect();
-  const listH=Math.min(ms.length*48, 280);
-  list.style.cssText=`position:fixed;bottom:${window.innerHeight-rect.top}px;right:0;left:0;width:100%;background:#fff;border-top:2px solid #2e7d32;max-height:${listH}px;overflow-y:auto;z-index:99999;box-shadow:0 -4px 20px rgba(0,0,0,.2);display:block`;
-  list.classList.add('open');
+  list.classList.toggle('open',ms.length>0);
 }
 
 function selSM(mid,prod){
@@ -5791,10 +5785,9 @@ function selSM(mid,prod){
     m.pricePerUnit=m.priceInfo.pricePerUnit;
   }
   document.getElementById('sm-mat-'+mid).value=prod;
-  const list=document.getElementById('sm-ac-'+mid);
-  if(list){list.classList.remove('open');list.style.cssText='';}
+  document.getElementById('sm-ac-'+mid).classList.remove('open');
   renderSprayMats();
-  setTimeout(()=>document.getElementById('sm-qty-'+mid)?.focus(),50);
+  document.getElementById('sm-qty-'+mid)?.focus();
 }
 
 function togglePhytemField(mid){
