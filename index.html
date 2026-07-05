@@ -1267,23 +1267,39 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div style="background:#f9fbe7;border:1px solid #c5e1a5;border-radius:10px;padding:12px;margin-bottom:12px">
     <div style="font-weight:600;color:#33691e;font-size:14px;margin-bottom:8px">➕ הוסף / עדכן כמות במלאי</div>
     <div style="position:relative;margin-bottom:8px">
-      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value)" autocomplete="off" style="width:100%">
+      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value);sinvAutoFillPkg()" autocomplete="off" style="width:100%">
       <div id="sinv-ac" style="display:none;position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #ccc;border-radius:6px;z-index:999;max-height:160px;overflow-y:auto;box-shadow:0 3px 8px rgba(0,0,0,.15)"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-      <div>
-        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות</label>
-        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="0" style="width:100%">
+    <!-- שורת חישוב: יחידות × נפח לאריזה = סה"כ -->
+    <div style="background:#fff;border:1px solid #dcedc8;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="font-size:11px;color:#558b2f;font-weight:600;margin-bottom:6px">🧮 חישוב כמות</div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:4px;align-items:center;margin-bottom:6px">
+        <div>
+          <label style="font-size:10px;color:#666;display:block;margin-bottom:2px">מספר יחידות</label>
+          <input type="text" inputmode="decimal" id="sinv-count" class="inp" placeholder="לדוג: 8" oninput="sinvCalc()" style="width:100%;text-align:center">
+        </div>
+        <div style="text-align:center;font-size:16px;color:#888;padding:0 2px">×</div>
+        <div>
+          <label style="font-size:10px;color:#666;display:block;margin-bottom:2px">נפח לאריזה</label>
+          <input type="text" inputmode="decimal" id="sinv-pkgsize" class="inp" placeholder="לדוג: 5" oninput="sinvCalc()" style="width:100%;text-align:center">
+        </div>
+        <div style="text-align:center;font-size:16px;color:#888;padding:0 2px">=</div>
+        <div>
+          <label style="font-size:10px;color:#666;display:block;margin-bottom:2px">סה"כ</label>
+          <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="0" oninput="sinvCalc()" style="width:100%;text-align:center;font-weight:700;background:#f1f8e9">
+        </div>
       </div>
-      <div>
-        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>
-        <select id="sinv-unit" class="inp" style="width:100%">
-          <option>ליטר</option><option>קג</option><option>יח׳</option><option>מל</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
-        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%" title="כמות מינימלית לפני התראה">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label style="font-size:10px;color:#666;display:block;margin-bottom:2px">יחידה</label>
+          <select id="sinv-unit" class="inp" style="width:100%">
+            <option>ליטר</option><option>קג</option><option>יח׳</option><option>מל</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
+          <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%">
+        </div>
       </div>
     </div>
     <div style="display:flex;gap:8px">
@@ -6766,14 +6782,52 @@ function sinvAC(val){
   box.style.display='block';
 }
 
+// חישוב אוטומטי: יחידות × נפח = סה"כ
+function sinvCalc(){
+  const count=parseFloat(document.getElementById('sinv-count')?.value)||0;
+  const pkg=parseFloat(document.getElementById('sinv-pkgsize')?.value)||0;
+  const qtyEl=document.getElementById('sinv-qty');
+  if(!qtyEl) return;
+  if(count>0 && pkg>0){
+    qtyEl.value=(count*pkg).toFixed(count*pkg%1===0?0:2);
+  }
+}
+
+// מילוי אוטומטי של גודל האריזה לפי שם המוצר (parsePackageSize)
+function sinvAutoFillPkg(){
+  const prod=document.getElementById('sinv-prod')?.value||'';
+  if(!prod) return;
+  const pkg=parsePackageSize(prod);
+  if(pkg.size>1){
+    const pkgEl=document.getElementById('sinv-pkgsize');
+    if(pkgEl && !pkgEl.value) pkgEl.value=pkg.size;
+    if(pkg.unit){
+      const unitEl=document.getElementById('sinv-unit');
+      if(unitEl){
+        const opt=[...unitEl.options].find(o=>o.value===pkg.unit||o.text===pkg.unit);
+        if(opt) unitEl.value=opt.value;
+      }
+    }
+    sinvCalc();
+  }
+}
+
 function sinvSelect(prod){
   document.getElementById('sinv-prod').value=prod;
   document.getElementById('sinv-ac').style.display='none';
-  // מלא יחידה מהרשומה הקיימת
   const item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
   if(item && item.unit) document.getElementById('sinv-unit').value=item.unit;
   if(item && item.threshold) document.getElementById('sinv-threshold').value=item.threshold;
-  document.getElementById('sinv-qty').focus();
+  // מלא גודל אריזה אוטומטי לפי שם המוצר
+  const pkg=parsePackageSize(prod);
+  const pkgEl=document.getElementById('sinv-pkgsize');
+  if(pkg.size>1 && pkgEl && !pkgEl.value){ pkgEl.value=pkg.size; }
+  if(pkg.unit){
+    const unitEl=document.getElementById('sinv-unit');
+    const opt=[...unitEl.options].find(o=>o.value===pkg.unit||o.text===pkg.unit);
+    if(opt) unitEl.value=opt.value;
+  }
+  document.getElementById('sinv-count').focus();
 }
 
 document.addEventListener('click',e=>{
@@ -6792,7 +6846,6 @@ function sinvAdd(mode){
   if(!prod){toast('⚠️ חסר שם חומר');return;}
   if(!qty&&mode==='open'){toast('⚠️ הזן כמות');return;}
 
-  // חפש רשומה קיימת (fuzzy)
   let item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
   if(!item){
     item={name:prod, unit, stock:0, threshold:0, lastUpdated:new Date().toISOString().slice(0,10)};
@@ -6805,9 +6858,10 @@ function sinvAdd(mode){
   item.lastUpdated=new Date().toISOString().slice(0,10);
 
   save(K.SINV,sinv);
-  document.getElementById('sinv-prod').value='';
-  document.getElementById('sinv-qty').value='';
-  document.getElementById('sinv-threshold').value='';
+  // נקה כל השדות
+  ['sinv-prod','sinv-qty','sinv-threshold','sinv-count','sinv-pkgsize'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
   document.getElementById('sinv-ac').style.display='none';
   renderSInv();
   sinvCheckAlerts(false);
