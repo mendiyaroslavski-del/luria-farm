@@ -6762,6 +6762,7 @@ function _rcvCanonical(name){
 let sinv = load(K.SINV);
 
 function initSInvTab(){
+  sinv = load(K.SINV); // טען מחדש — מבטיח שהנתונים עדכניים
   renderSInv();
   _sinvShowAlerts();
 }
@@ -7985,6 +7986,13 @@ async function autoBackupIfNeeded(){
 // Call on startup
 setTimeout(autoBackupIfNeeded, 2000);
 setTimeout(sinvStartupCheck, 3000);
+// טען מלאי מחדש מ-localStorage בכל טעינה
+setTimeout(()=>{
+  sinv = load(K.SINV);
+  // אם הטאב מלאי פתוח — רנדר מחדש
+  const tab=document.getElementById('tab-inventory');
+  if(tab && tab.style.display!=='none') renderSInv();
+}, 500);
 setTimeout(checkBackupReminder, 1500);
 
 // Patch backupNow to record timestamp
