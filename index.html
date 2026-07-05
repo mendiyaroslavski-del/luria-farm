@@ -6743,79 +6743,48 @@ function _rcvCanonical(name){
 
 // ═══ SPRAY INVENTORY — מלאי חומרי ריסוס ═══
 
-let sinv = load(K.SINV); // [{name, unit, stock, threshold, lastUpdated}]
+let sinv = load(K.SINV);
 
-// ── כניסה לטאב ──
 function initSInvTab(){
-  sinvCheckAlerts(false); // שקט בכניסה — רק הצג בלוק
   renderSInv();
+  _sinvShowAlerts();
 }
 
-// ── השלמה אוטומטית ──
 function sinvAC(val){
   const box=document.getElementById('sinv-ac');
   if(!val||val.length<2){box.style.display='none';return;}
   const q=val.toLowerCase();
-  const extra=new Set([...sinv.map(x=>x.name), ...sprs.map(s=>s.mat).filter(Boolean)]);
-  const allKnown=[...new Set([...PRODUCTS, ...extra])];
-  const matches=allKnown.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
-  if(!matches.length){box.style.display='none';return;}
-  box.innerHTML=matches.map(p=>{
-    const item=sinv.find(x=>x.name===p||productMatchesMat(x.name,p));
-    const hint=item?` <span style="font-size:10px;color:#888">(מלאי: ${item.stock} ${item.unit||''})</span>`:'';
-    return `<div ontouchstart="sinvSelect('${p.replace(/'/g,"\\'")}')" onmousedown="sinvSelect('${p.replace(/'/g,"\\'")}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px;background:#fff">${p}${hint}</div>`;
+  const pmNames=(loadPM()||[]).map(p=>p.name||p.productName||'').filter(Boolean);
+  const sprNames=sprs.map(s=>s.mat).filter(Boolean);
+  const all=[...new Set([...PRODUCTS,...pmNames,...sprNames,...sinv.map(x=>x.name)])];
+  const hits=all.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,15);
+  if(!hits.length){box.style.display='none';return;}
+  box.innerHTML=hits.map(p=>{
+    const it=sinv.find(x=>x.name===p);
+    const badge=it?`<span style="font-size:10px;color:#2e7d32"> (${it.stock} ${it.unit||''})</span>`:'';
+    return `<div ontouchstart="sinvPickProd('${p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');event.preventDefault()"
+                 onmousedown="sinvPickProd('${p.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"
+                 style="padding:11px 13px;border-bottom:1px solid #f0f0f0;font-size:14px;background:#fff">${p}${badge}</div>`;
   }).join('');
   box.style.display='block';
 }
 
-// חישוב אוטומטי: יחידות × נפח = סה"כ
-function sinvCalc(){
-  const count=parseFloat(document.getElementById('sinv-count')?.value)||0;
-  const pkg=parseFloat(document.getElementById('sinv-pkgsize')?.value)||0;
-  const qtyEl=document.getElementById('sinv-qty');
-  if(!qtyEl) return;
-  if(count>0 && pkg>0){
-    const total=count*pkg;
-    qtyEl.value=total%1===0?total:total.toFixed(2);
-  }
-}
-
-// מילוי אוטומטי של גודל האריזה לפי שם המוצר (parsePackageSize)
-function sinvAutoFillPkg(){
-  const prod=document.getElementById('sinv-prod')?.value||'';
-  if(!prod) return;
-  const pkg=parsePackageSize(prod);
-  if(pkg.size>1){
-    const pkgEl=document.getElementById('sinv-pkgsize');
-    if(pkgEl && !pkgEl.value) pkgEl.value=pkg.size;
-    if(pkg.unit){
-      const unitEl=document.getElementById('sinv-unit');
-      if(unitEl){
-        const opt=[...unitEl.options].find(o=>o.value===pkg.unit||o.text===pkg.unit);
-        if(opt) unitEl.value=opt.value;
-      }
-    }
-    sinvCalc();
-  }
-}
-
-function sinvSelect(prod){
+function sinvPickProd(prod){
   document.getElementById('sinv-prod').value=prod;
   document.getElementById('sinv-ac').style.display='none';
-  const item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
-  if(item){
-    if(item.unit) document.getElementById('sinv-unit').value=item.unit;
-    if(item.threshold) document.getElementById('sinv-threshold').value=item.threshold;
-  }
-  // הצג רמז חישוב לפי גודל אריזה
   const pkg=parsePackageSize(prod);
   const hint=document.getElementById('sinv-pkginfo');
-  if(hint && pkg.size>1){
-    hint.style.display='block';
-    hint.textContent=`📦 אריזה: ${pkg.size} ${pkg.unit||'יח׳'} — הזן כמות סה"כ בליטר/קג (לדוג: 8 בקבוקים = ${8*pkg.size} ${pkg.unit||''})`;
-    if(pkg.unit) document.getElementById('sinv-unit').value=pkg.unit;
-  } else if(hint){
-    hint.style.display='none';
+  if(hint){
+    if(pkg.size>1){
+      hint.style.display='block';
+      hint.textContent=`\u{1F4E6} ${pkg.size} ${pkg.unit||'יח\u05f3'} לאריזה`;
+      document.getElementById('sinv-unit').value=pkg.unit||'ליטר';
+    } else { hint.style.display='none'; }
+  }
+  const it=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
+  if(it){
+    if(it.unit) document.getElementById('sinv-unit').value=it.unit;
+    if(it.threshold) document.getElementById('sinv-threshold').value=it.threshold;
   }
   document.getElementById('sinv-qty').focus();
 }
@@ -6826,218 +6795,146 @@ document.addEventListener('click',e=>{
   }
 });
 
-// ── הוספה / עדכון מלאי ידני ──
-// mode: 'open' = מלאי פתיחה (מחליף), 'add' = מוסיף על הקיים
 function sinvAdd(mode){
   const prod=document.getElementById('sinv-prod').value.trim();
   const qty=parseFloat(document.getElementById('sinv-qty').value);
-  const unit=document.getElementById('sinv-unit').value;
-  const threshold=parseFloat(document.getElementById('sinv-threshold').value)||0;
-  if(!prod){toast('⚠️ יש למלא שם חומר');return;}
-  if(!qty||qty<=0){toast('⚠️ יש למלא כמות');return;}
-
-  let item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
-  if(!item){
-    item={name:prod, unit, stock:0, threshold:0, lastUpdated:new Date().toISOString().slice(0,10)};
-    sinv.push(item);
-  }
-  if(mode==='open') item.stock=parseFloat(qty.toFixed(3));
-  else item.stock=parseFloat(((item.stock||0)+qty).toFixed(3));
-  item.unit=unit;
-  if(threshold>0) item.threshold=threshold;
-  item.lastUpdated=new Date().toISOString().slice(0,10);
-
+  const unit=document.getElementById('sinv-unit').value||'ליטר';
+  const thr=parseFloat(document.getElementById('sinv-threshold').value)||0;
+  if(!prod){alert('יש למלא שם חומר');return;}
+  if(isNaN(qty)||qty<=0){alert('יש למלא כמות גדולה מ-0');return;}
+  let it=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
+  if(!it){ it={name:prod,unit,stock:0,threshold:0,lastUpdated:''}; sinv.push(it); }
+  it.stock = mode==='open' ? qty : parseFloat(((it.stock||0)+qty).toFixed(3));
+  it.unit=unit;
+  if(thr>0) it.threshold=thr;
+  it.lastUpdated=new Date().toISOString().slice(0,10);
   save(K.SINV,sinv);
-  document.getElementById('sinv-prod').value='';
-  document.getElementById('sinv-qty').value='';
-  document.getElementById('sinv-threshold').value='';
-  const hint=document.getElementById('sinv-pkginfo'); if(hint) hint.style.display='none';
+  ['sinv-prod','sinv-qty','sinv-threshold'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  const h=document.getElementById('sinv-pkginfo'); if(h) h.style.display='none';
   document.getElementById('sinv-ac').style.display='none';
   renderSInv();
-  sinvCheckAlerts(false);
-  toast(`✅ ${prod}: מלאי עודכן ל-${item.stock} ${item.unit||''}`);
+  _sinvShowAlerts();
+  toast(`\u2705 ${prod}: ${it.stock} ${it.unit}`);
 }
 
-// ── גריעה מהמלאי בעת שמירת ישום ריסוס ──
-// מקבל מערך מוצרי הישום [{mat, qty, unit}]
+function sinvDel(name){
+  if(!confirm(`מחק "${name}"?`)) return;
+  sinv=sinv.filter(x=>x.name!==name);
+  save(K.SINV,sinv); renderSInv();
+}
+
+function sinvSetThr(name){
+  const it=sinv.find(x=>x.name===name);
+  if(!it) return;
+  const v=prompt(`סף התראה עבור ${name}:`,it.threshold||'');
+  const n=parseFloat(v); if(isNaN(n)) return;
+  it.threshold=n; save(K.SINV,sinv); renderSInv();
+}
+
 function sinvDeductSpray(mats, appDate){
   if(!mats||!mats.length) return;
   let changed=false;
   mats.forEach(m=>{
-    if(!m.mat||!m.qty) return;
-    const item=sinv.find(x=>x.name===m.mat||productMatchesMat(x.name,m.mat));
-    if(!item) return; // לא מנוהל במלאי — מדלג
-    item.stock=parseFloat(Math.max(0,(item.stock||0)-m.qty).toFixed(3));
-    item.lastUpdated=appDate||new Date().toISOString().slice(0,10);
+    if(!m.mat||!(m.qty>0)) return;
+    const it=sinv.find(x=>x.name===m.mat||productMatchesMat(x.name,m.mat));
+    if(!it) return;
+    it.stock=parseFloat(Math.max(0,(it.stock||0)-m.qty).toFixed(3));
+    it.lastUpdated=appDate||new Date().toISOString().slice(0,10);
     changed=true;
   });
   if(changed){ save(K.SINV,sinv); renderSInv(); }
 }
 
-// ── הוספה מיומן קבלה ──
-// נקראת מ-saveRcv עם פריטי הקבלה
 function sinvAddFromReceipt(items, date){
   if(!items||!items.length) return;
   items.forEach(it=>{
-    if(!it.prod||!it.qty) return;
-    let item=sinv.find(x=>x.name===it.prod||productMatchesMat(x.name,it.prod));
-    // רק חומרים שכבר מנוהלים במלאי, או חומרי ריסוס ידועים
-    const isSprayMat=sprs.some(s=>s.mat===it.prod||productMatchesMat(s.mat||'',it.prod));
-    if(!item && !isSprayMat) return;
-    if(!item){
-      item={name:it.prod, unit:it.unit||'יח׳', stock:0, threshold:0, lastUpdated:date};
-      sinv.push(item);
-    }
-    item.stock=parseFloat(((item.stock||0)+it.qty).toFixed(3));
-    if(!item.unit && it.unit) item.unit=it.unit;
-    item.lastUpdated=date;
+    if(!it.prod||!(it.qty>0)) return;
+    const isSpray=sprs.some(s=>productMatchesMat(s.mat||'',it.prod));
+    let rec=sinv.find(x=>x.name===it.prod||productMatchesMat(x.name,it.prod));
+    if(!rec&&!isSpray) return;
+    if(!rec){ rec={name:it.prod,unit:it.unit||'יח\u05f3',stock:0,threshold:0,lastUpdated:date}; sinv.push(rec); }
+    rec.stock=parseFloat(((rec.stock||0)+it.qty).toFixed(3));
+    if(!rec.unit&&it.unit) rec.unit=it.unit;
+    rec.lastUpdated=date;
   });
-  save(K.SINV,sinv);
-  renderSInv();
+  save(K.SINV,sinv); renderSInv();
 }
 
-// ── מחיקת רשומה ──
-function sinvDelete(name){
-  if(!confirm(`למחוק "${name}" מהמלאי?`)) return;
-  sinv=sinv.filter(x=>x.name!==name);
-  save(K.SINV,sinv);
-  renderSInv();
-}
-
-// ── עריכת סף התראה בשורה ──
-function sinvEditThreshold(name){
-  const item=sinv.find(x=>x.name===name);
-  if(!item) return;
-  const val=prompt(`סף התראה עבור ${name} (${item.unit||'יח׳'}):`, item.threshold||'');
-  const n=parseFloat(val);
-  if(isNaN(n)) return;
-  item.threshold=n;
-  save(K.SINV,sinv);
-  renderSInv();
-  sinvCheckAlerts(false);
-}
-
-// ── תצוגת טבלת מלאי ──
 function renderSInv(){
   const tbody=document.getElementById('sinv-body');
   if(!tbody) return;
   const q=(document.getElementById('sinv-search')?.value||'').toLowerCase();
-
-  // מיין: חסרים קודם, אחר כך לפי שם
-  const rows=[...sinv].filter(x=>!q||x.name.toLowerCase().includes(q)||productMatchesMat(x.name,q))
+  const rows=[...sinv].filter(x=>!q||x.name.toLowerCase().includes(q))
     .sort((a,b)=>{
-      const aLow=(a.threshold>0&&(a.stock||0)<=a.threshold)?0:1;
-      const bLow=(b.threshold>0&&(b.stock||0)<=b.threshold)?0:1;
-      if(aLow!==bLow) return aLow-bLow;
-      return a.name.localeCompare(b.name,'he');
+      const al=(a.threshold>0&&(a.stock||0)<=a.threshold)?0:1;
+      const bl=(b.threshold>0&&(b.stock||0)<=b.threshold)?0:1;
+      return al-bl||a.name.localeCompare(b.name,'he');
     });
-
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#888;padding:16px">אין חומרים במלאי — הוסף מלאי פתיחה למעלה</td></tr>';
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#888;padding:20px">אין חומרים במלאי — הוסף למעלה</td></tr>';
     return;
   }
-
-  tbody.innerHTML=rows.map(item=>{
-    const stock=item.stock||0;
-    const thr=item.threshold||0;
-    let icon='✅', color='#2e7d32', statusTxt='תקין';
-    if(stock<=0){icon='🔴';color='#c62828';statusTxt='אזל!';}
-    else if(thr>0 && stock<=thr){icon='⚠️';color='#e65100';statusTxt='נמוך';}
-
-    // חשב כמה ישומים אפשריים לפי ממוצע צריכה
-    let nextHint='';
-    const usagePerApp=_sinvAvgUsagePerApp(item.name);
-    if(usagePerApp>0 && stock>0){
-      const apps=Math.floor(stock/usagePerApp);
-      nextHint=`<div style="font-size:10px;color:#888">≈ ${apps} ישומים קדימה</div>`;
-    }
-
+  tbody.innerHTML=rows.map(it=>{
+    const s=it.stock||0, thr=it.threshold||0;
+    let icon='\u2705',col='#2e7d32',lbl='תקין';
+    if(s<=0){icon='\ud83d\udd34';col='#c62828';lbl='אזל!';}
+    else if(thr>0&&s<=thr){icon='\u26a0\ufe0f';col='#e65100';lbl='נמוך';}
+    const avg=_sinvAvg(it.name);
+    const apps=avg>0&&s>0?`<div style="font-size:10px;color:#888">\u2248${Math.floor(s/avg)} ישומים</div>`:'';
+    const n=it.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<tr>
-      <td><strong>${item.name}</strong>${nextHint}</td>
-      <td style="font-weight:700;color:${color}">${stock%1===0?stock:stock.toFixed(2)}</td>
-      <td style="font-size:12px">${item.unit||'—'}</td>
-      <td style="font-size:12px;cursor:pointer;color:#1565c0" onclick="sinvEditThreshold('${item.name.replace(/'/g,"\\'")}')">
-        ${thr>0?thr:'—'} <span style="font-size:10px">✏️</span>
-      </td>
-      <td style="color:${color};font-size:13px">${icon} ${statusTxt}</td>
-      <td><button onclick="sinvDelete('${item.name.replace(/'/g,"\\'")}') " style="background:none;border:none;cursor:pointer;font-size:14px">🗑️</button></td>
+      <td><strong>${it.name}</strong>${apps}</td>
+      <td style="font-weight:700;color:${col}">${s%1===0?s:s.toFixed(2)}</td>
+      <td style="font-size:12px">${it.unit||'\u2014'}</td>
+      <td style="font-size:12px;color:#1565c0;cursor:pointer" ontouchstart="sinvSetThr('${n}')" onclick="sinvSetThr('${n}')">${thr||'\u2014'} \u270f\ufe0f</td>
+      <td style="color:${col};font-size:12px">${icon} ${lbl}</td>
+      <td><button ontouchstart="sinvDel('${n}')" onclick="sinvDel('${n}')" style="background:none;border:none;cursor:pointer;font-size:16px">\ud83d\uddd1\ufe0f</button></td>
     </tr>`;
   }).join('');
 }
 
-// ── ממוצע צריכה לישום (לפי ישומי ריסוס היסטוריים) ──
-function _sinvAvgUsagePerApp(matName){
-  const relevant=sprs.filter(s=>s.mat===matName||productMatchesMat(s.mat||'',matName));
-  if(!relevant.length) return 0;
-  // קבץ לפי appId
+function _sinvAvg(name){
   const byApp={};
-  relevant.forEach(s=>{
-    const k=s.appId||s.id;
-    byApp[k]=(byApp[k]||0)+(s.totalQty||s.qty||0);
-  });
+  sprs.filter(s=>s.mat===name||productMatchesMat(s.mat||'',name))
+      .forEach(s=>{ const k=s.appId||s.id; byApp[k]=(byApp[k]||0)+(s.totalQty||s.qty||0); });
   const vals=Object.values(byApp).filter(v=>v>0);
-  if(!vals.length) return 0;
-  return vals.reduce((a,b)=>a+b,0)/vals.length;
+  return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
 }
 
-// ── בדיקת התראות מלאי ──
-// silent=true → רק מחזיר רשימה בלי להציג; silent=false → מציג בלוק
-function sinvCheckAlerts(silent){
-  const low=sinv.filter(x=>{
-    const stock=x.stock||0;
-    const thr=x.threshold||0;
-    return stock<=0||(thr>0&&stock<=thr);
-  });
-
-  if(!silent){
-    const box=document.getElementById('sinv-alerts');
-    if(!box) return low;
-    if(!low.length){box.style.display='none';return low;}
-    box.style.display='block';
-    box.innerHTML=`<div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:10px 12px">
-      <div style="font-weight:600;color:#e65100;margin-bottom:6px">⚠️ התראות מלאי (${low.length})</div>
-      ${low.map(x=>{
-        const stock=x.stock||0;
-        const icon=stock<=0?'🔴':'⚠️';
-        return `<div style="font-size:13px;padding:2px 0">${icon} <strong>${x.name}</strong>: ${stock<=0?'אזל!':stock+' '+( x.unit||'יח׳')+` (סף: ${x.threshold})`}</div>`;
-      }).join('')}
-    </div>`;
-  }
-  return low;
-}
-
-// ── התראה קופצת לאחר שמירת ישום ──
-function sinvAlertAfterSpray(mats){
-  const low=sinvCheckAlerts(true);
-  const affected=low.filter(x=>mats.some(m=>m.mat===x.name||productMatchesMat(x.name,m.mat||'')));
-  if(!affected.length) return;
-  const lines=affected.map(x=>{
-    const stock=x.stock||0;
-    const usagePerApp=_sinvAvgUsagePerApp(x.name);
-    const appsLeft=usagePerApp>0&&stock>0?` (≈ ${Math.floor(stock/usagePerApp)} ישומים קדימה)`:'';
-    return `${stock<=0?'🔴':'⚠️'} <strong>${x.name}</strong>: ${stock<=0?'אזל!':stock+' '+(x.unit||'יח׳')}${appsLeft}`;
-  }).join('<br>');
-
-  const modal=document.createElement('div');
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.3)">
-    <div style="font-weight:700;font-size:15px;color:#e65100;margin-bottom:8px">⚠️ התראת מלאי לאחר הריסוס</div>
-    <div style="font-size:13px;line-height:1.8;margin-bottom:14px">${lines}</div>
-    <div style="display:flex;gap:8px">
-      <button onclick="this.closest('div[style]').remove()" class="btn btnP" style="flex:1;padding:9px">סגור</button>
-      <button onclick="this.closest('div[style]').remove();var b=document.querySelector('.navbtn[onclick*=inventory]');if(b)showTab(b,'inventory');" class="btn btnS" style="flex:1;padding:9px">פתח מלאי</button>
-    </div>
+function _sinvShowAlerts(){
+  const box=document.getElementById('sinv-alerts');
+  if(!box) return;
+  const low=sinv.filter(x=>(x.stock||0)<=0||(x.threshold>0&&(x.stock||0)<=x.threshold));
+  if(!low.length){box.style.display='none';return;}
+  box.style.display='block';
+  box.innerHTML=`<div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:10px 12px">
+    <strong style="color:#e65100">\u26a0\ufe0f התראות מלאי</strong><br>
+    ${low.map(x=>`${(x.stock||0)<=0?'\ud83d\udd34':'\u26a0\ufe0f'} ${x.name}: ${x.stock||0} ${x.unit||''}`).join('<br>')}
   </div>`;
-  document.body.appendChild(modal);
 }
 
-// ── בדיקת מלאי בכניסה לאפליקציה ──
+function sinvCheckAlerts(silent){
+  if(!silent) _sinvShowAlerts();
+  return sinv.filter(x=>(x.stock||0)<=0||(x.threshold>0&&(x.stock||0)<=x.threshold));
+}
+
+function sinvAlertAfterSpray(mats){
+  const aff=sinv.filter(x=>mats.some(m=>productMatchesMat(x.name,m.mat||'')))
+               .filter(x=>(x.stock||0)<=0||(x.threshold>0&&(x.stock||0)<=x.threshold));
+  if(!aff.length) return;
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:#0007;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  d.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px;max-width:380px;width:100%;box-shadow:0 8px 32px #0003">
+    <div style="font-weight:700;color:#e65100;margin-bottom:8px">\u26a0\ufe0f התראת מלאי</div>
+    <div style="font-size:13px;line-height:1.8;margin-bottom:14px">${aff.map(x=>`${(x.stock||0)<=0?'\ud83d\udd34':'\u26a0\ufe0f'} ${x.name}: ${x.stock||0} ${x.unit||''}`).join('<br>')}</div>
+    <button onclick="this.closest('div[style]').remove()" class="btn btnP" style="width:100%;padding:10px">סגור</button>
+  </div>`;
+  document.body.appendChild(d);
+}
+
 function sinvStartupCheck(){
-  const low=sinvCheckAlerts(true);
-  if(!low.length) return;
-  // toast לא חודרני — רק אם יש חוסר חמור (אזל)
-  const empty=low.filter(x=>(x.stock||0)<=0);
-  if(empty.length) toast(`🔴 חומרים שאזלו: ${empty.map(x=>x.name).join(', ')}`);
+  const empty=sinv.filter(x=>(x.stock||0)<=0&&x.threshold>0);
+  if(empty.length) toast(`\ud83d\udd34 חומרים שאזלו: ${empty.map(x=>x.name).join(', ')}`);
 }
 
 // ═══ INVENTORY ═══
