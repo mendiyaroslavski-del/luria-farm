@@ -2685,7 +2685,6 @@ function showTab(btn, name) {
   if(name==='inventory') { initSInvTab(); }
   if(name==='spray') { renderSprays(); renderSpraySummary(); initSprayMats(); setTimeout(drawSprayChart,100); }
   if(name==='receive') { initRcvTab(); }
-  if(name==='inventory') renderInventory();
   if(name==='audit') runAudit();
   if(name==='control') initControlTab();
   if(name==='products') initProductsTab();
@@ -6788,7 +6787,8 @@ function sinvCalc(){
   const qtyEl=document.getElementById('sinv-qty');
   if(!qtyEl) return;
   if(count>0 && pkg>0){
-    qtyEl.value=(count*pkg).toFixed(count*pkg%1===0?0:2);
+    const total=count*pkg;
+    qtyEl.value=total%1===0?total:total.toFixed(2);
   }
 }
 
@@ -6839,18 +6839,25 @@ document.addEventListener('click',e=>{
 // mode: 'open' = מלאי פתיחה (מחליף), 'add' = מוסיף על הקיים
 function sinvAdd(mode){
   const prod=document.getElementById('sinv-prod').value.trim();
-  const qty=parseFloat(document.getElementById('sinv-qty').value)||0;
   const unit=document.getElementById('sinv-unit').value;
   const threshold=parseFloat(document.getElementById('sinv-threshold').value)||0;
   if(!prod){toast('⚠️ יש למלא שם חומר');return;}
-  if(qty<=0){toast('⚠️ יש למלא כמות (מספר יחידות × נפח לאריזה)');return;}
+
+  // נסה לחשב מיחידות × נפח, אחרת קח ישירות מסה"כ
+  const count=parseFloat(document.getElementById('sinv-count')?.value)||0;
+  const pkgSize=parseFloat(document.getElementById('sinv-pkgsize')?.value)||0;
+  let qty=0;
+  if(count>0 && pkgSize>0) qty=count*pkgSize;
+  else qty=parseFloat(document.getElementById('sinv-qty')?.value)||0;
+
+  if(qty<=0){toast('⚠️ יש למלא כמות');return;}
 
   let item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
   if(!item){
     item={name:prod, unit, stock:0, threshold:0, lastUpdated:new Date().toISOString().slice(0,10)};
     sinv.push(item);
   }
-  if(mode==='open') item.stock=qty;
+  if(mode==='open') item.stock=parseFloat(qty.toFixed(3));
   else item.stock=parseFloat(((item.stock||0)+qty).toFixed(3));
   if(unit) item.unit=unit;
   if(threshold>0) item.threshold=threshold;
