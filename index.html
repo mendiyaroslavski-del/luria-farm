@@ -1298,7 +1298,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         </div>
         <div>
           <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">סף (ליטר/קג)</label>
-          <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="לדוג׳ 20" style="width:100%;text-align:center">
+          <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="לדוג׳ 20" oninput="sinvCalcQty()" style="width:100%;text-align:center">
         </div>
         <div>
           <label style="font-size:11px;color:#888;display:block;margin-bottom:3px">= בקבוקים</label>
@@ -6944,6 +6944,8 @@ function sinvAddFromReceipt(items, date){
 }
 
 function renderSInv(){
+  // תמיד טען מ-localStorage — מבטיח עדכניות גם אחרי רפרש
+  sinv = load(K.SINV);
   const tbody=document.getElementById('sinv-body');
   if(!tbody) return;
   const q=(document.getElementById('sinv-search')?.value||'').toLowerCase();
