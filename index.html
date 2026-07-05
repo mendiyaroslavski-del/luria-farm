@@ -5769,16 +5769,17 @@ function smAC(inp,mid){
   if(!list) return;
   if(val.length<2){list.classList.remove('open');list.style.cssText='';return;}
   const q=val.toLowerCase();
-  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
+  const ms=PRODUCTS.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,10);
   if(!ms.length){list.classList.remove('open');list.style.cssText='';return;}
   list.innerHTML=ms.map(p=>{
     const info=getLastPrice(p);
-    const hint=info.pricePerUnit>0?`<span style="font-size:10px;color:var(--gm)">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
-    return `<div class="acitem" onmousedown="selSM(${mid},'${esc(p)}')" ontouchstart="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
+    const hint=info.pricePerUnit>0?`<span style="font-size:11px;color:#2e7d32;margin-right:6px">₪${info.pricePerUnit.toFixed(1)}/${info.unit||'יח׳'}</span>`:'';
+    return `<div class="acitem" style="padding:10px 12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;background:#fff" ontouchstart="event.preventDefault();selSM(${mid},'${esc(p)}')" onmousedown="selSM(${mid},'${esc(p)}')">${p}${hint}</div>`;
   }).join('');
-  // מיקום fixed כדי לא להיחסם על ידי overflow של האב
+  // הצג מעל השדה (לא מתחת) כדי שלא תכסה המקלדת
   const rect=inp.getBoundingClientRect();
-  list.style.cssText=`position:fixed;top:${rect.bottom}px;right:${window.innerWidth-rect.right}px;left:${rect.left}px;width:${rect.width}px;background:#fff;border:1.5px solid var(--gl);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:9000;box-shadow:0 6px 20px rgba(0,0,0,.18);display:block`;
+  const listH=Math.min(ms.length*48, 280);
+  list.style.cssText=`position:fixed;bottom:${window.innerHeight-rect.top}px;right:0;left:0;width:100%;background:#fff;border-top:2px solid #2e7d32;max-height:${listH}px;overflow-y:auto;z-index:99999;box-shadow:0 -4px 20px rgba(0,0,0,.2);display:block`;
   list.classList.add('open');
 }
 
