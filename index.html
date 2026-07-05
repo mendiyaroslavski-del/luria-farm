@@ -6762,33 +6762,22 @@ function _rcvCanonical(name){
 
 // שמירת מלאי — כפולה ל-localStorage וגם sessionStorage כגיבוי
 function saveSINV(data){
-  const json=JSON.stringify(data);
-  try{ localStorage.setItem('lsinv2',json); }catch(e){}
-  try{ sessionStorage.setItem('lsinv2',json); }catch(e){}
+  save(K.SINV, data);
 }
 
-// טעינת מלאי — מנסה localStorage קודם, אחר כך sessionStorage
 function loadSINV(){
-  try{
-    const v=localStorage.getItem('lsinv2');
-    if(v) return JSON.parse(v);
-  }catch(e){}
-  try{
-    const v=sessionStorage.getItem('lsinv2');
-    if(v) return JSON.parse(v);
-  }catch(e){}
-  return [];
+  return load(K.SINV);
 }
 
 let sinv = loadSINV();
 
 function initSInvTab(){
   sinv = loadSINV();
-  // הצג מידע אבחון זמני בכותרת
   const dbg=document.getElementById('sinv-debug');
   if(dbg){
-    const raw=localStorage.getItem('lsinv2')||'ריק';
-    dbg.textContent='localStorage: '+(raw.length>60?raw.slice(0,60)+'...':raw);
+    const sinvRaw=localStorage.getItem(K.SINV)||'ריק';
+    const sprsRaw=localStorage.getItem(K.S)||'ריק';
+    dbg.innerHTML='lsinv2: '+(sinvRaw.length>40?sinvRaw.slice(0,40)+'...':sinvRaw)+'<br>ls2(ריסוסים): '+(sprsRaw==='ריק'?'ריק':'יש נתונים ('+sprsRaw.length+' תווים)');
     dbg.style.display='block';
   }
   renderSInv();
