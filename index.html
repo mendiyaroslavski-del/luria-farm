@@ -1249,6 +1249,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
 <!-- ═══════════════════════════════════ -->
 <div id="tab-inventory" class="sec">
   <div class="shtitle">📦 מלאי חומרי ריסוס</div>
+  <div id="sinv-debug" style="display:none;background:#fffde7;border:1px solid #f9a825;border-radius:6px;padding:8px;font-size:11px;color:#333;margin-bottom:8px;word-break:break-all"></div>
 
   <!-- כפתורי גיבוי/ייצא — נשמרים -->
   <div class="iobar">
@@ -6782,7 +6783,14 @@ function loadSINV(){
 let sinv = loadSINV();
 
 function initSInvTab(){
-  sinv = loadSINV(); // טען מחדש — מבטיח שהנתונים עדכניים
+  sinv = loadSINV();
+  // הצג מידע אבחון זמני בכותרת
+  const dbg=document.getElementById('sinv-debug');
+  if(dbg){
+    const raw=localStorage.getItem('lsinv2')||'ריק';
+    dbg.textContent='localStorage: '+(raw.length>60?raw.slice(0,60)+'...':raw);
+    dbg.style.display='block';
+  }
   renderSInv();
   _sinvShowAlerts();
 }
