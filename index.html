@@ -6769,7 +6769,6 @@ function sinvAC(val){
   const box=document.getElementById('sinv-ac');
   if(!val||val.length<2){box.style.display='none';return;}
   const q=val.toLowerCase();
-  // חיפוש בכל המוצרים הידועים — PRODUCTS + מה שכבר במלאי + היסטוריית ריסוסים
   const extra=new Set([...sinv.map(x=>x.name), ...sprs.map(s=>s.mat).filter(Boolean)]);
   const allKnown=[...new Set([...PRODUCTS, ...extra])];
   const matches=allKnown.filter(p=>p.toLowerCase().includes(q)||productMatchesMat(p,val)).slice(0,12);
@@ -6777,7 +6776,7 @@ function sinvAC(val){
   box.innerHTML=matches.map(p=>{
     const item=sinv.find(x=>x.name===p||productMatchesMat(x.name,p));
     const hint=item?` <span style="font-size:10px;color:#888">(מלאי: ${item.stock} ${item.unit||''})</span>`:'';
-    return `<div onclick="sinvSelect('${p.replace(/'/g,"\\'")}')" style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px">${p}${hint}</div>`;
+    return `<div ontouchstart="sinvSelect('${p.replace(/'/g,"\\'")}')" onmousedown="sinvSelect('${p.replace(/'/g,"\\'")}')" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px;background:#fff">${p}${hint}</div>`;
   }).join('');
   box.style.display='block';
 }
@@ -6843,8 +6842,8 @@ function sinvAdd(mode){
   const qty=parseFloat(document.getElementById('sinv-qty').value)||0;
   const unit=document.getElementById('sinv-unit').value;
   const threshold=parseFloat(document.getElementById('sinv-threshold').value)||0;
-  if(!prod){toast('⚠️ חסר שם חומר');return;}
-  if(!qty&&mode==='open'){toast('⚠️ הזן כמות');return;}
+  if(!prod){toast('⚠️ יש למלא שם חומר');return;}
+  if(qty<=0){toast('⚠️ יש למלא כמות (מספר יחידות × נפח לאריזה)');return;}
 
   let item=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
   if(!item){
@@ -6858,7 +6857,6 @@ function sinvAdd(mode){
   item.lastUpdated=new Date().toISOString().slice(0,10);
 
   save(K.SINV,sinv);
-  // נקה כל השדות
   ['sinv-prod','sinv-qty','sinv-threshold','sinv-count','sinv-pkgsize'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
