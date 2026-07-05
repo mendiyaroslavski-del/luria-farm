@@ -1267,14 +1267,14 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div style="background:#f9fbe7;border:1px solid #c5e1a5;border-radius:10px;padding:12px;margin-bottom:12px">
     <div style="font-weight:600;color:#33691e;font-size:14px;margin-bottom:8px">➕ הוסף / עדכן כמות במלאי</div>
     <div style="margin-bottom:8px">
-      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value)" onkeyup="sinvAC(this.value)" autocomplete="off" style="width:100%;font-size:16px;padding:10px">
+      <input type="text" id="sinv-prod" class="inp" placeholder="שם חומר..." oninput="sinvAC(this.value)" onkeyup="sinvAC(this.value)" autocomplete="off" enterkeyhint="next" style="width:100%;font-size:16px;padding:10px">
       <div id="sinv-ac" style="display:none;background:#fff;border:2px solid #2e7d32;border-radius:6px;max-height:220px;overflow-y:auto;margin-top:2px"></div>
     </div>
     <div id="sinv-pkginfo" style="display:none;font-size:11px;color:#558b2f;background:#f1f8e9;padding:4px 8px;border-radius:4px;margin-bottom:8px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px;margin-bottom:8px">
       <div>
         <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">סף התראה</label>
-        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" style="width:100%">
+        <input type="text" inputmode="decimal" id="sinv-threshold" class="inp" placeholder="0" enterkeyhint="next" style="width:100%">
       </div>
       <div>
         <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">יחידה</label>
@@ -1284,7 +1284,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
       </div>
       <div>
         <label style="font-size:11px;color:#666;display:block;margin-bottom:2px">כמות סה"כ</label>
-        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="לדוג׳ 40" style="width:100%;font-size:16px;padding:10px">
+        <input type="text" inputmode="decimal" id="sinv-qty" class="inp" placeholder="לדוג׳ 40" enterkeyhint="done" onkeydown="if(event.key==='Enter'){event.preventDefault();sinvAdd('open')}" style="width:100%;font-size:16px;padding:10px">
       </div>
     </div>
     <div style="background:#fff;border:1px solid #dcedc8;border-radius:6px;padding:8px;margin-bottom:8px;font-size:12px;color:#555">
