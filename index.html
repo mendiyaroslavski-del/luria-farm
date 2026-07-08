@@ -5710,18 +5710,32 @@ function _normMatName(s){
 }
 const _UNIT_WORDS=new Set(['ליטר','קג','ק"ג',"ק'ג",'גרם','מל','מ"ל','יחידות','יח','ל','גרגירי','אבקה']);
 
+// שם הבסיס של מוצר: כל מה שלפני המספר הראשון (גודל אריזה/ריכוז/וכו').
+// עמיד לכל סיומת (ליטר, קג, גרגירי, %, WP וכו') בלי צורך ברשימת יחידות קבועה
+function _productBaseName(name){
+  const norm=_normMatName(name);
+  const m=norm.match(/^([^\d]+)/);
+  return (m?m[1]:norm).trim();
+}
+
 // ── התאמת שמות מוצרים (fuzzy) ──
-// תומך בשמות חלקיים, גרשיים, וטעויות כתיב
+// תומך בשמות חלקיים, גרשיים, טעויות כתיב, וסיומות אריזה/ריכוז שונות (10 קג מול 75 גרגירי וכו')
 function productMatchesMat(pName, matQuery){
   const p=_normMatName(pName), q=_normMatName(matQuery);
   if(!p||!q) return false;
-  if(p===q||p.includes(q)) return true;
-  const pCore=_normMatName((pName||'').replace(/\s*\d+\s*(ליטר|ק(?:")?ג|קג|kg|l)\b.*/i,''));
-  if(pCore && (q.includes(pCore)||pCore.includes(q))) return true;
+  if(p===q||p.includes(q)||q.includes(p)) return true;
+
+  const pBase=_productBaseName(pName), qBase=_productBaseName(matQuery);
+  if(pBase && qBase){
+    if(pBase===qBase||pBase.includes(qBase)||qBase.includes(pBase)) return true;
+    // סובלנות לטעויות כתיב/הבדלי תעתיק קלים בשם הבסיס (למשל ביומקטין/ביומקטיין)
+    if(Math.min(pBase.length,qBase.length)>=4 && strSim(pBase,qBase)>=0.82) return true;
+  }
+
   const qWords=q.split(' ').filter(w=>w.length>=2 && !/^\d+$/.test(w) && !_UNIT_WORDS.has(w));
   if(qWords.length && qWords.every(w=>p.includes(w))) return true;
   if(qWords.length===1 && !/\d/.test(q)){
-    const pWords=(pCore||p).split(' ').filter(w=>w.length>=2);
+    const pWords=(pBase||p).split(' ').filter(w=>w.length>=2);
     if(pWords.some(w=>strSim(qWords[0],w)>=0.8)) return true;
   }
   return false;
@@ -6285,14 +6299,31 @@ function renderCalcPestList(){
   dl.innerHTML=pests.map(p=>`<option value="${p}">`).join('');
 }
 
+// מאחד חלקות שמורות (מנהל חלקות) עם שמות שטח שהוקלדו חופשי בישומי ריסוס בעבר
+function _calcAllFieldsList(){
+  const list=customFields.map(f=>({name:f.name, dunam:f.dunam||0}));
+  const knownNames=new Set(list.map(f=>f.name));
+  const areaInfo={};
+  sprs.forEach(s=>{
+    if(!s.area) return;
+    const prev=areaInfo[s.area];
+    if(!prev || (s.date||'')>(prev._date||'')) areaInfo[s.area]={dunam:s.dunam||0, _date:s.date||''};
+  });
+  Object.entries(areaInfo).forEach(([name,info])=>{
+    if(!knownNames.has(name)){ list.push({name, dunam:info.dunam}); knownNames.add(name); }
+  });
+  return list.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+}
+
 function renderCalcFieldsWrap(){
   const wrap=document.getElementById('calc-fields-wrap');
   if(!wrap) return;
-  if(!customFields.length){
+  const list=_calcAllFieldsList();
+  if(!list.length){
     wrap.innerHTML='<span style="color:#aaa;font-size:12px">אין חלקות שמורות — הזן דונם ידנית למטה</span>';
     return;
   }
-  wrap.innerHTML=customFields.map(f=>`
+  wrap.innerHTML=list.map(f=>`
     <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer">
       <input type="checkbox" class="calc-field-cb" value="${f.dunam||0}" onchange="calcSyncFieldsDunam()">
       ${f.name}${f.dunam?` (${f.dunam} ד\u05f3)`:''}
