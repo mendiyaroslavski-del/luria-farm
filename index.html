@@ -1183,6 +1183,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
   <div class="card">
     <div class="ctitle">🔍 היסטוריית ריסוסים</div>
     <div id="spr-last-badge" style="background:var(--gp);border:1px solid #c5e1c5;border-radius:var(--rs);padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--gm);display:none"></div>
+    <div id="spr-filter-summary" style="display:none;background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:10px 14px;margin-bottom:10px"></div>
     <!-- חיפוש בסיסי -->
     <div class="srow" style="margin-bottom:6px">
       <input class="sinput" id="spr-search" placeholder="🔍 חפש חומר, שטח, מרסס..." oninput="renderSprays()">
@@ -6151,6 +6152,29 @@ function renderSprays(){
     badge.style.display='block';
     badge.textContent=`ישום ראשון בתוצאות: ${last.date||'—'} — ${last.area||'—'} — ${last.mats.map(m=>m.mat).join(', ')}`;
   } else badge.style.display='none';
+
+  // סיכום עלות עונתי לתוצאות המסוננות (שטח/תאריכים/חומר וכו')
+  const summaryEl=document.getElementById('spr-filter-summary');
+  if(summaryEl){
+    if(hasFilters&&groupList.length){
+      const totalCostAll=groupList.reduce((s,g)=>s+g.mats.reduce((ss,m)=>ss+(m.totalCost||0),0),0);
+      const totalDunamAll=groupList.reduce((s,g)=>s+(parseFloat(g.dunam)||0),0);
+      const perDunam=totalDunamAll>0?(totalCostAll/totalDunamAll):0;
+      const areasInResult=[...new Set(groupList.map(g=>g.area).filter(Boolean))];
+      const areaLabel=areasInResult.length===1?areasInResult[0]:(areasInResult.length>1?`${areasInResult.length} שטחים`:'');
+      summaryEl.style.display='block';
+      summaryEl.innerHTML=`
+        <div style="font-weight:700;color:#1b5e20;font-size:13px;margin-bottom:6px">💰 סיכום עלות לתוצאות המסוננות${areaLabel?' — '+areaLabel:''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:13px">
+          <div><span style="color:#666">ישומים:</span> <strong>${groupList.length}</strong></div>
+          <div><span style="color:#666">סה"כ עלות:</span> <strong style="color:#2e7d32">₪${Math.round(totalCostAll).toLocaleString()}</strong></div>
+          ${totalDunamAll>0?`<div><span style="color:#666">סה"כ דונם:</span> <strong>${totalDunamAll.toFixed(1)}</strong></div>
+          <div><span style="color:#666">עלות/דונם:</span> <strong>₪${perDunam.toFixed(1)}</strong></div>`:''}
+        </div>`;
+    } else {
+      summaryEl.style.display='none';
+    }
+  }
   document.getElementById('spr-results').innerHTML=groupList.map(g=>{
     const totalCost=g.mats.reduce((s,m)=>s+(m.totalCost||0),0);
     const missingPrice=g.mats.some(m=>!m.unitPrice||!m.totalCost);
