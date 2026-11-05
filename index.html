@@ -2397,6 +2397,9 @@ const IDB_STORE = 'handles';
 const IDB_KEY   = 'main';
 const load = k => { try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]} };
 const save = (k,v) => localStorage.setItem(k,JSON.stringify(v));
+// אחידות מספרי חשבונית: אותיות תמיד לפני המספר (26607000567SI → SI26607000567)
+const canonNum = s => { s = String(s == null ? '' : s).trim(); const m = s.match(/^(\d+)\s*([A-Za-z]{1,3})$/); if (m) return m[2].toUpperCase() + m[1]; const m2 = s.match(/^([A-Za-z]{1,3})\s*(\d+)$/); return m2 ? m2[1].toUpperCase() + m2[2] : s; };
+const sameNum = (a,b) => !!a && !!b && canonNum(a) === canonNum(b);
 
 // ═══ CATEGORY SYSTEM — declarations must be before any code runs ═══
 const CATS = [
@@ -3433,7 +3436,7 @@ function _forceSaveInvoice() {
 }
 
 function saveInvoice(){
-  const num=document.getElementById('inv-num').value.trim();
+  const num=canonNum(document.getElementById('inv-num').value);
   const date=document.getElementById('inv-date').value;
   const total=parseFloat((document.getElementById('inv-total-val').value||'0').replace(',','.'))||0;
   const sup = resolveInvSup();
@@ -3448,10 +3451,10 @@ function saveInvoice(){
 
   // ── בדיקת כפילות חשבונית ──
   // 1. כפילות לפי מספר חשבונית + ספק
-  const dupByNum = invs.find(x => x.num === num && x.sup === sup);
+  const dupByNum = invs.find(x => sameNum(x.num, num) && x.sup === sup);
   if(dupByNum){
     if(!confirm(`⚠️ חשבונית מספר ${num} של ${sup} כבר קיימת (${dupByNum.date}, ₪${(dupByNum.total||0).toLocaleString()}).\n\nאישור = מחק ישנה ושמור חדשה\nביטול = עצור`)) return;
-    dupByNum.docIds?.forEach(id=>{const d=dels.find(x=>x.id==id);if(d&&d.invNum===num)d.invNum='';});
+    dupByNum.docIds?.forEach(id=>{const d=dels.find(x=>x.id==id);if(d&&sameNum(d.invNum,num))d.invNum='';});
     invs=invs.filter(x=>x!==dupByNum);
   }
 
@@ -3851,7 +3854,7 @@ function saveLinkDocs(invId){
   oldLinked.forEach(did=>{
     if(!newLinked.has(did)){
       const d = dels.find(x=>String(x.id)===did);
-      if(d && d.invNum === inv.num) d.invNum = '';
+      if(d && sameNum(d.invNum,inv.num)) d.invNum = '';
     }
   });
 
@@ -3860,8 +3863,8 @@ function saveLinkDocs(invId){
     const d = dels.find(x=>String(x.id)===did);
     if(d){
       // אם היתה משויכת לחשבונית אחרת — נקה שם
-      if(d.invNum && d.invNum !== inv.num){
-        const oldInv = invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
+      if(d.invNum && !sameNum(d.invNum,inv.num)){
+        const oldInv = invs.find(x=>sameNum(x.num,d.invNum)&&x.sup===d.sup);
         if(oldInv) oldInv.docIds = (oldInv.docIds||[]).filter(x=>String(x)!==did);
       }
       d.invNum = inv.num; // תמיד עדכן
@@ -3877,7 +3880,7 @@ function saveLinkDocs(invId){
     oldCross.forEach(xid=>{
       if(!newCross.has(xid)){
         const d = dels.find(x=>String(x.id)===xid);
-        if(d && d.crossInv === inv.num) d.crossInv = '';
+        if(d && sameNum(d.crossInv,inv.num)) d.crossInv = '';
       }
     });
     // הוסף שיוך חדש
@@ -4001,7 +4004,7 @@ function unlinkCross(id){
   const d=dels.find(x=>String(x.id)===String(id));
   if(!d||!d.crossInv)return;
   if(!confirm(`לבטל שיוך מוצלב של תעודה ${d.doc} מחשבונית עמיר ${d.crossInv}?`))return;
-  const inv=invs.find(x=>x.num===d.crossInv&&x.sup==='עמיר');
+  const inv=invs.find(x=>sameNum(x.num,d.crossInv)&&x.sup==='עמיר');
   if(inv){
     inv.crossIds=(inv.crossIds||[]).filter(x=>String(x)!==String(d.id));
     save(K.I,invs);
@@ -4016,7 +4019,7 @@ function unlinkDel(id){
   const d=dels.find(x=>String(x.id)===String(id));
   if(!d||!d.invNum)return;
   if(!confirm(`לבטל שיוך תעודה ${d.doc} מחשבונית ${d.invNum}?`))return;
-  const inv=invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
+  const inv=invs.find(x=>sameNum(x.num,d.invNum)&&x.sup===d.sup);
   if(inv){
     inv.docIds=(inv.docIds||[]).filter(x=>String(x)!==String(d.id));
     save(K.I,invs);
@@ -4033,7 +4036,7 @@ function deleteDel(id){
   const warn=d.invNum?`\n⚠️ תעודה זו משויכת לחשבונית ${d.invNum}.`:'';
   if(!confirm(`למחוק תעודה ${d.doc} (${d.sup}, ${d.date})?${warn}\n\nפעולה זו אינה הפיכה.`))return;
   if(d.invNum){
-    const inv=invs.find(x=>x.num===d.invNum&&x.sup===d.sup);
+    const inv=invs.find(x=>sameNum(x.num,d.invNum)&&x.sup===d.sup);
     if(inv)inv.docIds=(inv.docIds||[]).filter(x=>String(x)!==String(d.id));
     save(K.I,invs);
   }
@@ -4050,7 +4053,7 @@ function deleteInv(id){
   // נקה invNum מכל התעודות המשויכות
   (inv.docIds||[]).forEach(did=>{
     const d=dels.find(x=>x.id==did);
-    if(d&&d.invNum===inv.num)d.invNum='';
+    if(d&&sameNum(d.invNum,inv.num))d.invNum='';
   });
   save(K.D,dels);
   invs=invs.filter(x=>x.id!==id);
@@ -4412,7 +4415,7 @@ function renderAmirImportPreview(data) {
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
       <strong>חשבונית:</strong>
       <input id="imp-inv-num" value="${inv.num||''}"
-        onchange="_amirImportData.invoice.num=this.value.trim();renderAmirImportPreview(_amirImportData)"
+        onchange="_amirImportData.invoice.num=canonNum(this.value);renderAmirImportPreview(_amirImportData)"
         style="font-size:13px;font-weight:700;border:1px solid #a5d6a7;border-radius:4px;padding:2px 6px;width:130px;font-family:inherit;direction:ltr;text-align:left"
         placeholder="מספר חשבונית">
       <input id="imp-inv-date" value="${inv.date||''}"
@@ -4577,7 +4580,7 @@ function _parseAmirInvoiceDirect(fullText) {
   var invNum = '', invDate = '', totalBeforeVat = 0, vat = 0, totalWithVat = 0;
 
   var invNumM = text.match(/(\d{5,}SI|SI\d{5,})/);
-  if (invNumM) invNum = invNumM[1];
+  if (invNumM) invNum = canonNum(invNumM[1]);
 
   var invDateM = text.match(/תאריך חשבונית[:\s]+(\d{2})\/(\d{2})\/(\d{2,4})/);
   if (invDateM) {
@@ -4765,7 +4768,7 @@ function confirmAmirImport() {
   });
 
   // קשר תעודות לחשבונית — תמיד, גם אם החשבונית קיימת
-  const invNum = inv.num;
+  const invNum = canonNum(inv.num); inv.num = invNum;
   if (invNum) {
     // מצא את ה-IDs של התעודות שזה עתה נוספו
     const normDocSet = new Set(dels_list.map(d => (d.doc||'').replace(/[A-Za-z]/g,'').replace(/\s/g,'').trim().replace(/^0+/,'')));
@@ -4780,7 +4783,7 @@ function confirmAmirImport() {
     });
 
     // חפש חשבונית קיימת
-    const existInv = invs.find(x => x.num === invNum && x.sup === supplier);
+    const existInv = invs.find(x => sameNum(x.num, invNum) && x.sup === supplier);
     if (existInv) {
       // עדכן docIds — הוסף חדשים, שמור ישנים שעדיין קיימים
       const existingValidIds = (existInv.docIds || []).filter(did =>
@@ -4788,6 +4791,10 @@ function confirmAmirImport() {
       );
       existInv.docIds = [...new Set([...existingValidIds, ...newDocIds])];
       existInv.total = inv.total_with_vat || existInv.total;
+      if (existInv.num !== invNum) { // אחד כתיב ישן (אותיות מימין) לכתיב האחיד
+        const oldNum = existInv.num; existInv.num = invNum;
+        dels.forEach(d => { if (d.sup === supplier && d.invNum === oldNum) d.invNum = invNum; });
+      }
     } else {
       const invDate = inv.date || '';
       const month = invDate ? +invDate.substring(5,7) : 0;
@@ -8299,7 +8306,7 @@ function renderExpenses(){
 // ══════════════════════════════════════════
 function openInvFromDel(invNum, sup){
   // Navigate to invoice tab and filter
-  const inv = invs.find(x=>x.num===invNum && x.sup===sup) || invs.find(x=>x.num===invNum);
+  const inv = invs.find(x=>sameNum(x.num,invNum) && x.sup===sup) || invs.find(x=>sameNum(x.num,invNum));
   if(!inv){ toast('⚠️ חשבונית לא נמצאה'); return; }
   const btn = document.querySelector('.navbtn[onclick*="invoice"]');
   if(btn) showTab(btn,'invoice');
@@ -8322,7 +8329,7 @@ function openInvFromDel(invNum, sup){
 function printDeliveryPdf(id){
   const d = dels.find(x=>String(x.id)===String(id));
   if(!d){ toast('⚠️ תעודה לא נמצאה'); return; }
-  const inv = d.invNum ? invs.find(x=>x.num===d.invNum&&x.sup===d.sup) : null;
+  const inv = d.invNum ? invs.find(x=>sameNum(x.num,d.invNum)&&x.sup===d.sup) : null;
   const total = d.items.reduce((s,i)=>s+(i.totalV||0),0);
   const vatTotal = d.items.reduce((s,i)=>s+(i.vat||0),0);
   const netTotal = total - vatTotal;
@@ -9603,13 +9610,13 @@ function importAll(input){
           const iTotal = hdr.findIndex(h=>h.includes('סה'));
           for(let i=2; i<data.length; i++){
             const row=data[i]; if(!row||row.every(c=>!c)) continue;
-            const num = String(row[iNum>=0?iNum:hdr.findIndex(h=>h.includes('מספר'))]||'').trim();
+            const num = canonNum(row[iNum>=0?iNum:hdr.findIndex(h=>h.includes('מספר'))]||'');
             if(!num) continue;
             const sup = String(row[iSup>=0?iSup:1]||'').trim();
             const paidVal = iPaid>=0 ? String(row[iPaid]||'') : '';
             const paid = paidVal === 'כן' || paidVal === 'true' || paidVal === '1';
             const paidDate = iPaidDate>=0 ? String(row[iPaidDate]||'') : '';
-            const existing = invs.find(x=>x.num===num&&x.sup===sup);
+            const existing = invs.find(x=>sameNum(x.num,num)&&x.sup===sup);
             if(existing){
               // עדכן רק שדות שיכולים להשתנות — שמור docIds ו-paid
               if(paid && !existing.paid){ existing.paid=paid; existing.paidDate=paidDate; }
@@ -9685,7 +9692,7 @@ function importAll(input){
       // ── שחזור קישורים בין חשבוניות לתעודות (docIds) ──
       invs.forEach(inv => {
         // מחפש תעודות לפי invNum ואותו ספק
-        const linked = dels.filter(d => d.invNum && d.invNum === inv.num &&
+        const linked = dels.filter(d => d.invNum && sameNum(d.invNum,inv.num) &&
           (d.sup === inv.sup || !inv.sup));
         if(linked.length > 0){
           const existingIds = new Set((inv.docIds||[]).map(String));
@@ -10910,7 +10917,7 @@ function fixFromQuality(action, id) {
     if (!d) { toast('⚠️ תעודה לא נמצאה'); return; }
     if (!confirm(`למחוק תעודה ${d.doc} (${d.sup}, ${d.date})?\n\nפעולה זו אינה הפיכה.`)) return;
     if (d.invNum) {
-      const inv = invs.find(x => x.num === d.invNum && x.sup === d.sup);
+      const inv = invs.find(x => sameNum(x.num,d.invNum) && x.sup === d.sup);
       if (inv) inv.docIds = (inv.docIds||[]).filter(x => String(x)!==String(d.id));
       save(K.I, invs);
     }
@@ -12845,7 +12852,7 @@ function runAudit() {
   // ── סוג 3: תעודה עם מספר חשבונית שלא קיים ──
   dels.forEach(d => {
     if (!d.invNum) return;
-    const found = invs.find(inv => inv.num === d.invNum && inv.sup === d.sup);
+    const found = invs.find(inv => sameNum(inv.num,d.invNum) && inv.sup === d.sup);
     if (found) return;
     results.push({
       type: 'orphan_invnum',
