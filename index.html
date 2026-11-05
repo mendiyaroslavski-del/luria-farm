@@ -3547,7 +3547,7 @@ function filterInvList(){
   const sup = document.getElementById('inv-search-sup')?.value||'';
   const status = document.getElementById('inv-search-status')?.value||'';
 
-  let filtered = invs.slice().reverse();
+  let filtered = visibleInvs().slice().reverse();
   if(q) filtered = filtered.filter(i=>
     (i.num||'').toLowerCase().includes(q)||
     (i.sup||'').toLowerCase().includes(q)||
@@ -3562,6 +3562,7 @@ function filterInvList(){
   if(el) el.textContent = (q||sup||status) ? `${filtered.length} תוצאות מתוך ${invs.length}` : '';
 
   renderInvListWith(filtered);
+  _archiveNote();
 }
 
 function clearInvSearch(){
@@ -3581,13 +3582,35 @@ function populateInvSupFilter(){
   sel.innerHTML='<option value="">כל הספקים</option>'+sups.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
 }
 
+// ── חשבוניות "ארכיון": ספקים קטנים שנקלטו במיון החשבוניות ──
+// לא מוצגות ברשימות של המערכת הגדולה, אבל נכללות בסיכום העלויות
+function _bigSups(){
+  const set = new Set();
+  dels.forEach(d => d.sup && set.add(d.sup.trim()));
+  // ספקים שכבר היו במערכת לפני הפיצול (06/11/2026) נשארים גלויים
+  invs.forEach(i => i.sup && (!i._fromInvoiceSorter || !i._sortedAt || i._sortedAt < '2026-11-05T22:00:00Z') && set.add(i.sup.trim()));
+  return set;
+}
+function isArchiveInv(i, big){
+  if (!i || !i._fromInvoiceSorter) return false;
+  big = big || _bigSups();
+  return !big.has(String(i.sup||'').trim());
+}
+function visibleInvs(){ const big = _bigSups(); return invs.filter(i => !isArchiveInv(i, big)); }
+function _archiveNote(){
+  const n = invs.length - visibleInvs().length;
+  const el = document.getElementById('inv-list');
+  if (!n || !el) return;
+  el.insertAdjacentHTML('afterbegin', `<div style="background:#f1f8e9;border:1px solid #c5e1a5;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:#33691e">📁 עוד ${n} חשבוניות של ספקים קטנים נמצאות במיון החשבוניות (הן נכללות בסיכום העלויות)</div>`);
+}
 function renderInvList(){
   populateInvSupFilter();
   const q = (document.getElementById('inv-search')?.value||'').trim();
   const sup = document.getElementById('inv-search-sup')?.value||'';
   const status = document.getElementById('inv-search-status')?.value||'';
   if(q||sup||status){ filterInvList(); return; }
-  renderInvListWith(invs.slice().reverse());
+  renderInvListWith(visibleInvs().slice().reverse());
+  _archiveNote();
 }
 
 function renderInvListWith(list){
@@ -5161,7 +5184,8 @@ function initDashboard(){
   };
 
   // חשבוניות שעבר מועד — רק שלא שולמו
-  const overdue = invs.filter(i=>{
+  const _vis = visibleInvs();
+  const overdue = _vis.filter(i=>{
     if(i.paid) return false;
     const pd = getPayDate(i);
     return pd && pd < today;
@@ -5169,7 +5193,7 @@ function initDashboard(){
 
   // פירעון קרוב (30 יום) — רק שלא שולמו
   const in30 = new Date(today); in30.setDate(in30.getDate()+30);
-  const dueSoon = invs.filter(i=>{
+  const dueSoon = _vis.filter(i=>{
     if(i.paid) return false;
     const pd = getPayDate(i);
     return pd && pd >= today && pd <= in30;
@@ -5330,6 +5354,13 @@ let chartInst=null;
 let statSupFilter='all';
 // החזר חשבוניות ישירות כ-"תעודות" לסטטיסטיקה
 function getDirectInvAsDels(){
+  // חשבונית ממיון החשבוניות שכבר רשומה כהוצאה (אותו ספק, אותו סכום, עד 45 יום) — לא לספור פעמיים
+  const _exps = load(K.EX) || [];
+  const _supN = s => String(s||'').replace(/בע["״']?מ|בעמ/g,'').replace(/["״'.,\-]/g,'').replace(/\s+/g,' ').trim();
+  const _sameS = (a,b) => { a=_supN(a); b=_supN(b); return !!a && !!b && (a===b || a.includes(b) || b.includes(a)); };
+  const _inExpenses = i => _exps.some(e => String(e._invId||'') === String(i.id) ||
+    (_sameS(e.sup, i.sup) && Math.abs((+e.amount||0) - (+i.total||0)) <= 1 && e.date && i.date &&
+     Math.abs(new Date(e.date) - new Date(i.date)) <= 45*864e5));
   // 1. מספרי חשבוניות שכבר מקושרים לתעודות — לא לספור פעמיים
   const linkedInvNums = new Set(dels.map(d => d.invNum).filter(Boolean));
 
@@ -5342,6 +5373,7 @@ function getDirectInvAsDels(){
 
   return invs.filter(i => {
     if (!i.direct || !(i.total > 0)) return false;
+    if (i._fromInvoiceSorter && _inExpenses(i)) return false;
     // אם המספר כבר מקושר לתעודה — לא כלול
     if (linkedInvNums.has(i.num)) return false;
     // אם לספק כבר יש תעודות רגילות באותה שנה — לא כלול (למנוע כפילות)
