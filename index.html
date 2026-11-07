@@ -790,7 +790,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     <div class="scard g"><div class="snum" id="s2022">—</div><div class="slbl">רכישות 2022</div></div>
     <div class="scard r"><div class="snum" id="s-docs">—</div><div class="slbl">תעודות שמורות</div></div>
     <div class="scard p"><div class="snum" id="s-sal-cur">—</div><div class="slbl">שכר עלות מעסיק 2026</div></div>
-    <div class="scard g"><div class="snum" id="s-spr-cur">—</div><div class="slbl">ריסוסים 2026</div></div>
+    <div class="scard g"><div class="snum" id="s-spr-cur">—</div><div class="slbl">ריסוסים 2026 (כלול ברכישות)</div></div>
     <div class="scard o"><div class="snum" id="s-exp-cur">—</div><div class="slbl">הוצאות כלליות 2026</div></div>
     <div class="scard b"><div class="snum" id="s-total-cur">—</div><div class="slbl">סה"כ עלויות 2026</div></div>
   </div>
@@ -5416,7 +5416,7 @@ function initStats(){
     .reduce((a,e)=>a+(e.amount||0),0);
   document.getElementById('s-exp-cur').textContent='₪'+Math.round(expCur).toLocaleString();
 
-  const totalCur = sum(2026)+salCur+sprCur+expCur;
+  const totalCur = sum(2026)+salCur+expCur; // ריסוסים כלולים ברכישות
   document.getElementById('s-total-cur').textContent='₪'+Math.round(totalCur).toLocaleString();
 
   drawChart('all');updateCmp();
@@ -5508,15 +5508,16 @@ function renderTotalBreakdown(){
   const sprTotal=sprs.filter(s=>s.date&&(isAll||new Date(s.date).getFullYear()===yrN)).reduce((a,s)=>a+(s.totalCost||0),0);
   const exps=load(K.EX)||[];
   const expTotal=exps.filter(e=>e.date&&(isAll||new Date(e.date).getFullYear()===yrN)).reduce((a,e)=>a+(e.amount||0),0);
-  const grandTotal=purTotal+salTotal+sprTotal+expTotal;
+  // ריסוסים = חומרים שנקנו מעמיר/המשביר וכבר כלולים ברכישות — לא סופרים פעמיים
+  const grandTotal=purTotal+salTotal+expTotal;
   const ctx=document.getElementById('chart-breakdown');
   if(!ctx) return;
   if(window.breakdownChartInst) window.breakdownChartInst.destroy();
-  const data=[purTotal,salTotal,sprTotal,expTotal];
+  const data=[purTotal,salTotal,expTotal];
   window.breakdownChartInst=new Chart(ctx.getContext('2d'),{
     type:'doughnut',
-    data:{labels:['רכישות','שכר (עלות מעסיק)','ריסוסים','הוצאות'],
-      datasets:[{data,backgroundColor:['#1565c0','#c62828','#2e7d32','#f57c00']}]},
+    data:{labels:['רכישות','שכר (עלות מעסיק)','הוצאות'],
+      datasets:[{data,backgroundColor:['#1565c0','#c62828','#f57c00']}]},
     options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}
   });
   const pct=v=>grandTotal>0?(v/grandTotal*100).toFixed(1)+'%':'—';
@@ -5524,12 +5525,13 @@ function renderTotalBreakdown(){
   if(el) el.innerHTML=`
     <table style="width:100%;font-size:13px;border-collapse:collapse">
       <tr style="border-bottom:2px solid #e0e0e0"><th style="text-align:right;padding:4px 8px">קטגוריה</th><th style="padding:4px 8px">סכום</th><th style="padding:4px 8px">%</th></tr>
-      ${[['🛒 רכישות','#1565c0',purTotal],['👷 שכר','#c62828',salTotal],['🌿 ריסוסים','#2e7d32',sprTotal],['💰 הוצאות','#f57c00',expTotal]]
+      ${[['🛒 רכישות','#1565c0',purTotal],['👷 שכר','#c62828',salTotal],['💰 הוצאות','#f57c00',expTotal]]
         .map(([n,c,v])=>`<tr style="border-bottom:1px solid #f5f5f5">
           <td style="padding:4px 8px;direction:rtl"><span style="color:${c}">●</span> ${n}</td>
           <td style="padding:4px 8px;font-weight:600">₪${Math.round(v).toLocaleString()}</td>
           <td style="padding:4px 8px;color:#888">${pct(v)}</td></tr>`).join('')}
       <tr style="font-weight:700;background:#f9f9f9"><td style="padding:4px 8px">סה"כ</td><td style="padding:4px 8px">₪${Math.round(grandTotal).toLocaleString()}</td><td></td></tr>
+      ${sprTotal>0?`<tr><td colspan="3" style="padding:6px 8px;font-size:12px;color:#2e7d32">🌿 מתוך הרכישות — חומרים שנוצלו בריסוסים: ₪${Math.round(sprTotal).toLocaleString()} (כבר כלול ברכישות מעמיר/המשביר, לא נוסף לסה"כ)</td></tr>`:''}
     </table>`;
 }
 function setYF(btn,yr){document.querySelectorAll('#ychips .chip').forEach(b=>b.classList.remove('on'));btn.classList.add('on');drawChart(yr)}
