@@ -885,7 +885,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
     </div>
     <div class="tblw">
       <table class="dtbl">
-        <thead><tr><th>מוצר</th><th>ספק</th><th>מחיר אחרון</th><th>תאריך רכישה</th></tr></thead>
+        <thead><tr><th>מוצר</th><th>ספק</th><th>מחיר אחרון<br><span style="font-weight:400;font-size:11px">לפני מע"מ, אחרי הנחה</span></th><th>תאריך רכישה</th><th>3 רכישות אחרונות</th></tr></thead>
         <tbody id="price-results"></tbody>
       </table>
     </div>
@@ -1725,7 +1725,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         </div>
         <div class="tblw">
           <table class="dtbl">
-            <thead><tr><th>מוצר</th><th>ספק</th><th>מחיר אחרון</th><th>תאריך רכישה</th></tr></thead>
+            <thead><tr><th>מוצר</th><th>ספק</th><th>מחיר אחרון<br><span style="font-weight:400;font-size:11px">לפני מע"מ, אחרי הנחה</span></th><th>תאריך רכישה</th><th>3 רכישות אחרונות</th></tr></thead>
             <tbody id="pm-price-results"></tbody>
           </table>
         </div>
@@ -4204,7 +4204,7 @@ function searchPrices(){
   const q=document.getElementById('price-q').value.toLowerCase();
   const sup=document.getElementById('price-sup').value;
   const tbody=document.getElementById('price-results');
-  if(!q){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">הקלד שם מוצר לחיפוש</td></tr>';return}
+  if(!q){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--grayM)">הקלד שם מוצר לחיפוש</td></tr>';return}
   _doSearchPrices(q, sup, tbody);
 }
 
@@ -4212,49 +4212,66 @@ function searchPmPrices(){
   const q=(document.getElementById('pm-price-q')?.value||'').toLowerCase();
   const sup=document.getElementById('pm-price-sup')?.value||'';
   const tbody=document.getElementById('pm-price-results');
-  if(!q){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">הקלד שם מוצר לחיפוש</td></tr>';return}
+  if(!q){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--grayM)">הקלד שם מוצר לחיפוש</td></tr>';return}
   _doSearchPrices(q, sup, tbody);
 }
 
 function _doSearchPrices(q, sup, tbody){
-
-  // בנה מפת מחיר+תאריך אחרון מכל התעודות (כולל ספקים מזדמנים)
-  const dynPrices={};
+  // שם מוצר אחיד: "קוצייד 2000 10 ק"ג (3519295)" = "קוצייד 2000 10 קג"
+  const pn=s=>String(s||'').replace(/\(\s*\d{4,}\s*\)/g,'').replace(/ק["״'׳]{1,2}ג/g,'קג').replace(/["״'׳]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+  const fmtD=d=>d?new Date(d).toLocaleDateString('he-IL'):'';
+  // כל הרכישות מהתעודות: מחיר נטו ליחידה (לפני מע"מ, אחרי הנחה), מחירון והנחה
+  const groups={};
   dels.forEach(d=>{
-    d.items.forEach(it=>{
-      if(!it.product||!it.price)return;
-      const k=it.product+'|'+d.sup;
-      if(!dynPrices[k]||d.date>dynPrices[k].date)
-        dynPrices[k]={price:it.price,date:d.date};
+    (d.items||[]).forEach(it=>{
+      const qty=+it.qty||0, price=+it.price||0, tot=+it.total||0, disc=+it.discount||0;
+      if(!it.product||!price||qty<=0)return;
+      let net=price, list=0;
+      if(disc>0&&disc<100){
+        if(tot>0&&Math.abs(price*qty*(1-disc/100)-tot)<=Math.max(1,tot*0.01)){ list=price; net=tot/qty; }   // המחיר שנרשם הוא מחירון
+        else { net=price; list=price/(1-disc/100); }                                                          // המחיר שנרשם כבר אחרי הנחה
+      } else if(tot>0&&Math.abs(tot-price*qty)>Math.max(1,tot*0.01)) net=tot/qty;
+      const k=pn(it.product)+'|'+d.sup;
+      (groups[k]=groups[k]||{prod:it.product,sup:d.sup,buys:[]}).buys.push({date:d.date||'',doc:d.doc||'',qty,net,list,disc,name:it.product});
     });
   });
-
-  // מיזוג: PRICES הסטטי + dynPrices (dynPrices מנצח אם עדכני יותר)
-  const merged={};
+  const rows=[];
+  Object.values(groups).forEach(g=>{
+    g.buys.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    g.prod=g.buys[0].name; g.last=g.buys[0]; rows.push(g);
+  });
+  // מחירון ישן (קבוע) — רק למוצרים שאין להם תעודות
+  const have=new Set(Object.keys(groups));
   Object.entries(PRICES).forEach(([k,p])=>{
     const [prod,s]=k.split('|');
-    merged[k]={prod,sup:s,price:p,date:dynPrices[k]?.date||''};
+    if(!have.has(pn(prod)+'|'+s)) rows.push({prod,sup:s,buys:[],last:{date:'',net:p,list:0,disc:0},old:true});
   });
-  Object.entries(dynPrices).forEach(([k,v])=>{
-    const [prod,s]=k.split('|');
-    if(!merged[k]) merged[k]={prod,sup:s,price:v.price,date:v.date};
-    else if(v.date>=(merged[k].date||'')) merged[k].price=v.price;
-  });
-
   const knownSups=['עמיר','המשביר','דשנים ICL','טיב כימיקלים'];
-  const res=Object.values(merged)
-    .filter(r=>r.prod.toLowerCase().includes(q)&&(!sup||r.sup===sup))
+  const res=rows.filter(r=>(r.prod.toLowerCase().includes(q)||pn(r.prod).includes(pn(q)))&&(!sup||r.sup===sup))
     .sort((a,b)=>a.prod.localeCompare(b.prod,'he'));
-
+  const money=v=>'₪'+(+v).toFixed(v>=100?0:2);
   tbody.innerHTML=res.slice(0,100).map(r=>{
     const cls=r.sup==='עמיר'?'bdg-b':r.sup==='המשביר'?'bdg-r':knownSups.includes(r.sup)?'bdg-o':'bdg-g';
+    const L=r.last;
+    const listTxt=L.disc>0?`<div style="font-size:11px;color:#e65100;font-weight:400">מחירון ${money(L.list)} · הנחה ${+L.disc}%</div>`:'';
+    const recent=r.buys.slice(0,3);
+    // פער: רכישות בטווח של 60 יום עם הבדל של יותר מ-5%
+    let gap='';
+    if(recent.length>1){
+      const near=recent.filter(b=>b.date&&L.date&&(new Date(L.date)-new Date(b.date))/864e5<=60);
+      const mx=Math.max(...near.map(b=>b.net)), mn=Math.min(...near.map(b=>b.net));
+      if(near.length>1&&mx>mn*1.05) gap=`<div style="margin-top:3px;font-size:11px;background:#fff3e0;color:#b45309;border-radius:6px;padding:2px 6px;display:inline-block">⚠️ פער ${money(mx-mn)} ליחידה בין רכישות קרובות</div>`;
+    }
+    const hist=recent.length?recent.map(b=>`<div style="white-space:nowrap">${fmtD(b.date)} · <b>${money(b.net)}</b>${b.disc>0?` <span style="color:#e65100">(-${+b.disc}%)</span>`:''} <span style="color:#999">×${+b.qty.toFixed(2)}</span></div>`).join('')+gap
+      :'<span style="color:#aaa">מחירון ישן</span>';
     return `<tr>
-      <td><strong>${r.prod}</strong></td>
+      <td><strong>${r.prod}</strong>${r.buys.length>3?`<div style="font-size:11px;color:#999">${r.buys.length} רכישות</div>`:''}</td>
       <td><span class="bdg ${cls}">${r.sup}</span></td>
-      <td style="font-weight:700;color:var(--gm)">₪${r.price.toFixed(2)}</td>
-      <td style="color:#777;font-size:13px">${r.date?new Date(r.date).toLocaleDateString('he-IL'):''}</td>
+      <td style="font-weight:700;color:var(--gm)">${money(L.net)}${listTxt}</td>
+      <td style="color:#777;font-size:13px">${fmtD(L.date)}</td>
+      <td style="font-size:12px;line-height:1.6">${hist}</td>
     </tr>`;
-  }).join('')||'<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--grayM)">לא נמצאו תוצאות</td></tr>';
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--grayM)">לא נמצאו תוצאות</td></tr>';
 }
 
 
