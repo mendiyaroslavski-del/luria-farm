@@ -1326,6 +1326,7 @@ body{font-family:'Heebo',sans-serif;background:var(--cream);color:var(--text);di
         ✕ נקה פילטרים
       </button>
       <span id="spr-result-count" style="font-size:12px;color:#888;margin-right:8px"></span>
+      <button onclick="sprPdf()" style="background:#1b5e20;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;margin-right:6px;font-weight:700">📄 הפק PDF</button>
     </div>
     <!-- פאנל חיפוש מתקדם -->
     <div id="spr-adv-panel" style="display:none;background:#f0faf0;border:1px solid #c5e1c5;border-radius:var(--rs);padding:12px;margin-bottom:10px">
@@ -6315,6 +6316,7 @@ function renderSprays(){
     return true;
   });
 
+  window._sprLastFiltered=filtered;
   // Group by appId
   const groups={};
   filtered.forEach(s=>{
@@ -6399,11 +6401,81 @@ function renderSprays(){
       <td>${g.speed?g.speed+' קמ"ש':'—'}</td>
       <td>${phytems||'—'}</td>
       <td style="white-space:nowrap">
+        <button onclick="sprPdf(${g.appId})" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 4px" title="הפק PDF לישום זה">📄</button>
         <button onclick="openEditSpr(${g.appId})" style="background:none;border:none;cursor:pointer;color:#1565c0;font-size:16px;padding:2px 4px" title="ערוך ישום">✏️</button>
         <button onclick="deleteApp(${g.appId})" style="background:none;border:none;cursor:pointer;color:#e53935;font-size:16px;padding:2px 4px" title="מחק ישום">🗑</button>
       </td>
     </tr>`;
   }).join('')||'<tr><td colspan="10" style="text-align:center;padding:16px;color:var(--grayM)">אין ריסוסים</td></tr>';
+}
+
+// ═══ PDF — תיעודי ריסוס (רשימה מסוננת או ישום בודד) ═══
+function sprPdf(appId){
+  const src = appId!=null ? sprs.filter(s=>(s.appId||s.id)===appId) : (window._sprLastFiltered||sprs);
+  if(!src.length){ toast('אין ריסוסים להפקה'); return; }
+  const groups={};
+  src.forEach(s=>{
+    const key=s.appId||s.id;
+    if(!groups[key]) groups[key]={date:s.date,op:s.op,pest:s.pest||'',tank:s.tank,numTanks:s.numTanks,totalLiters:s.totalLiters,area:s.area,dunam:s.dunam,speed:s.speed,notes:s.notes,tractorsData:s.tractorsData||null,mats:[]};
+    groups[key].mats.push(s);
+  });
+  const apps=Object.values(groups).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const n=v=>v%1===0?v:parseFloat((+v).toFixed(3));
+  const dmy=d=>d?d.split('-').reverse().join('/'):'—';
+  const tankStr=g=>{
+    if(g.tractorsData&&g.tractorsData.length>1) return g.tractorsData.map((t,i)=>t.numTanks?`טרקטור ${i+1}: ${t.numTanks}×${t.tank}ל׳`:'').filter(Boolean).join(' · ');
+    return (g.tank?g.tank+' ל׳':'—')+(g.numTanks?` × ${g.numTanks} מיכלים`:'');
+  };
+  const one = apps.length===1 && appId!=null;
+  let body='';
+  // סיכום
+  const totCost=apps.reduce((s,g)=>s+g.mats.reduce((ss,m)=>ss+(m.totalCost||0),0),0);
+  const totDun=apps.reduce((s,g)=>s+(parseFloat(g.dunam)||0),0);
+  const totL=apps.reduce((s,g)=>s+(+g.totalLiters||0),0);
+  if(!one){
+    const f=[];
+    const v=id=>(document.getElementById(id)?.value||'').trim();
+    if(v('spr-search')) f.push('חיפוש: '+v('spr-search'));
+    if(v('spr-f-area')) f.push('שטח: '+v('spr-f-area'));
+    if(v('spr-f-mat')) f.push('חומר: '+v('spr-f-mat'));
+    if(v('spr-f-op')) f.push('מרסס: '+v('spr-f-op'));
+    if(v('spr-f-year')) f.push('שנה: '+v('spr-f-year'));
+    if(v('spr-f-from')||v('spr-f-to')) f.push('תאריכים: '+(v('spr-f-from')?dmy(v('spr-f-from')):'…')+' – '+(v('spr-f-to')?dmy(v('spr-f-to')):'…'));
+    body+=`<div style="font-size:12px;color:#555;margin:-4px 0 10px">${f.length?'סינון: '+f.join(' · '):'כל הריסוסים'} · תקופה: ${dmy(apps[0].date)} – ${dmy(apps[apps.length-1].date)}</div>`;
+    body+=_sboxes([[apps.length,'ישומים'],[totDun?totDun.toFixed(1):'—','דונם מרוסס'],[totL?totL.toLocaleString():'—','ליטר תרסיס'],...(totCost>0?[['₪'+_fmt(totCost,0),'עלות חומרים']]:[])]);
+  }
+  apps.forEach((g,idx)=>{
+    const cost=g.mats.reduce((s,m)=>s+(m.totalCost||0),0);
+    const phy=[...new Set(g.mats.map(m=>m.phytem).filter(Boolean))].join(', ');
+    body+=`<div style="border:1.5px solid #a5d6a7;border-radius:8px;padding:10px 12px;margin:0 0 12px;page-break-inside:avoid">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #c8e6c9;padding-bottom:5px;margin-bottom:7px">
+        <div style="font-weight:800;font-size:14px;color:#1b5e20">${one?'':'#'+(idx+1)+' · '}${dmy(g.date)} <span style="font-weight:600;font-size:12px;color:#558b2f">${g.date?toHebrewDateWords(g.date):''}</span></div>
+        <div style="font-weight:700;font-size:13px">${g.area||'—'}${g.dunam?' · '+g.dunam+' דונם':''}</div>
+      </div>
+      <table style="margin-bottom:6px"><tbody><tr>
+        <td style="width:25%"><span style="color:#777;font-size:10px">מרסס</span><br><b>${g.op||'—'}</b></td>
+        <td style="width:25%"><span style="color:#777;font-size:10px">מזיק / מטרה</span><br><b style="color:#c62828">${g.pest||'—'}</b></td>
+        <td style="width:25%"><span style="color:#777;font-size:10px">מיכל</span><br><b>${tankStr(g)}</b></td>
+        <td style="width:25%"><span style="color:#777;font-size:10px">סה״כ תרסיס</span><br><b>${g.totalLiters?(+g.totalLiters).toLocaleString()+' ל׳':'—'}</b>${g.speed?`<br><span style="font-size:10px">מהירות ${g.speed} קמ״ש</span>`:''}</td>
+      </tr></tbody></table>
+      <table><thead><tr><th>חומר</th><th class="amnt">מינון ל-1000 ל׳</th><th class="amnt">כמות כוללת</th><th class="amnt">מחיר ליח׳</th><th class="amnt">עלות</th></tr></thead><tbody>
+      ${g.mats.map(m=>{
+        const dose=m.basisLiters===1000?m.qty:(m.qty?parseFloat((m.qty*10).toPrecision(4)):0);
+        return `<tr><td><b>${m.mat||''}</b>${m.phytem?`<br><span style="font-size:10px;color:#7b1fa2">פיטם: ${m.phytem}</span>`:''}</td>
+          <td class="amnt">${dose?n(dose)+' '+(m.unit||''):'—'}</td>
+          <td class="amnt" style="font-weight:700;color:#1a237e">${m.totalQty?n(m.totalQty)+' '+(m.unit||''):'—'}</td>
+          <td class="amnt">${m.unitPrice?'₪'+_fmt(+m.unitPrice,2):'—'}</td>
+          <td class="amnt" style="color:#2e7d32">${m.totalCost?'₪'+_fmt(m.totalCost,0):'—'}</td></tr>`;
+      }).join('')}
+      ${cost?`<tr style="background:#f1f8e9"><td colspan="4"><b>סה״כ עלות ישום</b>${g.dunam?` <span style="font-size:10px;color:#555">(₪${_fmt(cost/(parseFloat(g.dunam)||1),1)} לדונם)</span>`:''}</td><td class="amnt" style="font-weight:800;color:#1b5e20">₪${_fmt(cost,0)}</td></tr>`:''}
+      </tbody></table>
+      ${phy?`<div style="font-size:11px;margin-top:5px">🌸 ישום פיטם: ${phy}</div>`:''}
+      ${g.notes?`<div style="font-size:11px;margin-top:5px;color:#444">📝 ${g.notes}</div>`:''}
+      ${one?`<div style="display:flex;gap:30px;margin-top:28px;font-size:12px"><div style="flex:1;border-top:1px solid #333;padding-top:4px">חתימת המרסס: ${g.op||''}</div><div style="flex:1;border-top:1px solid #333;padding-top:4px">חתימת האחראי</div></div>`:''}
+    </div>`;
+  });
+  const title = one ? 'תיעוד ריסוס' : 'תיעודי ריסוס';
+  _openReport(title, body, one ? `אתרוגי לוריא בע"מ | ח.פ. 516151610 | ${apps[0].area||''} | ${dmy(apps[0].date)}` : undefined);
 }
 
 function deleteApp(appId){
