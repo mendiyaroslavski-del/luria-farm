@@ -7439,7 +7439,7 @@ function loadSINV(){
 let sinv = loadSINV();
 
 function initSInvTab(){
-  sinv = loadSINV();
+  sinvRecalc();
   const dbg=document.getElementById('sinv-debug');
   if(dbg){
     const sinvRaw=localStorage.getItem(K.SINV)||'ריק';
@@ -7548,9 +7548,11 @@ function sinvAdd(mode){
   if(!prod){toast('⚠️ יש למלא שם חומר');return;}
   if(!qtyRaw||isNaN(qty)||qty<=0){toast('⚠️ יש למלא כמות');return;}
 
+  sinvRecalc();
   let it=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
-  if(!it){ it={name:prod,unit,stock:0,threshold:0,lastUpdated:''}; sinv.push(it); }
-  it.stock = mode==='open' ? qty : parseFloat(((it.stock||0)+qty).toFixed(3));
+  if(!it){ it={name:prod,unit,stock:0,base:0,baseAt:Date.now(),threshold:0,lastUpdated:''}; sinv.push(it); }
+  if(mode==='open'){ it.base=qty; it.baseAt=Date.now(); it.stock=qty; }        // ספירת מלאי — נקודת פתיחה חדשה
+  else { it.base=parseFloat(((+it.base||0)+qty).toFixed(3)); it.stock=parseFloat(((it.stock||0)+qty).toFixed(3)); }
   it.unit=unit;
   if(thr>0) it.threshold=thr;
   it.lastUpdated=new Date().toISOString().slice(0,10);
@@ -7598,34 +7600,102 @@ function sinvSetThr(name){
   it.threshold=n; saveSINV(sinv); renderSInv();
 }
 
-function sinvDeductSpray(mats, appDate){
-  if(!mats||!mats.length) return;
-  let changed=false;
-  mats.forEach(m=>{
-    if(!m.mat||!m.qty) return; // מאפשר גם ערכים שליליים (החזרת מלאי) — רק מסנן 0/ריק
-    const it=sinv.find(x=>x.name===m.mat||productMatchesMat(x.name,m.mat));
-    if(!it) return;
-    it.stock=parseFloat(Math.max(0,(it.stock||0)-m.qty).toFixed(3));
-    it.lastUpdated=appDate||new Date().toISOString().slice(0,10);
-    changed=true;
+// ═══ מלאי ריסוס — חישוב לפי תנועות (לא תלוי בסדר ההקלדה) ═══
+// מלאי = ספירה אחרונה (base) + קבלות + תעודות משלוח שלא נרשמו בקבלה − ריסוסים,
+// לכל תנועה שנרשמה במערכת אחרי הספירה. כך קבלה שנרשמת באיחור (עם תאריך מוקדם) מתקנת את המלאי,
+// ותעודת משלוח שהגיעה עם החשבונית נכנסת למלאי גם אם לא נרשמה ביומן הקבלה.
+let _sinvEv = {};
+function _tsOf(id){ const m=String(id==null?'':id).match(/\d{13}/); return m?+m[0]:0; }
+function _toBase(prod, qty, unit, itemUnit){
+  qty=+qty||0; if(!qty) return 0;
+  const u=String(unit||''), iu=String(itemUnit||'');
+  const pkg=parsePackageSize(prod||'');
+  if((u===''||/יח|בקבוק|שק|קרטון|מיכל|דלי|ג'ריקן|גריקן/.test(u)) && pkg.size>1 && !/יח/.test(iu)) return qty*pkg.size;
+  return qty;
+}
+function _sinvItemFor(list, name){
+  if(!name) return null;
+  return list.find(x=>x.name===name) || list.find(x=>productMatchesMat(x.name,name)) || null;
+}
+function sinvRecalc(){
+  sinv = loadSINV();
+  if(!sinv.length){ _sinvEv={}; return; }
+  const now=Date.now(); let changed=false;
+  sinv.forEach(it=>{ if(it.baseAt==null){ it.base=+it.stock||0; it.baseAt=now; changed=true; } });
+  const st={}, ev={};
+  sinv.forEach(it=>{ st[it.name]=+it.base||0; ev[it.name]=[]; });
+  const R_=(typeof rcvs!=='undefined'?rcvs:[]).filter(r=>r&&r.prod&&r.track!==false);
+  R_.forEach(r=>{
+    const it=_sinvItemFor(sinv,r.prod); if(!it||_tsOf(r.id)<=it.baseAt) return;
+    const q=_toBase(r.prod,r.qty,r.unit,it.unit); if(!q) return;
+    st[it.name]+=q; ev[it.name].push({d:r.date||'',q,lab:'📥 קבלה'+(r.sup?' · '+r.sup:'')});
   });
-  if(changed){ saveSINV(sinv); renderSInv(); }
+  (typeof sprs!=='undefined'?sprs:[]).forEach(sp=>{
+    const it=_sinvItemFor(sinv,sp.mat); if(!it||_tsOf(sp.appId||sp.id)<=it.baseAt) return;
+    const q=sp.totalQty!=null?+sp.totalQty:(+sp.qty||0); if(!q) return;
+    st[it.name]-=q; ev[it.name].push({d:sp.date||'',q:-q,lab:'💧 ריסוס'+(sp.area?' · '+sp.area:'')});
+  });
+  // תעודות משלוח שנכנסו אחרי הספירה — אלא אם אותה סחורה כבר נרשמה ביומן הקבלה
+  const cand=[];
+  (typeof dels!=='undefined'?dels:[]).forEach(d=>{
+    const t=d.ts||_tsOf(d.id);
+    (d.items||[]).forEach(x=>{
+      const it=_sinvItemFor(sinv,x.product); if(!it||t<=it.baseAt) return;
+      const minDate=new Date(it.baseAt-45*864e5).toISOString().slice(0,10);
+      if(!d.date||d.date<minDate) return;            // ייבוא היסטורי ישן — כבר כלול בספירה
+      const q=_toBase(x.product,x.qty,x.unit,it.unit); if(q<=0) return;
+      cand.push({d,it,q,cov:null});
+    });
+  });
+  const used=new Set();
+  const supOk=(r,d)=>!r.sup||!d.sup||String(r.sup).includes(d.sup)||String(d.sup).includes(r.sup);
+  const dd=(r,d)=>Math.abs((new Date(r.date)-new Date(d.date))/864e5);
+  const pass=(ok)=>cand.forEach(c=>{
+    if(c.cov) return;
+    const opts=R_.filter(r=>!used.has(r.id)&&r.date&&_sinvItemFor(sinv,r.prod)===c.it&&supOk(r,c.d)&&ok(r,c))
+      .sort((a,b)=>dd(a,c.d)-dd(b,c.d));
+    if(opts.length){ c.cov=opts[0]; used.add(opts[0].id); }
+  });
+  pass((r,c)=>dd(r,c.d)<=14&&Math.abs(_toBase(r.prod,r.qty,r.unit,c.it.unit)-c.q)<0.01);   // אותה כמות, עד שבועיים
+  pass((r,c)=>dd(r,c.d)<=3);                                                              // אותו מוצר, עד 3 ימים
+  cand.forEach(c=>{ if(c.cov) return; st[c.it.name]+=c.q; ev[c.it.name].push({d:c.d.date,q:c.q,lab:'🚚 תעודת משלוח '+(c.d.doc||'')+(c.d.sup?' · '+c.d.sup:'')}); });
+  sinv.forEach(it=>{ const v=parseFloat(st[it.name].toFixed(3)); if(v!==it.stock){ it.stock=v; changed=true; } });
+  _sinvEv=ev;
+  if(changed) saveSINV(sinv);
+}
+function sinvHistory(name){
+  sinvRecalc();
+  const it=sinv.find(x=>x.name===name); if(!it) return;
+  const ev=(_sinvEv[name]||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||''));
+  let run=+it.base||0;
+  const fmt=v=>(v%1===0?v:v.toFixed(2));
+  const rows=ev.map(e=>{ run+=e.q; return `<tr><td style="white-space:nowrap">${e.d?e.d.split('-').reverse().join('/'):''}</td><td>${e.lab}</td><td style="text-align:left;direction:ltr;color:${e.q<0?'#c62828':'#2e7d32'};font-weight:700">${e.q>0?'+':''}${fmt(e.q)}</td><td style="text-align:left;direction:ltr;font-weight:700;color:${run<0?'#c62828':'#333'}">${fmt(run)}</td></tr>`; }).join('');
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:#0007;z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+  d.onclick=e=>{ if(e.target===d) d.remove(); };
+  d.innerHTML=`<div style="background:#fff;border-radius:12px;padding:16px;max-width:520px;width:100%;max-height:85vh;overflow:auto">
+    <div style="font-weight:800;color:#1b5e20;margin-bottom:4px">📜 ${name}</div>
+    <div style="font-size:12px;color:#666;margin-bottom:10px">ספירה / נקודת פתיחה: <b>${fmt(+it.base||0)} ${it.unit||''}</b> (${new Date(it.baseAt).toLocaleDateString('he-IL')}) — ומאז לפי תאריך:</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#e8f5e9"><th style="text-align:right;padding:4px">תאריך</th><th style="text-align:right">תנועה</th><th>כמות</th><th>יתרה</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:#999;padding:12px">אין תנועות מאז הספירה</td></tr>'}</tbody></table>
+    <div style="font-size:11px;color:#888;margin-top:8px">יתרה שלילית באמצע = ריסוס שנרשם לפני שנרשמה הקבלה. זה לא משפיע על המלאי הסופי — הקבלה מתקנת אותו לבד.</div>
+    <button class="btn btnP" style="width:100%;margin-top:10px;padding:9px" onclick="this.closest('div[style*=fixed]').remove()">סגור</button></div>`;
+  document.body.appendChild(d);
+}
+function sinvDeductSpray(mats, appDate){
+  // הריסוס כבר נשמר — המלאי מחושב מחדש מכל התנועות (גם עריכה ומחיקה)
+  sinvRecalc(); renderSInv();
 }
 
-// מחיל שינוי (חיובי=הוספה, שלילי=הפחתה) על מלאי חומר ריסוס לפי שם מוצר.
-// ההחלטה אם לעדכן מלאי בכלל נעשית קודם ע"י תיבת הסימון "עדכן מלאי" (track) בקריאה,
-// כאן רק מבצעים את השינוי בפועל.
+// קבלה חדשה / עריכה / מחיקה: רק מוודא שהמוצר קיים במלאי — הכמות עצמה מחושבת מהתנועות
 function _sinvApplyReceiptDelta(prod, deltaQty, unit, date){
-  if(!prod || !deltaQty) return;
-  let rec=sinv.find(x=>x.name===prod||productMatchesMat(x.name,prod));
-  if(!rec){
-    if(deltaQty<0) return; // אין ממה להפחית אם המוצר לא קיים במלאי
-    rec={name:prod,unit:unit||'יח\u05f3',stock:0,threshold:0,lastUpdated:date};
-    sinv.push(rec);
+  if(!prod) return;
+  sinv = loadSINV();
+  if(deltaQty>0 && !_sinvItemFor(sinv,prod)){
+    sinv.push({name:prod,unit:unit||'יח׳',stock:0,base:0,baseAt:Date.now()-120000,threshold:0,lastUpdated:date});
+    saveSINV(sinv);
   }
-  rec.stock=parseFloat(Math.max(0,(rec.stock||0)+deltaQty).toFixed(3));
-  if(!rec.unit&&unit) rec.unit=unit;
-  rec.lastUpdated=date;
+  setTimeout(()=>{ sinvRecalc(); renderSInv(); _sinvShowAlerts(); },0);
 }
 
 function sinvAddFromReceipt(items, date){
@@ -7635,12 +7705,11 @@ function sinvAddFromReceipt(items, date){
     if(it.track===false) return; // המשתמש סימן שלא לעדכן מלאי עבור מוצר זה
     _sinvApplyReceiptDelta(it.prod, it.qty, it.unit, date);
   });
-  saveSINV(sinv); renderSInv();
 }
 
 function renderSInv(){
-  // תמיד טען מ-localStorage — מבטיח עדכניות גם אחרי רפרש
-  sinv = loadSINV();
+  // מחשב מחדש מכל התנועות (קבלות, תעודות, ריסוסים) — מבטיח עדכניות גם אחרי סנכרון
+  sinvRecalc();
   const tbody=document.getElementById('sinv-body');
   if(!tbody) return;
   const q=(document.getElementById('sinv-search')?.value||'').toLowerCase();
@@ -7657,7 +7726,8 @@ function renderSInv(){
   tbody.innerHTML=rows.map(it=>{
     const s=it.stock||0, thr=it.threshold||0;
     let icon='\u2705',col='#2e7d32',lbl='תקין';
-    if(s<=0){icon='\ud83d\udd34';col='#c62828';lbl='אזל!';}
+    if(s<0){icon='\ud83d\udd34';col='#c62828';lbl='שלילי — חסרה קבלה?';}
+    else if(s<=0){icon='\ud83d\udd34';col='#c62828';lbl='אזל!';}
     else if(thr>0&&s<=thr){icon='\u26a0\ufe0f';col='#e65100';lbl='נמוך';}
     const avg=_sinvAvg(it.name);
     const apps=avg>0&&s>0?`<div style="font-size:10px;color:#888">\u2248${Math.floor(s/avg)} ישומים</div>`:'';
@@ -7670,8 +7740,8 @@ function renderSInv(){
     }
     const n=it.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<tr>
-      <td><strong>${it.name}</strong>${apps}</td>
-      <td style="font-weight:700;color:${col}">${s%1===0?s:s.toFixed(2)}${bottlesTag}</td>
+      <td><strong>${it.name}</strong> <span onclick="sinvHistory('${n}')" style="cursor:pointer;font-size:13px" title="היסטוריית תנועות">📜</span>${apps}</td>
+      <td style="font-weight:700;color:${col};direction:ltr;text-align:right">${s%1===0?s:s.toFixed(2)}${bottlesTag}</td>
       <td style="font-size:12px">${it.unit||'\u2014'}</td>
       <td style="font-size:12px;color:#1565c0;cursor:pointer" ontouchstart="sinvSetThr('${n}')" onclick="sinvSetThr('${n}')">${thr||'\u2014'} \u270f\ufe0f</td>
       <td style="color:${col};font-size:12px">${icon} ${lbl}</td>
